@@ -89,14 +89,6 @@ contract UniqueValidator is Validator {
         if (!IVault(details.vault).verifyLoanSignature(keccak256(nlr.details), nlr.v, nlr.r, nlr.s)) {
             revert ("Invalid Signature for loan");
         }
-
-
-        // ConduitItemType itemType;
-        //    address token;
-        //    address from;
-        //    address to;
-        //    uint256 identifier;
-        //    uint256 amount;
         return (
         ConduitTransfer(
             ConduitItemType.ERC20,
