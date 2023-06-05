@@ -4,6 +4,7 @@ out = "out"
 libs = ["lib"]
 remappings = [
     'solmate/=lib/solmate/src/',
+    'seaport/=lib/seaport/',
     'seaport-types/=lib/seaport/lib/seaport-types/',
     'seaport-core/=lib/seaport/lib/seaport-core/',
 ]
