@@ -54,7 +54,6 @@ interface Validator {
     }
 
     function execute(LoanManager.NewLoanRequest calldata nlr, address token, uint256 identifier) external returns (Loan memory);
-
 }
 
 contract UniqueValidator is Validator {
@@ -112,12 +111,10 @@ contract UniqueValidator is Validator {
 }
 
 contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, AmountDeriver, IERC721Receiver {
-    uint256 private constant OUTOFBOUND_ERROR_SELECTOR =
-    0x571e08d100000000000000000000000000000000000000000000000000000000;
-    uint256 private constant ONE_WORD = 0x20;
 
     using FixedPointMathLib for uint256;
-
+    uint256 private constant OUTOFBOUND_ERROR_SELECTOR = 0x571e08d100000000000000000000000000000000000000000000000000000000;
+    uint256 private constant ONE_WORD = 0x20;
 
     enum Action {
         OPEN,
@@ -129,7 +126,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         address what;
         uint256 howMuch;
     }
-
     struct NewLoanRequest {
         uint256 deadline;
         address validator;
@@ -139,50 +135,25 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         bytes32 r;
         bytes32 s;
     }
-
     event LoanOpened(uint256 indexed loanId, Validator.Loan loan);
     event LoanRepaid(uint256 indexed loanId);
     event LoanLiquidated(uint256 indexed loanId, uint256 amount);
 
-
     mapping(uint256 => bytes32) public collateralState;
-
-    mapping(address => mapping(address => uint256)) public liabilities; //vault / weth / negative balance
-
-    ConduitControllerInterface public CI;
-
-    ConsiderationInterface public seaport;
-
-    ConduitInterface public conduit;
-    bytes32 public conduitKey;
+    address public seaport;
 
     constructor(address consideration) {
-        seaport = ConsiderationInterface(consideration);
-        (, , address conduitController) = seaport.information();
-        CI = ConduitControllerInterface(conduitController);
-
-        conduitKey = Bytes32AddressLib.fillLast12Bytes(address(this));
-
-        conduit = ConduitInterface(CI.createConduit(conduitKey, address(this)));
-        CI.updateChannel(
-            address(conduit),
-            address(seaport),
-            true
-        );
+        seaport = consideration;
     }
-
-
-
 
     // MODIFIERS
 
     modifier onlySeaport {
-        if (msg.sender != address(seaport)) {
+        if (msg.sender != seaport) {
             revert("Invalid Conduit");
         }
         _;
     }
-
 
     // PUBLIC FUNCTIONS
 
@@ -219,9 +190,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
                 revert("loan deadline passed");
             }
 
-//            offer = new SpentItem[](1);
-//            offer[0] = minimumReceived[0];
-
             consideration = new ReceivedItem[](1);
             consideration[0] = ReceivedItem({
             itemType : ItemType.ERC721,
@@ -231,7 +199,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             recipient : payable(address(this))
             });
         } else if (action == uint8(Action.REPAY)) {
-            (, Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
+            (,Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
 
             offer = new SpentItem[](1);
 
@@ -426,7 +394,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             if (collateralState[loanId] != 0) {
                 revert("asset in use");
             }
-            liabilities[loan.vault][loan.debtToken] += loan.amount;
             collateralState[loanId] = keccak256(abi.encode(loanId, loan));
             _safeMint(ERC721(loan.token).ownerOf(loan.identifier), loanId);
             emit LoanOpened(loanId, loan);
@@ -441,10 +408,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         if (hash != collateralState[loanId]) {
             revert("invalid loan");
         }
-    unchecked {
-        liabilities[loan.vault][loan.debtToken] -= loan.amount;
-    }
-
         _clearLoanId(loanId);
         emit LoanRepaid(loanId);
     }
@@ -469,18 +432,9 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         if (amount < _locateCurrentAmount({startAmount : loan.initialAsk, endAmount : 1000 wei, startTime : loan.end, endTime : loan.end + 24 hours, roundUp : true})) {
             revert("invalid amount");
         }
-        liabilities[loan.vault][debtToken] -= loan.amount;
         _burn(loanId);
         delete collateralState[loanId];
         emit LoanLiquidated(loanId, amount);
-    }
-
-    function _getInterest(
-        Validator.Loan calldata loan,
-        uint256 timestamp
-    ) internal pure returns (uint256) {
-        uint256 delta_t = timestamp - loan.end;
-        return (delta_t * loan.rate).mulWadDown(loan.amount);
     }
 
     function _getInterestMemory(
