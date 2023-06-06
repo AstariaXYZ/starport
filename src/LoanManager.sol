@@ -1,8 +1,6 @@
 pragma solidity =0.8.17;
 
 import {ERC721} from "solmate/tokens/ERC721.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
-import {Bytes32AddressLib} from "solmate/utils/Bytes32AddressLib.sol";
 
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem, OrderParameters} from "seaport-types/src/lib/ConsiderationStructs.sol";
@@ -36,24 +34,21 @@ interface IERC721Receiver {
     ) external returns (bytes4);
 }
 
-interface IVault {
-    function verifyAndExecute(bytes32 loanHash, uint8 v, bytes32 r, bytes32 s, ConduitTransfer calldata) external returns (bool);
-}
 
 interface Validator {
     struct Loan {
+        address borrower;
         address validator;
         address token;
         uint256 identifier;
         address debtToken;
-        address vault;
         uint256 amount;
         uint256 rate;
-        uint256 end;
-        uint256 initialAsk;
+        uint256 start;
+        uint256 duration;
     }
 
-    function execute(LoanManager.NewLoanRequest calldata nlr, address token, uint256 identifier) external returns (Loan memory);
+    function execute(LoanManager.NewLoanRequest calldata nlr, address token, uint256 identifier) external returns (Loan memory, address lender);
 
     function getOwed(Loan calldata loan) external view returns (uint256);
 
@@ -62,71 +57,85 @@ interface Validator {
 
 contract UniqueValidator is Validator {
 
+    error InvalidDeadline();
+    error InvalidValidator();
+    error InvalidCollateral();
+    error InvalidBorrowAmount();
+
+    error LoanHealthy();
     struct Details {
-        address vault;
+        address validator;
+        uint256 deadline;
+        address conduit;
         address token;
         uint256 tokenId;
         uint256 maxAmount;
         uint256 rate; //rate per second
         uint256 duration;
-        uint256 initialAsk;
     }
 
 
-    function execute(LoanManager.NewLoanRequest calldata nlr, address tokenContract, uint256 identifier) external override returns (Loan memory) {
+    function execute(LoanManager.NewLoanRequest calldata nlr, address tokenContract, uint256 identifier) external override returns (Loan memory, address strategist) {
 
-        if (address(this) != nlr.validator) {
-            revert("Invalid Validator");
-        }
 
         Details memory details = abi.decode(nlr.details, (Details));
 
+        if (address(this) != details.validator) {
+            revert InvalidValidator();
+        }
+        if (block.timestamp > details.deadline) {
+            revert InvalidDeadline();
+        }
         if (details.token != tokenContract || details.tokenId != identifier) {
-            revert("Invalid Token");
+            revert InvalidCollateral();
         }
 
         if (nlr.borrowerDetails.howMuch > details.maxAmount) {
-            revert ("Invalid Borrow Amount");
+            revert InvalidBorrowAmount();
         }
-        if (!IVault(details.vault).verifyAndExecute(keccak256(nlr.details), nlr.v, nlr.r, nlr.s, ConduitTransfer(
-                ConduitItemType.ERC20,
-                nlr.borrowerDetails.what,
-                details.vault,
-                nlr.borrowerDetails.who,
-                0,
-                nlr.borrowerDetails.howMuch
-            ))) {
-            revert ("Invalid Signature for loan");
-        }
+
+         strategist = ecrecover(keccak256(nlr.details), nlr.v, nlr.r, nlr.s);
+
+
+        ConduitTransfer[] memory transfers = new ConduitTransfer[](1);
+        transfers[0] = ConduitTransfer(
+            ConduitItemType.ERC20,
+            nlr.borrowerDetails.what,
+            strategist,
+            nlr.borrowerDetails.who,
+            0,
+            nlr.borrowerDetails.howMuch
+        );
+        ConduitInterface(details.conduit).execute(transfers);
         return (
-        Loan({
-        validator : address(this),
-        token : details.token,
-        identifier : details.tokenId,
-        debtToken : nlr.borrowerDetails.what,
-        vault : details.vault,
-        amount : nlr.borrowerDetails.howMuch,
-        rate : details.rate,
-        end : block.timestamp + details.duration,
-        initialAsk : details.initialAsk
-        })
+            Loan({
+                borrower: nlr.borrowerDetails.who,
+                validator : address(this),
+                token : details.token,
+                identifier : details.tokenId,
+                debtToken : nlr.borrowerDetails.what,
+                amount : nlr.borrowerDetails.howMuch,
+                rate : details.rate,
+                start : block.timestamp,
+                duration : details.duration
+            }), strategist
         );
     }
 
     function getOwed(Loan calldata loan) public view override returns (uint256) {
-        return loan.amount * loan.rate * (loan.end - block.timestamp);
+        return loan.amount * loan.rate * (loan.start + loan.duration - block.timestamp);
     }
 
     function getLiquidationData(Loan calldata loan) public view returns (uint256, uint256) {
-        if (loan.end < block.timestamp) {
-            revert ("Loan is healthy");
+        if (loan.start + loan.duration < block.timestamp) {
+            revert LoanHealthy();
         }
         //todo dynamic initialask can be a flooracle call or anything youd want to look up here
         return (getOwed(loan), 500 ether);
     }
 }
 
-contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, AmountDeriver, IERC721Receiver {
+contract LoanManager is ERC721("LoanManager", "LM"), AmountDeriver, ContractOffererInterface, IERC721Receiver {
     using FixedPointMathLib for uint256;
     uint256 private constant OUTOFBOUND_ERROR_SELECTOR = 0x571e08d100000000000000000000000000000000000000000000000000000000;
     uint256 private constant ONE_WORD = 0x20;
@@ -143,10 +152,10 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     }
 
     struct NewLoanRequest {
-        uint256 deadline;
+        address lender;
         address validator;
-        BorrowerDetails borrowerDetails;
         bytes details;
+        BorrowerDetails borrowerDetails;
         uint8 v;
         bytes32 r;
         bytes32 s;
@@ -168,7 +177,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     error UnsupportedExtraDataVersion(uint8 version);
     error InvalidExtraDataEncoding(uint8 version);
 
-    mapping(uint256 => bytes32) public collateralState;
     address public seaport;
 
     constructor(address consideration) {
@@ -193,14 +201,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         return string(abi.encodePacked("https://astaria.xyz/loans?id=", tokenId));
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public override {
-        if (msg.sender == seaport && from == address(this)) {
-            _mint(to, tokenId);
-        } else {
-            super.transferFrom(from, to, tokenId);
-        }
-    }
-
     /**
      * @dev previews the order for this contract offerer.
      *
@@ -219,20 +219,11 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        uint8 action = safeCastTo8(_sliceUint(context, 0));
-        if (action == uint8(Action.OPEN)) {
-            (,NewLoanRequest memory nlr) = abi.decode(context, (uint8, NewLoanRequest));
-            if (block.timestamp > nlr.deadline) {
-                revert InvalidDeadline();
-            }
 
-            offer = new SpentItem[](1);
-            offer[0] = SpentItem({
-            itemType : ItemType.ERC721,
-            token : address(this),
-            identifier : uint256(_hashCollateral(maximumSpent[0].token, maximumSpent[0].identifier)),
-            amount : 1
-            });
+        uint8 action = safeCastTo8(_sliceUint(context, 0));
+//        uint8 action = uint8(context[1:]);
+
+        if (action == uint8(Action.OPEN)) {
 
             consideration = new ReceivedItem[](1);
             consideration[0] = ReceivedItem({
@@ -264,7 +255,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             token : loan.debtToken,
             identifier : 0,
             amount : owed,
-            recipient : payable(loan.vault)
+            recipient : payable(ownerOf(uint(_hashCollateral(loan.token, loan.identifier))))
             });
         } else if (action == uint8(Action.LIQUIDATE)) {
             (, Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
@@ -284,14 +275,14 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
                 token : loan.debtToken,
                 identifier : 0,
                 amount : currentPrice,
-                recipient : payable(loan.vault)
+                recipient : payable(ownerOf(uint256(_hashCollateral(loan.token, loan.identifier))))
                 });
                 consideration[1] = ReceivedItem({
                 itemType : ItemType.ERC20,
                 token : loan.debtToken,
                 identifier : 0,
                 amount : minimumReceived[0].amount - currentPrice,
-                recipient : payable(ownerOf(uint256(_hashCollateral(loan.token, loan.identifier))))
+                recipient : payable(loan.borrower)
                 });
             } else {
                 consideration = new ReceivedItem[](1);
@@ -300,7 +291,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
                 token : loan.debtToken,
                 identifier : 0,
                 amount : minimumReceived[0].amount,
-                recipient : payable(loan.vault)
+                recipient : payable(ownerOf(uint256(_hashCollateral(loan.token, loan.identifier))))
                 });
             }
         } else {
@@ -359,7 +350,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     ) onlySeaport external returns (bytes4 ratifyOrderMagicValue) {
         //get the spent token and amount from the spent item
 
-        uint256 action = safeCastTo8(_sliceUint(context, 0));
+        uint8 action = safeCastTo8(_sliceUint(context, 0));
 
         if (action == uint8(Action.OPEN)) {
             _executeLoanOpen(consideration, context);
@@ -374,14 +365,13 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         return ContractOffererInterface.ratifyOrder.selector;
     }
 
+    //do more work here
     function forgive(Validator.Loan calldata loan) public {
         uint256 loanId = uint256(_hashCollateral(loan.token, loan.identifier));
         if (msg.sender != ownerOf(loanId)) {
             revert InvalidSender();
         }
-        if (collateralState[loanId] != 0) {
-            revert StateMismatch(loanId);
-        }
+
         _clearLoanId(loanId);
         ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
     }
@@ -400,7 +390,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     }
 
     function _clearLoanId(uint256 loanId) internal {
-        delete collateralState[loanId];
+
         _burn(loanId);
     }
 
@@ -425,14 +415,10 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     function _executeLoanOpen(ReceivedItem[] calldata consideration, bytes calldata context) internal {
         (,NewLoanRequest memory nlr) = abi.decode(context, (uint8, NewLoanRequest));
         {
-            (Validator.Loan memory loan) = Validator(nlr.validator).execute(nlr, consideration[0].token, consideration[0].identifier);
+            (Validator.Loan memory loan, address lender) = Validator(nlr.validator).execute(nlr, consideration[0].token, consideration[0].identifier);
 
             uint256 loanId = uint256(_hashCollateral(consideration[0].token, consideration[0].identifier));
-
-            if (collateralState[loanId] != 0) {
-                revert StateMismatch(loanId);
-            }
-            collateralState[loanId] = keccak256(abi.encode(loanId, loan));
+            _safeMint(lender, loanId);
             emit LoanOpened(loanId, loan);
         }
     }
@@ -440,11 +426,8 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     function _executeLoanRepay(bytes calldata context) public {
         (, Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
 
-        bytes32 hash = _hashCollateral(loan.token, loan.identifier);
-        uint256 loanId = uint256(hash);
-        if (hash != collateralState[loanId]) {
-            revert StateMismatch(loanId);
-        }
+        uint256 loanId = uint256(_hashCollateral(loan.token, loan.identifier));
+
         _clearLoanId(loanId);
         emit LoanRepaid(loanId);
     }
@@ -452,24 +435,14 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     function _executeLoanLiquidate(SpentItem[] calldata offer, ReceivedItem[] calldata consideration, bytes calldata context) internal {
         address debtToken = consideration[0].token;
         uint256 amount = consideration[0].amount;
-        bytes32 collateralHash = _hashCollateral(offer[0].token, offer[0].identifier);
         (, Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
 
-        uint256 loanId = uint256(collateralHash);
+        uint256 loanId = uint256(_hashCollateral(offer[0].token, offer[0].identifier));
 
-        bytes32 incomingState = keccak256(abi.encode(loanId, loan));
-        if (incomingState != collateralState[loanId]) {
-            revert StateMismatch(loanId);
-        }
-
-        if (loan.end > block.timestamp) {
+        if (loan.start + loan.duration > block.timestamp) {
             revert LoanHealthy();
         }
-        if (amount < _locateCurrentAmount({startAmount : loan.initialAsk, endAmount : 1000 wei, startTime : loan.end, endTime : loan.end + 24 hours, roundUp : true})) {
-            revert InvalidAmount();
-        }
         _burn(loanId);
-        delete collateralState[loanId];
         emit LoanLiquidated(loanId, amount);
     }
 

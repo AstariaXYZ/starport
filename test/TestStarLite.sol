@@ -21,74 +21,72 @@ contract TestToken is MockERC20 {
     constructor() MockERC20("TestToken", "TTKN", 18) {}
 }
 
-contract TestStarLite is BaseOrderTest, IVault {
+contract TestStarLite is BaseOrderTest {
 
 //    address conduit;
     bytes32 conduitKey;
 
     address strategist;
+    uint256 strategistKey;
     address seaportAddr;
     LoanManager LM;
-
+    UniqueValidator UV = new UniqueValidator();
+    TestToken debtToken;
 
     function _deployAndConfigureConsideration() public {
         conduitController = new ConduitController();
         consideration = new Consideration(address(conduitController));
 
+    }
+
+    function setUp() override public {
+
+
+        _deployAndConfigureConsideration();
+        debtToken = new TestToken();
+
+        LM = new LoanManager(address(consideration));
+        UV = new UniqueValidator();
+
+        (strategist, strategistKey) = makeAddrAndKey("strategist");
+        conduitKeyOne = bytes32(uint256(uint160(address(strategist))) << 96);
+        vm.startPrank(strategist);
         //create conduit, update channel
         conduit = Conduit(
-            conduitController.createConduit(conduitKeyOne, address(this))
+            conduitController.createConduit(conduitKeyOne, address(strategist))
+        );
+        debtToken.approve(address(conduit), 100000);
+        debtToken.mint(address(strategist), 1000);
+        conduitController.updateChannel(
+            address(conduit),
+            address(UV),
+            true
         );
         conduitController.updateChannel(
             address(conduit),
             address(consideration),
             true
         );
-        conduitController.updateChannel(
-            address(conduit),
-            address(this),
-            true
-        );
-    }
 
-    function setUp() override public {
-        conduitKeyOne = bytes32(uint256(uint160(address(this))) << 96);
-
-        _deployAndConfigureConsideration();
-
-        LM = new LoanManager(address(consideration));
-
+        vm.stopPrank();
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) public override returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    function verifyAndExecute(bytes32 loanHash, uint8 v, bytes32 r, bytes32 s, ConduitTransfer memory ct) external returns (bool) {
-
-
-        //TODO: eip 712
-        if (strategist == ecrecover(loanHash, v, r, s)) {
-            ConduitTransfer[] memory cts = new ConduitTransfer[](1);
-            cts[0] = ct;
-            Conduit(conduit).execute(cts);
-            return true;
-        }
-        return false;
-    }
-
     function testNewLoan() public {
 
         TestNFT nft = new TestNFT();
-        TestToken debtToken = new TestToken();
 
         vm.label(address(debtToken), "what");
         vm.label(address(1), "borrower");
 
 
+
+
         {
-            debtToken.approve(address(conduit), 100000);
-            debtToken.mint(address(this), 1000);
+
             vm.startPrank(address(1));
             nft.mint(address(1), 1);
             //setup lender and borrower approvals
@@ -99,26 +97,32 @@ contract TestStarLite is BaseOrderTest, IVault {
         }
 
 
-        UniqueValidator uv = new UniqueValidator();
-
+//uint256 deadline;
+        //        address conduit;
+        //        address validator;
+        //        address token;
+        //        uint256 tokenId;
+        //        uint256 maxAmount;
+        //        uint256 rate; //rate per second
+        //        uint256 duration;
         UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
-            vault : address(this),
+            validator: address(UV),
+            conduit : address(conduit),
             token : address(nft),
             tokenId : 1,
             maxAmount : 100,
             rate : 1,
             duration : 1000,
-            initialAsk : 5000
+            deadline : block.timestamp + 100
         });
 
-        uint256 strategistKey;
-        (strategist, strategistKey) = makeAddrAndKey("strategist");
+
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategistKey, keccak256(abi.encode(loanDetails)));
 
 
         _executeNLR(nft, address(LM), LoanManager.NewLoanRequest({
-            deadline : block.timestamp + 100,
-            validator : address(uv),
+            lender: address(strategist),
+            validator: address(UV),
             borrowerDetails : LoanManager.BorrowerDetails({
                 who : address(this),
                 what : address(debtToken),
