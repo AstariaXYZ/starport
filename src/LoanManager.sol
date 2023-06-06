@@ -54,6 +54,10 @@ interface Validator {
     }
 
     function execute(LoanManager.NewLoanRequest calldata nlr, address token, uint256 identifier) external returns (Loan memory);
+
+    function getOwed(Loan calldata loan) external view returns (uint256);
+
+    function getLiquidationData(Loan calldata loan) external view returns (uint256, uint256);
 }
 
 contract UniqueValidator is Validator {
@@ -108,10 +112,21 @@ contract UniqueValidator is Validator {
         })
         );
     }
+
+    function getOwed(Loan calldata loan) public view override returns (uint256) {
+        return loan.amount * loan.rate * (loan.end - block.timestamp);
+    }
+
+    function getLiquidationData(Loan calldata loan) public view returns (uint256, uint256) {
+        if (loan.end < block.timestamp) {
+            revert ("Loan is healthy");
+        }
+        //todo dynamic initialask can be a flooracle call or anything youd want to look up here
+        return (getOwed(loan), 500 ether);
+    }
 }
 
 contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, AmountDeriver, IERC721Receiver {
-
     using FixedPointMathLib for uint256;
     uint256 private constant OUTOFBOUND_ERROR_SELECTOR = 0x571e08d100000000000000000000000000000000000000000000000000000000;
     uint256 private constant ONE_WORD = 0x20;
@@ -126,6 +141,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         address what;
         uint256 howMuch;
     }
+
     struct NewLoanRequest {
         uint256 deadline;
         address validator;
@@ -135,34 +151,54 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         bytes32 r;
         bytes32 s;
     }
+
     event LoanOpened(uint256 indexed loanId, Validator.Loan loan);
     event LoanRepaid(uint256 indexed loanId);
     event LoanLiquidated(uint256 indexed loanId, uint256 amount);
+    event SeaportCompatibleContractDeployed();
+
+    error InvalidSender();
+    error InvalidAction();
+    error InvalidLoan(uint256);
+    error InvalidAmount();
+    error InvalidDeadline();
+    error InvalidSignature();
+    error LoanHealthy();
+    error StateMismatch(uint256);
+    error UnsupportedExtraDataVersion(uint8 version);
+    error InvalidExtraDataEncoding(uint8 version);
 
     mapping(uint256 => bytes32) public collateralState;
     address public seaport;
 
     constructor(address consideration) {
         seaport = consideration;
+        emit SeaportCompatibleContractDeployed();
     }
 
     // MODIFIERS
-
     modifier onlySeaport {
         if (msg.sender != seaport) {
-            revert("Invalid Conduit");
+            revert InvalidSender();
         }
         _;
     }
 
     // PUBLIC FUNCTIONS
-
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) public virtual returns (bytes4) {
         return IERC721Receiver.onERC721Received.selector;
     }
 
     function tokenURI(uint256 tokenId) public override view returns (string memory) {
         return string(abi.encodePacked("https://astaria.xyz/loans?id=", tokenId));
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        if (msg.sender == seaport && from == address(this)) {
+            _mint(to, tokenId);
+        } else {
+            super.transferFrom(from, to, tokenId);
+        }
     }
 
     /**
@@ -187,8 +223,16 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         if (action == uint8(Action.OPEN)) {
             (,NewLoanRequest memory nlr) = abi.decode(context, (uint8, NewLoanRequest));
             if (block.timestamp > nlr.deadline) {
-                revert("loan deadline passed");
+                revert InvalidDeadline();
             }
+
+            offer = new SpentItem[](1);
+            offer[0] = SpentItem({
+            itemType : ItemType.ERC721,
+            token : address(this),
+            identifier : uint256(_hashCollateral(maximumSpent[0].token, maximumSpent[0].identifier)),
+            amount : 1
+            });
 
             consideration = new ReceivedItem[](1);
             consideration[0] = ReceivedItem({
@@ -210,9 +254,9 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             amount : 1
             });
 
-            uint256 owed = loan.amount + _getInterestMemory(loan, block.timestamp);
+            uint256 owed = Validator(loan.validator).getOwed(loan);
             if (owed > minimumReceived[0].amount) {
-                revert("invalid minimum received");
+                revert InvalidAmount();
             }
             consideration = new ReceivedItem[](1);
             consideration[0] = ReceivedItem({
@@ -229,10 +273,9 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
 
             offer[0] = SpentItem(ItemType.ERC721, loan.token, loan.identifier, 1);
             //if the minimumReceived is greater than the entire debt pay the rest back to the owner of the loan
-            uint256 owed = loan.amount + _getInterestMemory(loan, block.timestamp);
-            uint256 currentPrice = _locateCurrentAmount({startAmount : loan.initialAsk, endAmount : 1000 wei, startTime : loan.end, endTime : loan.end + 24 hours, roundUp : true});
+            (uint256 owed, uint256 currentPrice) = Validator(loan.validator).getLiquidationData(loan);
             if (currentPrice > minimumReceived[0].amount) {
-                revert("invalid minimum received");
+                revert InvalidAmount();
             }
             if (currentPrice > owed) {
                 consideration = new ReceivedItem[](2);
@@ -261,7 +304,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
                 });
             }
         } else {
-            revert("Unsupported action");
+            revert InvalidAction();
         }
     }
 
@@ -325,25 +368,22 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         } else if (action == uint8(Action.LIQUIDATE)) {
             _executeLoanLiquidate(offer, consideration, context);
         } else {
-            revert("Unsupported action");
+            revert InvalidAction();
         }
 
         return ContractOffererInterface.ratifyOrder.selector;
     }
 
-
-    function releaseNFT(address token, uint256 tokenId) public {
-        bytes32 hash = _hashCollateral(msg.sender, tokenId);
-
-        uint256 loanId = uint256(hash);
+    function forgive(Validator.Loan calldata loan) public {
+        uint256 loanId = uint256(_hashCollateral(loan.token, loan.identifier));
         if (msg.sender != ownerOf(loanId)) {
-            revert("invalid msg.sender");
+            revert InvalidSender();
         }
-
         if (collateralState[loanId] != 0) {
-            revert("active loan");
+            revert StateMismatch(loanId);
         }
         _clearLoanId(loanId);
+        ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, ContractOffererInterface) returns (bool) {
@@ -351,7 +391,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
     }
 
     // INTERNAL FUNCTIONS
-
     function _hashCollateral(address token, uint256 tokenId) internal pure returns (bytes32 hash) {
         assembly {
             mstore(0, token) // sets the right most 20 bytes in the first memory slot.
@@ -359,7 +398,6 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             hash := keccak256(12, 52) // keccak from the 12th byte up to the entire second memory slot.
         }
     }
-
 
     function _clearLoanId(uint256 loanId) internal {
         delete collateralState[loanId];
@@ -392,10 +430,9 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
             uint256 loanId = uint256(_hashCollateral(consideration[0].token, consideration[0].identifier));
 
             if (collateralState[loanId] != 0) {
-                revert("asset in use");
+                revert StateMismatch(loanId);
             }
             collateralState[loanId] = keccak256(abi.encode(loanId, loan));
-            _safeMint(ERC721(loan.token).ownerOf(loan.identifier), loanId);
             emit LoanOpened(loanId, loan);
         }
     }
@@ -406,12 +443,11 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
         bytes32 hash = _hashCollateral(loan.token, loan.identifier);
         uint256 loanId = uint256(hash);
         if (hash != collateralState[loanId]) {
-            revert("invalid loan");
+            revert StateMismatch(loanId);
         }
         _clearLoanId(loanId);
         emit LoanRepaid(loanId);
     }
-
 
     function _executeLoanLiquidate(SpentItem[] calldata offer, ReceivedItem[] calldata consideration, bytes calldata context) internal {
         address debtToken = consideration[0].token;
@@ -423,26 +459,18 @@ contract LoanManager is ERC721("LoanManager", "LM"), ContractOffererInterface, A
 
         bytes32 incomingState = keccak256(abi.encode(loanId, loan));
         if (incomingState != collateralState[loanId]) {
-            revert("invalid loan");
+            revert StateMismatch(loanId);
         }
 
         if (loan.end > block.timestamp) {
-            revert("loan healthy");
+            revert LoanHealthy();
         }
         if (amount < _locateCurrentAmount({startAmount : loan.initialAsk, endAmount : 1000 wei, startTime : loan.end, endTime : loan.end + 24 hours, roundUp : true})) {
-            revert("invalid amount");
+            revert InvalidAmount();
         }
         _burn(loanId);
         delete collateralState[loanId];
         emit LoanLiquidated(loanId, amount);
-    }
-
-    function _getInterestMemory(
-        Validator.Loan memory loan,
-        uint256 timestamp
-    ) internal pure returns (uint256) {
-        uint256 delta_t = timestamp - loan.end;
-        return (delta_t * loan.rate).mulWadDown(loan.amount);
     }
 
     function safeCastTo8(uint256 x) internal pure returns (uint8 y) {
