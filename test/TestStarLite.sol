@@ -9,10 +9,11 @@ import "forge-std/Test.sol";
 import "src/LoanManager.sol";
 
 import {ConsiderationItem, AdvancedOrder, CriteriaResolver, OrderType} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import { BaseOrderTest } from "seaport/test/foundry/utils/BaseOrderTest.sol";
-import { Conduit } from "seaport-core/src/conduit/Conduit.sol";
-import { ConduitController } from "seaport-core/src/conduit/ConduitController.sol";
-import { Consideration } from "seaport-core/src/lib/Consideration.sol";
+import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
+import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
+import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
+import {Consideration} from "seaport-core/src/lib/Consideration.sol";
+
 contract TestNFT is MockERC721 {
     constructor() MockERC721("TestNFT", "TNFT") {}
 }
@@ -23,7 +24,7 @@ contract TestToken is MockERC20 {
 
 contract TestStarLite is BaseOrderTest {
 
-//    address conduit;
+    //    address conduit;
     bytes32 conduitKey;
 
     address strategist;
@@ -90,14 +91,15 @@ contract TestStarLite is BaseOrderTest {
         }
 
         UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
-            validator: address(UV),
-            conduit : address(conduit),
-            token : address(nft),
-            tokenId : 1,
-            maxAmount : 100,
-            rate : 1,
-            duration : 1000,
-            deadline : block.timestamp + 100
+        validator : address(UV),
+        conduit : address(conduit),
+        token : address(nft),
+        tokenId : 1,
+        maxAmount : 100,
+        rate : 1,
+        duration : 1000,
+        deadline : block.timestamp + 100,
+        extraData : abi.encode(uint256(500 ether), uint256(100 wei), uint256(7 days)) // startPrice, endPrice, duration
         });
 
 
@@ -105,16 +107,16 @@ contract TestStarLite is BaseOrderTest {
 
 
         _executeNLR(nft, address(LM), LoanManager.NewLoanRequest({
-            lender: address(strategist),
-            details : abi.encode(loanDetails),
-            borrowerDetails : LoanManager.BorrowerDetails({
-                who : address(this),
-                what : address(debtToken),
-                howMuch : 100
-            }),
-            v : v,
-            r : r,
-            s : s
+        lender : address(strategist),
+        details : abi.encode(loanDetails),
+        borrowerDetails : LoanManager.BorrowerDetails({
+        who : address(this),
+        what : address(debtToken),
+        howMuch : 100
+        }),
+        v : v,
+        r : r,
+        s : s
         }));
 
         // UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
@@ -128,14 +130,14 @@ contract TestStarLite is BaseOrderTest {
         //            deadline : block.timestamp + 100
         //        });
 
-//        Validator.Loan memory l = Validator.Loan({
-//            validator : address(UV),
-//            token : address(nft),
-//            tokenId : 1,
-//            rate : 1,
-//            duration : 1000,
-//            deadline : block.timestamp + 100
-//        });
+        //        Validator.Loan memory l = Validator.Loan({
+        //            validator : address(UV),
+        //            token : address(nft),
+        //            tokenId : 1,
+        //            rate : 1,
+        //            duration : 1000,
+        //            deadline : block.timestamp + 100
+        //        });
 
     }
 
@@ -153,33 +155,33 @@ contract TestStarLite is BaseOrderTest {
 
         ConsiderationItem[] memory consider = new ConsiderationItem[](1);
         consider[0] = ConsiderationItem({
-            itemType : ItemType.ERC721,
-            token : address(nft),
-            identifierOrCriteria : 1,
-            startAmount : 1,
-            endAmount : 1,
-            recipient: payable(address(LM))
+        itemType : ItemType.ERC721,
+        token : address(nft),
+        identifierOrCriteria : 1,
+        startAmount : 1,
+        endAmount : 1,
+        recipient : payable(address(LM))
         });
         OrderParameters memory op = OrderParameters({
         offerer : address(LM),
         zone : address(0),
         offer : new OfferItem[](0),
         consideration : consider,
-            orderType : OrderType.CONTRACT,
-            startTime : block.timestamp,
-            endTime : block.timestamp + 100,
-            zoneHash : bytes32(0),
-            salt : 0,
-            conduitKey : bytes32(0),
-            totalOriginalConsiderationItems : 1
+        orderType : OrderType.CONTRACT,
+        startTime : block.timestamp,
+        endTime : block.timestamp + 100,
+        zoneHash : bytes32(0),
+        salt : 0,
+        conduitKey : bytes32(0),
+        totalOriginalConsiderationItems : 1
         });
 
         AdvancedOrder memory x = AdvancedOrder({
-            parameters : op,
-            numerator : 1,
-            denominator : 1,
-            signature : "0x",
-            extraData : abi.encode(uint8(0), nlr)
+        parameters : op,
+        numerator : 1,
+        denominator : 1,
+        signature : "0x",
+        extraData : abi.encode(uint8(0), nlr)
         });
 
         //function fulfillAdvancedOrder(
@@ -189,11 +191,11 @@ contract TestStarLite is BaseOrderTest {
         //        address recipient
         //    ) external payable returns (bool fulfilled);
         vm.startPrank(address(1));
-            consideration.fulfillAdvancedOrder({
-            advancedOrder : x,
-            criteriaResolvers : new CriteriaResolver[](0),
-            fulfillerConduitKey : bytes32(0),
-            recipient : address(this)
+        consideration.fulfillAdvancedOrder({
+        advancedOrder : x,
+        criteriaResolvers : new CriteriaResolver[](0),
+        fulfillerConduitKey : bytes32(0),
+        recipient : address(this)
         });
         vm.stopPrank();
     }
