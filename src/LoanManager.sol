@@ -52,7 +52,7 @@ interface Validator {
         bytes extraData;
     }
 
-    function execute(bytes calldata nlr, ReceivedItem calldata consideration) external returns (Loan memory, address lender);
+    function execute(LoanManager.NewLoanRequest calldata nlr, ReceivedItem calldata consideration) external returns (Loan memory, address lender);
 
     function getOwed(Loan calldata loan, uint256 timestamp) external pure returns (uint256);
 
@@ -92,8 +92,7 @@ contract LoanManager is ERC721("LoanManager", "LM"), AmountDeriver, ContractOffe
     error InvalidAction();
     error InvalidLoan(uint256);
     error InvalidAmount();
-    error InvalidDeadline();
-    error InvalidSignature();
+    error InvalidContext();
     error LoanHealthy();
     error StateMismatch(uint256);
     error UnsupportedExtraDataVersion(uint8 version);
@@ -147,14 +146,16 @@ contract LoanManager is ERC721("LoanManager", "LM"), AmountDeriver, ContractOffe
         uint8 action = abi.decode(context[: 32], (uint8));
 
         if (action == uint8(Action.OPEN)) {
-            consideration = new ReceivedItem[](1);
-            consideration[0] = ReceivedItem({
-            itemType : maximumSpent[0].itemType,
-            token : maximumSpent[0].token,
-            identifier : maximumSpent[0].identifier,
-            amount : maximumSpent[0].amount,
-            recipient : payable(address(this))
-            });
+            consideration = new ReceivedItem[](maximumSpent.length);
+            for (uint256 i = 0; i < maximumSpent.length; i++) {
+                consideration[i] = ReceivedItem({
+                itemType : maximumSpent[i].itemType,
+                token : maximumSpent[i].token,
+                identifier : maximumSpent[i].identifier,
+                amount : maximumSpent[i].amount,
+                recipient : payable(address(this))
+                });
+            }
         } else if (action == uint8(Action.CLOSE)) {
             (,Validator.Loan memory loan) = abi.decode(context, (uint8, Validator.Loan));
             (uint256 owed, uint256 settlementPrice) = Validator(loan.validator).getSettlementData(loan);
@@ -291,14 +292,31 @@ contract LoanManager is ERC721("LoanManager", "LM"), AmountDeriver, ContractOffe
 
     function _executeLoanOpen(ReceivedItem[] calldata consideration, bytes calldata context) internal {
 
-        address validator = abi.decode(context[384 : 416], (address));
-        (Validator.Loan memory loan, address lender) = Validator(validator).execute(context, consideration[0]);
-        loan.nonce = ++loanCount;
-        uint256 loanId = uint256(keccak256(abi.encode(loan)));
-        _safeMint(lender, loanId);
-        emit LoanOpened(loanId, loan);
-    }
+        (, LoanManager.NewLoanRequest[] memory nlrs) = abi.decode(context, (uint8, LoanManager.NewLoanRequest[]));
 
+        if (nlrs.length != consideration.length) {
+            revert InvalidContext();
+        }
+        uint i = 0;
+        for (; i < nlrs.length; ) {
+            address validator;
+            bytes memory data = nlrs[i].details;
+            assembly {
+                validator := mload(add(data, 64))
+            }
+            if (validator == address(0)) {
+                revert InvalidContext();
+            }
+            (Validator.Loan memory loan, address lender) = Validator(validator).execute(nlrs[i], consideration[i]);
+            loan.nonce = ++loanCount;
+            uint256 loanId = uint256(keccak256(abi.encode(loan)));
+            _safeMint(lender, loanId);
+            emit LoanOpened(loanId, loan);
+            unchecked {
+                ++i;
+            }
+        }
+    }
 
     function _executeLoanClosed(ReceivedItem[] calldata consideration, bytes calldata context) internal {
         Validator.Loan memory loan = abi.decode(context[32 :], (Validator.Loan));
@@ -342,8 +360,8 @@ contract UniqueValidator is Validator, AmountDeriver {
         LM = LM_;
     }
 
-    function execute(bytes calldata context, ReceivedItem calldata consideration) external override returns (Loan memory, address strategist) {
-        (, LoanManager.NewLoanRequest memory nlr) = abi.decode(context, (uint8, LoanManager.NewLoanRequest));
+    function execute(LoanManager.NewLoanRequest calldata nlr, ReceivedItem calldata consideration) external override returns (Loan memory, address lender) {
+
         Details memory details = abi.decode(nlr.details, (Details));
 
         if (address(this) != details.validator) {
@@ -360,14 +378,14 @@ contract UniqueValidator is Validator, AmountDeriver {
             revert InvalidBorrowAmount();
         }
 
-        strategist = ecrecover(keccak256(nlr.details), nlr.v, nlr.r, nlr.s);
+        lender = ecrecover(keccak256(nlr.details), nlr.v, nlr.r, nlr.s);
 
 
         ConduitTransfer[] memory transfers = new ConduitTransfer[](1);
         transfers[0] = ConduitTransfer(
             ConduitItemType.ERC20,
             nlr.borrowerDetails.what,
-            strategist,
+            lender,
             nlr.borrowerDetails.who,
             0,
             nlr.borrowerDetails.howMuch
@@ -388,7 +406,7 @@ contract UniqueValidator is Validator, AmountDeriver {
         duration : details.duration,
         nonce : uint256(0),
         extraData : details.extraData
-        }), strategist
+        }), lender
         );
     }
 
@@ -406,5 +424,4 @@ contract UniqueValidator is Validator, AmountDeriver {
         roundUp : true
         }));
     }
-
 }

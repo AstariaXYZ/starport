@@ -176,12 +176,15 @@ contract TestStarLite is BaseOrderTest {
         totalOriginalConsiderationItems : 1
         });
 
+        LoanManager.NewLoanRequest[] memory nlrs = new LoanManager.NewLoanRequest[](1);
+        nlrs[0] = nlr;
+
         AdvancedOrder memory x = AdvancedOrder({
         parameters : op,
         numerator : 1,
         denominator : 1,
         signature : "0x",
-        extraData : abi.encode(uint8(0), nlr)
+        extraData : abi.encode(uint8(0), nlrs)
         });
 
         //function fulfillAdvancedOrder(
