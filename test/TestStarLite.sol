@@ -30,7 +30,7 @@ contract TestStarLite is BaseOrderTest {
     uint256 strategistKey;
     address seaportAddr;
     LoanManager LM;
-    UniqueValidator UV = new UniqueValidator();
+    UniqueValidator UV;
     TestToken debtToken;
 
     function _deployAndConfigureConsideration() public {
@@ -46,7 +46,7 @@ contract TestStarLite is BaseOrderTest {
         debtToken = new TestToken();
 
         LM = new LoanManager(address(consideration));
-        UV = new UniqueValidator();
+        UV = new UniqueValidator(LM);
 
         (strategist, strategistKey) = makeAddrAndKey("strategist");
         conduitKeyOne = bytes32(uint256(uint160(address(strategist))) << 96);
@@ -82,29 +82,13 @@ contract TestStarLite is BaseOrderTest {
         vm.label(address(debtToken), "what");
         vm.label(address(1), "borrower");
 
-
-
-
         {
-
             vm.startPrank(address(1));
             nft.mint(address(1), 1);
-            //setup lender and borrower approvals
-
-
             nft.setApprovalForAll(address(consideration), true);
             vm.stopPrank();
         }
 
-
-//uint256 deadline;
-        //        address conduit;
-        //        address validator;
-        //        address token;
-        //        uint256 tokenId;
-        //        uint256 maxAmount;
-        //        uint256 rate; //rate per second
-        //        uint256 duration;
         UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
             validator: address(UV),
             conduit : address(conduit),
@@ -122,17 +106,36 @@ contract TestStarLite is BaseOrderTest {
 
         _executeNLR(nft, address(LM), LoanManager.NewLoanRequest({
             lender: address(strategist),
-            validator: address(UV),
+            details : abi.encode(loanDetails),
             borrowerDetails : LoanManager.BorrowerDetails({
                 who : address(this),
                 what : address(debtToken),
                 howMuch : 100
             }),
-            details : abi.encode(loanDetails),
             v : v,
             r : r,
             s : s
         }));
+
+        // UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
+        //            validator: address(UV),
+        //            conduit : address(conduit),
+        //            token : address(nft),
+        //            tokenId : 1,
+        //            maxAmount : 100,
+        //            rate : 1,
+        //            duration : 1000,
+        //            deadline : block.timestamp + 100
+        //        });
+
+//        Validator.Loan memory l = Validator.Loan({
+//            validator : address(UV),
+//            token : address(nft),
+//            tokenId : 1,
+//            rate : 1,
+//            duration : 1000,
+//            deadline : block.timestamp + 100
+//        });
 
     }
 
@@ -186,11 +189,11 @@ contract TestStarLite is BaseOrderTest {
         //        address recipient
         //    ) external payable returns (bool fulfilled);
         vm.startPrank(address(1));
-        consideration.fulfillAdvancedOrder({
-        advancedOrder : x,
-        criteriaResolvers : new CriteriaResolver[](0),
-        fulfillerConduitKey : bytes32(0),
-        recipient : address(this)
+            consideration.fulfillAdvancedOrder({
+            advancedOrder : x,
+            criteriaResolvers : new CriteriaResolver[](0),
+            fulfillerConduitKey : bytes32(0),
+            recipient : address(this)
         });
         vm.stopPrank();
     }
