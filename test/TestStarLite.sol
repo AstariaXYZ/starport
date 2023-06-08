@@ -8,6 +8,11 @@ import "forge-std/Test.sol";
 import "src/LoanManager.sol";
 
 import {
+ItemType,
+ReceivedItem,
+SpentItem
+} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {
     ConsiderationItem,
     AdvancedOrder,
     CriteriaResolver,
@@ -106,7 +111,7 @@ contract TestStarLite is BaseOrderTest {
             LoanManager.NewLoanRequest({
                 lender: address(strategist),
                 details: abi.encode(loanDetails),
-                borrowerDetails: LoanManager.BorrowerDetails({who: address(this), what: address(debtToken), howMuch: 100}),
+                ask: ReceivedItem({recipient: payable(address(this)), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
                 signature: Validator.Signature({v: v, r: r, s: s})
             })
         );

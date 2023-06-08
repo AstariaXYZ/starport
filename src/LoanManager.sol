@@ -32,6 +32,7 @@ import {
 } from "src/interfaces/TokenReceiverInterface.sol";
 import {Validator} from "src/validators/Validator.sol";
 import "forge-std/console.sol";
+
 contract LoanManager is
   ERC721("LoanManager", "LM"),
   AmountDeriver,
@@ -45,20 +46,15 @@ contract LoanManager is
     CLOSE
   }
   struct Loan {
-    ItemType itemType;
-    address borrower;
+    SpentItem collateral;
+    ReceivedItem debt;
     address validator;
-    address token;
-    address debtToken;
-    uint256 identifier;
-    uint256 identifierAmount;
-    uint256 amount;
     uint256 start;
     uint256 nonce;
     bytes details;
   }
 
-  struct BorrowerDetails {
+  struct ask {
     address who;
     address what;
     uint256 howMuch;
@@ -66,7 +62,7 @@ contract LoanManager is
 
   struct NewLoanRequest {
     address lender;
-    BorrowerDetails borrowerDetails;
+    ReceivedItem ask;
     Validator.Signature signature;
     bytes details;
   }
@@ -187,27 +183,18 @@ contract LoanManager is
         });
       }
     } else if (action == uint8(Action.CLOSE)) {
-      (, Loan memory loan) = abi.decode(
-        context,
-        (uint8, Loan)
-      );
-
+      (, Loan memory loan) = abi.decode(context, (uint8, Loan));
 
       if (
         Validator(loan.validator).isLoanHealthy(loan) &&
-        fulfiller != loan.borrower
+        fulfiller != loan.debt.recipient
       ) {
         revert InvalidSender();
       }
 
       //now were in liquidation
       offer = new SpentItem[](1);
-      offer[0] = SpentItem({
-        itemType: loan.itemType,
-        token: loan.token,
-        identifier: loan.identifier,
-        amount: loan.identifierAmount
-      });
+      offer[0] = loan.collateral;
 
       consideration = Validator(loan.validator).getClosedConsideration(
         loan,
@@ -298,16 +285,16 @@ contract LoanManager is
   }
 
   //do more work here
-//  function forgive(Loan calldata loan) public {
-//    uint256 loanId = uint256(keccak256(abi.encode(loan)));
-//    if (msg.sender != ownerOf(loanId)) {
-//      revert InvalidSender();
-//    }
-//
-//    _burn(loanId);
-//
-//    ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
-//  }
+  //  function forgive(Loan calldata loan) public {
+  //    uint256 loanId = uint256(keccak256(abi.encode(loan)));
+  //    if (msg.sender != ownerOf(loanId)) {
+  //      revert InvalidSender();
+  //    }
+  //
+  //    _burn(loanId);
+  //
+  //    ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
+  //  }
 
   function supportsInterface(
     bytes4 interfaceId
@@ -349,30 +336,30 @@ contract LoanManager is
         revert InvalidContext(ContextErrors.ZERO_ADDRESS);
       }
 
-      uint256 beforeBalance = ERC20(nlrs[i].borrowerDetails.what).balanceOf(
-        nlrs[i].borrowerDetails.who
+      uint256 beforeBalance = ERC20(nlrs[i].ask.token).balanceOf(
+        nlrs[i].ask.recipient
       );
-
       Loan memory loan = Loan({
-        itemType: consideration[i].itemType,
-        borrower: nlrs[i].borrowerDetails.who,
+        collateral: SpentItem({
+          itemType: consideration[i].itemType,
+          token: consideration[i].token,
+          identifier: consideration[i].identifier,
+          amount: consideration[i].amount
+        }),
+        debt: nlrs[i].ask,
         validator: validator,
-        token: consideration[i].token,
-        identifier: consideration[i].identifier,
-        identifierAmount: consideration[i].amount,
-        debtToken: nlrs[i].borrowerDetails.what,
-        amount: nlrs[i].borrowerDetails.howMuch,
         start: block.timestamp,
         nonce: ++loanCount,
         details: nlrs[i].details
       });
-
-
-      address recipient = Validator(validator).execute(loan, nlrs[i].signature, consideration[i]);
-      uint256 afterBalance = ERC20(loan.debtToken).balanceOf(
-        loan.borrower
+      address recipient = Validator(validator).execute(
+        loan,
+        nlrs[i].signature,
+        consideration[i]
       );
-      if (afterBalance - beforeBalance != loan.amount) {
+
+      uint256 afterBalance = ERC20(loan.debt.token).balanceOf(loan.debt.recipient);
+      if (afterBalance - beforeBalance != nlrs[i].ask.amount) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
       uint256 loanId = uint256(keccak256(abi.encode(loan)));
