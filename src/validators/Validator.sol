@@ -7,7 +7,11 @@ ReceivedItem, SpentItem
 import {LoanManager} from "src/LoanManager.sol";
 
 abstract contract Validator {
-
+    struct Signature {
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
     bytes32 constant EIP_DOMAIN =
     keccak256(
         "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
@@ -28,8 +32,9 @@ abstract contract Validator {
     }
 
     function execute(
-        LoanManager.NewLoanRequest calldata nlr,
-        ReceivedItem calldata consideration
+        LoanManager.Loan calldata,
+        Signature calldata,
+        ReceivedItem calldata
     ) external virtual returns (address lender);
 
     function getOwed(

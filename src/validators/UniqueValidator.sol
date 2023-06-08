@@ -19,8 +19,6 @@ import "./Validator.sol";
 import "forge-std/console.sol";
 contract UniqueValidator is Validator, AmountDeriver {
   using FixedPointMathLib for uint256;
-
-
   struct SettlementData {
     uint256 startingPrice;
     uint256 endingPrice;
@@ -51,14 +49,15 @@ contract UniqueValidator is Validator, AmountDeriver {
   //add conduit controller interface to get owner
 
   function execute(
-    LoanManager.NewLoanRequest calldata nlr,
+    LoanManager.Loan calldata loan,
+    Signature calldata signature,
     ReceivedItem calldata consideration
   ) external override returns (address recipient) {
     if (msg.sender != address(LM)) {
       revert InvalidCaller();
     }
 
-    Details memory details = abi.decode(nlr.details, (Details));
+    Details memory details = abi.decode(loan.details, (Details));
 
     if (address(this) != details.validator) {
       revert InvalidValidator();
@@ -72,27 +71,25 @@ contract UniqueValidator is Validator, AmountDeriver {
     ) {
       revert InvalidCollateral();
     }
-
+    if (details.rate == 0) {
+      revert InvalidRate();
+    }
     if (
-      nlr.borrowerDetails.howMuch > details.maxAmount ||
-      nlr.borrowerDetails.howMuch == 0
+      loan.amount > details.maxAmount ||
+      loan.amount == 0
     ) {
       revert InvalidBorrowAmount();
     }
 
-    if (nlr.borrowerDetails.what != details.debtToken) {
+    if (loan.debtToken != details.debtToken) {
       revert InvalidDebtToken();
     }
 
-    if (details.rate == 0) {
-      revert InvalidRate();
-    }
-
     address signer = ecrecover(
-      keccak256(encodeWithAccountCounter(strategist, nlr.details)),
-      nlr.v,
-      nlr.r,
-      nlr.s
+      keccak256(encodeWithAccountCounter(strategist, loan.details)),
+      signature.v,
+      signature.r,
+      signature.s
     );
 
     if (signer != strategist) {
@@ -103,11 +100,11 @@ contract UniqueValidator is Validator, AmountDeriver {
     ConduitTransfer[] memory transfers = new ConduitTransfer[](1);
     transfers[0] = ConduitTransfer(
       ConduitItemType.ERC20,
-      nlr.borrowerDetails.what,
-        recipient,
-      nlr.borrowerDetails.who,
+      details.debtToken,
+      recipient,
+      loan.borrower,
       0,
-      nlr.borrowerDetails.howMuch
+      loan.amount
     );
     if (ConduitInterface(details.conduit).execute(transfers) != ConduitInterface.execute.selector) {
       revert InvalidConduitTransfer();

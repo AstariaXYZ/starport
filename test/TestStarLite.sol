@@ -107,9 +107,7 @@ contract TestStarLite is BaseOrderTest {
                 lender: address(strategist),
                 details: abi.encode(loanDetails),
                 borrowerDetails: LoanManager.BorrowerDetails({who: address(this), what: address(debtToken), howMuch: 100}),
-                v: v,
-                r: r,
-                s: s
+                signature: Validator.Signature({v: v, r: r, s: s})
             })
         );
 

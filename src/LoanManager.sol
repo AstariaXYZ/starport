@@ -54,8 +54,6 @@ contract LoanManager is
     uint256 identifierAmount;
     uint256 amount;
     uint256 start;
-    //        uint256 rate;
-    //        uint256 duration;
     uint256 nonce;
     bytes details;
   }
@@ -69,9 +67,7 @@ contract LoanManager is
   struct NewLoanRequest {
     address lender;
     BorrowerDetails borrowerDetails;
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
+    Validator.Signature signature;
     bytes details;
   }
 
@@ -370,25 +366,15 @@ contract LoanManager is
         nonce: ++loanCount,
         details: nlrs[i].details
       });
-      address recipient = Validator(validator).execute(nlrs[i], consideration[i]);
-      uint256 afterBalance = ERC20(nlrs[i].borrowerDetails.what).balanceOf(
-        nlrs[i].borrowerDetails.who
+
+
+      address recipient = Validator(validator).execute(loan, nlrs[i].signature, consideration[i]);
+      uint256 afterBalance = ERC20(loan.debtToken).balanceOf(
+        loan.borrower
       );
-      if (afterBalance - beforeBalance != nlrs[i].borrowerDetails.howMuch) {
+      if (afterBalance - beforeBalance != loan.amount) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
-      if (loan.borrower != nlrs[i].borrowerDetails.who) {
-        revert InvalidContext(ContextErrors.BORROWER_MISMATCH);
-      }
-      if (
-        loan.itemType != consideration[i].itemType ||
-        loan.token != consideration[i].token ||
-        loan.identifier != consideration[i].identifier ||
-        loan.identifierAmount != consideration[i].amount
-      ) {
-        revert InvalidContext(ContextErrors.INVALID_LOAN);
-      }
-
       uint256 loanId = uint256(keccak256(abi.encode(loan)));
       _safeMint(recipient, loanId);
       emit LoanOpened(loanId, loan);
