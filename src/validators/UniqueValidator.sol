@@ -51,8 +51,6 @@ contract UniqueValidator is Validator, AmountDeriver {
     CI = CI_;
   }
 
-  //add conduit controller interface to get owner
-
   function execute(
     LoanManager.Loan calldata loan,
     Signature calldata signature,
@@ -62,7 +60,15 @@ contract UniqueValidator is Validator, AmountDeriver {
       revert InvalidCaller();
     }
 
-    Details memory details = abi.decode(loan.details, (Details));
+    Details memory details = _decodeLoanDetails(loan);
+
+    _validateExecution(details, consideration, loan, signature);
+
+    recipient = _executeConduitTransfer(details, loan);
+  }
+
+  function _decodeLoanDetails(LoanManager.Loan calldata loan) internal view returns (Details memory details) {
+    details = abi.decode(loan.details, (Details));
 
     if (address(this) != details.validator) {
       revert InvalidValidator();
@@ -70,6 +76,16 @@ contract UniqueValidator is Validator, AmountDeriver {
     if (block.timestamp > details.deadline) {
       revert InvalidDeadline();
     }
+
+    return details;
+  }
+
+  function _validateExecution(
+    Details memory details,
+    ReceivedItem calldata consideration,
+    LoanManager.Loan calldata loan,
+    Signature calldata signature
+  ) internal view {
     if (
       details.collateral != consideration.token ||
       details.identifier != consideration.identifier
@@ -97,7 +113,9 @@ contract UniqueValidator is Validator, AmountDeriver {
     if (signer != strategist) {
       revert InvalidSigner(signer);
     }
+  }
 
+  function _executeConduitTransfer(Details memory details, LoanManager.Loan calldata loan) internal returns (address recipient) {
     recipient = CI.ownerOf(address(details.conduit));
     ConduitTransfer[] memory transfers = new ConduitTransfer[](1);
     transfers[0] = ConduitTransfer(
@@ -114,6 +132,8 @@ contract UniqueValidator is Validator, AmountDeriver {
     ) {
       revert InvalidConduitTransfer();
     }
+
+    return recipient;
   }
 
   function isLoanHealthy(
@@ -146,11 +166,11 @@ contract UniqueValidator is Validator, AmountDeriver {
     LoanManager.Loan memory loan,
     SpentItem calldata maximumSpent
   )
-    external
-    view
-    virtual
-    override
-    returns (ReceivedItem[] memory consideration)
+  external
+  view
+  virtual
+  override
+  returns (ReceivedItem[] memory consideration)
   {
     Details memory details = abi.decode(loan.details, (Details));
     uint256 settlementPrice;
@@ -159,11 +179,11 @@ contract UniqueValidator is Validator, AmountDeriver {
       settlementPrice = owing;
     } else {
       settlementPrice = _locateCurrentAmount({
-        startAmount: details.settlement.startingPrice,
-        endAmount: details.settlement.endingPrice,
-        startTime: loan.start + details.loanDuration,
-        endTime: block.timestamp + details.settlement.window,
-        roundUp: true
+      startAmount: details.settlement.startingPrice,
+      endAmount: details.settlement.endingPrice,
+      startTime: loan.start + details.loanDuration,
+      endTime: block.timestamp + details.settlement.window,
+      roundUp: true
       });
     }
 
@@ -180,33 +200,39 @@ contract UniqueValidator is Validator, AmountDeriver {
     if (payment - fee > owing) {
       considerationLength = 3;
     }
+
     consideration = new ReceivedItem[](considerationLength);
+
     if (considerationLength > 1) {
       consideration[0] = ReceivedItem({
-        itemType: ItemType.ERC20,
-        token: loan.debt.token,
-        identifier: 0,
-        amount: fee,
-        recipient: payable(strategist)
+      itemType: ItemType.ERC20,
+      token: loan.debt.token,
+      identifier: 0,
+      amount: fee,
+      recipient: payable(strategist)
       });
     }
+
     //set the borrower slot and lender recipient after as we havent mutated the loan yet
 
     if (considerationLength == 3) {
       consideration[2] = ReceivedItem({
-        itemType: ItemType.ERC20,
-        token: loan.debt.token,
-        identifier: loan.debt.identifier,
-        amount: payment - fee - owing,
-        recipient: payable(loan.debt.recipient) // currently borrower
+      itemType: ItemType.ERC20,
+      token: loan.debt.token,
+      identifier: loan.debt.identifier,
+      amount: payment - fee - owing,
+      recipient: payable(loan.debt.recipient) // currently borrower
       });
     }
 
     //override to lender
-    loan.debt.recipient = payable(LM.ownerOf(uint256(keccak256(abi.encode(loan)))));
+    loan.debt.recipient = payable(
+      LM.ownerOf(uint256(keccak256(abi.encode(loan))))
+    );
     loan.debt.amount = considerationLength == 3 ? owing : payment - fee;
     consideration[considerationLength == 1 ? 0 : 1] = loan.debt;
   }
+
 
   error InvalidCaller();
   error InvalidDeadline();

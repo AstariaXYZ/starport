@@ -32,7 +32,6 @@ import {
 } from "src/interfaces/TokenReceiverInterface.sol";
 import {Validator} from "src/validators/Validator.sol";
 import "forge-std/console.sol";
-
 contract LoanManager is
   ERC721("LoanManager", "LM"),
   AmountDeriver,
@@ -54,11 +53,6 @@ contract LoanManager is
     bytes details;
   }
 
-  struct ask {
-    address who;
-    address what;
-    uint256 howMuch;
-  }
 
   struct NewLoanRequest {
     address lender;
@@ -328,9 +322,9 @@ contract LoanManager is
     uint256 i = 0;
     for (; i < nlrs.length; ) {
       address validator;
-      bytes memory data = nlrs[i].details;
+
       assembly {
-        validator := mload(add(data, 0x20))
+        validator := calldataload(add(context.offset, 480))
       }
       if (validator == address(0)) {
         revert InvalidContext(ContextErrors.ZERO_ADDRESS);
@@ -358,7 +352,9 @@ contract LoanManager is
         consideration[i]
       );
 
-      uint256 afterBalance = ERC20(loan.debt.token).balanceOf(loan.debt.recipient);
+      uint256 afterBalance = ERC20(loan.debt.token).balanceOf(
+        loan.debt.recipient
+      );
       if (afterBalance - beforeBalance != nlrs[i].ask.amount) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
