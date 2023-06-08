@@ -2,7 +2,6 @@ pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
-import {Validator} from "src/interfaces/Validator.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {
   ConduitTransfer,
@@ -11,18 +10,22 @@ import {
 import {
   ConduitInterface
 } from "seaport-types/src/interfaces/ConduitInterface.sol";
+import {
+  ConduitControllerInterface
+} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import "./Validator.sol";
+import "forge-std/console.sol";
 contract UniqueValidator is Validator, AmountDeriver {
-  bytes32 constant EIP_DOMAIN =
-    keccak256(
-      "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
-    );
+  using FixedPointMathLib for uint256;
 
-  bytes32 public constant VALIDATOR_TYPEHASH =
-    keccak256("ValidatorDetails(uint256 nonce,bytes32 root)");
 
-  bytes32 constant VERSION = keccak256("0");
-
+  struct SettlementData {
+    uint256 startingPrice;
+    uint256 endingPrice;
+    uint256 window;
+  }
   struct Details {
     address validator;
     uint256 deadline;
@@ -32,20 +35,29 @@ contract UniqueValidator is Validator, AmountDeriver {
     address debtToken;
     uint256 maxAmount;
     uint256 rate; //rate per second
-    uint256 duration;
-    bytes extraData;
+    uint256 loanDuration;
+    SettlementData settlement;
   }
 
   LoanManager public immutable LM;
+  ConduitControllerInterface public immutable CI;
 
-  constructor(LoanManager LM_) {
+
+  constructor(LoanManager LM_, ConduitControllerInterface CI_, address strategist_, uint256 fee_) Validator(strategist_, fee_) {
     LM = LM_;
+    CI = CI_;
   }
+
+  //add conduit controller interface to get owner
 
   function execute(
     LoanManager.NewLoanRequest calldata nlr,
     ReceivedItem calldata consideration
-  ) external override returns (Loan memory, address lender) {
+  ) external override returns (address recipient) {
+    if (msg.sender != address(LM)) {
+      revert InvalidCaller();
+    }
+
     Details memory details = abi.decode(nlr.details, (Details));
 
     if (address(this) != details.validator) {
@@ -76,94 +88,117 @@ contract UniqueValidator is Validator, AmountDeriver {
       revert InvalidRate();
     }
 
-    lender = ecrecover(
-      keccak256(encodeValidatorHash(lender, nlr.details)),
+    address signer = ecrecover(
+      keccak256(encodeWithAccountCounter(strategist, nlr.details)),
       nlr.v,
       nlr.r,
       nlr.s
     );
 
+    if (signer != strategist) {
+      revert InvalidSigner(signer);
+    }
+
+    recipient = CI.ownerOf(address(details.conduit));
     ConduitTransfer[] memory transfers = new ConduitTransfer[](1);
     transfers[0] = ConduitTransfer(
       ConduitItemType.ERC20,
       nlr.borrowerDetails.what,
-      lender,
+        recipient,
       nlr.borrowerDetails.who,
       0,
       nlr.borrowerDetails.howMuch
     );
-    ConduitInterface(details.conduit).execute(transfers);
-    return (
-      Loan({
-        itemType: consideration.itemType,
-        borrower: nlr.borrowerDetails.who,
-        validator: address(this),
-        token: consideration.token,
-        identifier: consideration.identifier,
-        identifierAmount: consideration.amount,
-        debtToken: nlr.borrowerDetails.what,
-        amount: nlr.borrowerDetails.howMuch,
-        rate: details.rate,
-        start: block.timestamp,
-        duration: details.duration,
-        nonce: uint256(0),
-        extraData: details.extraData
-      }),
-      lender
-    );
+    if (ConduitInterface(details.conduit).execute(transfers) != ConduitInterface.execute.selector) {
+      revert InvalidConduitTransfer();
+    }
+  }
+
+  function isLoanHealthy(LoanManager.Loan calldata loan) external view override returns (bool) {
+    Details memory details = abi.decode(loan.details, (Details));
+    return loan.start + details.loanDuration < block.timestamp;
   }
 
   function getOwed(
-    Loan calldata loan,
+    LoanManager.Loan calldata loan,
     uint256 timestamp
   ) public pure override returns (uint256) {
-    return loan.amount * loan.rate * (loan.start + loan.duration - timestamp);
+    Details memory details = abi.decode(loan.details, (Details));
+    return _getOwed(loan, details, timestamp);
   }
 
-  function getSettlementData(
-    Loan calldata loan
-  ) public view override returns (uint256, uint256) {
-    (uint256 startPrice, uint256 endPrice, uint256 auctionDuration) = abi
-      .decode(loan.extraData, (uint256, uint256, uint256));
-    return (
-      getOwed(loan, block.timestamp),
-      _locateCurrentAmount({
-        startAmount: startPrice,
-        endAmount: endPrice,
-        startTime: loan.start + loan.duration,
-        endTime: block.timestamp + auctionDuration,
+    function _getOwed(
+        LoanManager.Loan calldata loan,
+        Details memory details,
+        uint256 timestamp
+    ) internal pure returns (uint256) {
+        return loan.amount * details.rate * (loan.start + details.loanDuration - timestamp);
+    }
+
+  function getClosedConsideration(
+    LoanManager.Loan calldata loan,
+    SpentItem calldata maximumSpent
+  ) external view virtual override returns (ReceivedItem[] memory consideration) {
+    Details memory details = abi
+    .decode(loan.details, (Details));
+    uint256 settlementPrice;
+    uint256 owing = _getOwed(loan, details, block.timestamp);
+    if (loan.start + details.loanDuration < block.timestamp) {
+      settlementPrice = owing;
+    } else {
+      settlementPrice = _locateCurrentAmount({
+        startAmount: details.settlement.startingPrice,
+        endAmount: details.settlement.endingPrice,
+        startTime: loan.start + details.loanDuration,
+        endTime: block.timestamp + details.settlement.window,
         roundUp: true
-      })
-    );
+      });
+    }
+
+    if (maximumSpent.amount < settlementPrice) {
+      revert InvalidAmount();
+    }
+
+
+    uint256 fee = settlementPrice.mulWadDown(strategistFee);
+    uint256 considerationLength  = 1;
+    uint256 payment = maximumSpent.amount;
+    if (fee > 0) {
+      considerationLength = 2;
+    }
+    if (payment - fee > owing) {
+      considerationLength = 3;
+    }
+    consideration = new ReceivedItem[](considerationLength);
+    if (considerationLength > 1) {
+      consideration[0] = ReceivedItem({
+        itemType: ItemType.ERC20,
+        token: loan.debtToken,
+        identifier: 0,
+        amount: fee,
+        recipient: payable(strategist)
+      });
+    }
+
+    consideration[considerationLength == 1 ? 0 : 1] = ReceivedItem({
+      itemType: ItemType.ERC20,
+      token: loan.debtToken,
+      identifier: 0,
+      amount: considerationLength == 3 ? owing : payment - fee,
+      recipient: payable(LM.ownerOf(uint256(keccak256(abi.encode(loan)))))
+    });
+    if (considerationLength == 3) {
+      consideration[2] = ReceivedItem({
+        itemType: ItemType.ERC20,
+        token: loan.token,
+        identifier: loan.identifier,
+        amount: payment - fee - owing,
+        recipient: payable(loan.borrower)
+      });
+    }
   }
 
-  function encodeValidatorHash(
-    address lender,
-    bytes calldata context
-  ) public view virtual returns (bytes memory) {
-    bytes32 hash = keccak256(
-      abi.encode(
-        VALIDATOR_TYPEHASH,
-        LM.seaport().getCounter(lender),
-        keccak256(context)
-      )
-    );
-    return
-      abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), hash);
-  }
-
-  function domainSeparator() public view virtual returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          EIP_DOMAIN,
-          VERSION, //version
-          block.chainid,
-          address(this)
-        )
-      );
-  }
-
+  error InvalidCaller();
   error InvalidDeadline();
   error InvalidValidator();
   error InvalidCollateral();
@@ -171,5 +206,7 @@ contract UniqueValidator is Validator, AmountDeriver {
   error InvalidAmount();
   error InvalidDebtToken();
   error InvalidRate();
+  error InvalidSigner(address);
+  error InvalidConduitTransfer();
   error LoanHealthy();
 }

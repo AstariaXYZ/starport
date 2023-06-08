@@ -48,9 +48,9 @@ contract TestStarLite is BaseOrderTest {
         debtToken = new TestToken();
 
         LM = new LoanManager(ConsiderationInterface(address(consideration)));
-        UV = new UniqueValidator(LM);
-
         (strategist, strategistKey) = makeAddrAndKey("strategist");
+        UV = new UniqueValidator(LM, ConduitControllerInterface(address(conduitController)), strategist, 0);
+
         conduitKeyOne = bytes32(uint256(uint160(address(strategist))) << 96);
         vm.startPrank(strategist);
         //create conduit, update channel
@@ -92,12 +92,12 @@ contract TestStarLite is BaseOrderTest {
             identifier: 1,
             maxAmount: 100,
             rate: 1,
-            duration: 1000,
+            loanDuration: 1000,
             deadline: block.timestamp + 100,
-            extraData: abi.encode(uint256(500 ether), uint256(100 wei), uint256(7 days)) // startPrice, endPrice, duration
+            settlement: UniqueValidator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
         });
 
-        bytes32 hash = keccak256(UV.encodeValidatorHash(address(1), abi.encode(loanDetails)));
+        bytes32 hash = keccak256(UV.encodeWithAccountCounter(address(strategist), abi.encode(loanDetails)));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategistKey, hash);
 
         _executeNLR(
