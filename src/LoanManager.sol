@@ -36,6 +36,7 @@ import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {
   TokenReceiverInterface
 } from "src/interfaces/TokenReceiverInterface.sol";
+import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
 import {Validator} from "src/validators/Validator.sol";
 import {Trigger} from "src/triggers/Trigger.sol";
 import {Resolver} from "src/resolvers/Resolver.sol";
@@ -48,6 +49,7 @@ contract LoanManager is
   ContractOffererInterface,
   TokenReceiverInterface
 {
+  using FixedPointMathLib for uint256;
   uint256 private constant MIN_DURATION = 1 hours;
   uint256 private constant ONE_WORD = 0x20;
 
@@ -400,7 +402,7 @@ contract LoanManager is
       if (lender == address(0)) {
         revert InvalidContext(ContextErrors.ZERO_ADDRESS);
       }
-      uint256 transferLength = feeAddress != address(0) ? 2 : 1;
+      uint256 transferLength = feeRecipient != address(0) ? 2 : 1;
       ConduitTransfer[] memory transfers = new ConduitTransfer[](transferLength);
 
       ConduitItemType itemType;
@@ -422,15 +424,21 @@ contract LoanManager is
         amount: transferLength == 1 ? loan.debt.amount : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
         to: loan.debt.recipient
       });
-      if (transferLength == 2) {
-
+      if (transferLength == 2 && itemType == ConduitItemType.ERC20) {
+        transfers[1] = ConduitTransfer({
+          itemType: itemType,
+          from: lender,
+          token: loan.debt.token,
+          identifier: loan.debt.identifier,
+          amount: transferLength == 1 ? loan.debt.amount : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
+          to: feeRecipient
+        });
       }
-      ConduitInterface conduit = Validator(loan.validator).conduit();
-      if (CI.ownerOf(address(conduit)) != loan.validator ) {
+      if (CI.ownerOf(conduit) != loan.validator ) {
         revert InvalidContext(ContextErrors.INVALID_CONDUIT);
       }
       if (
-        ConduitInterface.execute.selector != conduit.execute(transfers)
+        ConduitInterface.execute.selector != ConduitInterface(conduit).execute(transfers)
       ) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }

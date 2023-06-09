@@ -39,6 +39,8 @@ contract TestStarLite is BaseOrderTest {
     //    address conduit;
     bytes32 conduitKey;
 
+    address borrower;
+    uint256 borrowerKey;
     address lender;
     uint256 lenderKey;
     address strategist;
@@ -60,6 +62,7 @@ contract TestStarLite is BaseOrderTest {
         LM = new LoanManager(ConsiderationInterface(address(consideration)));
         (strategist, strategistKey) = makeAddrAndKey("strategist");
         (lender, lenderKey) = makeAddrAndKey("lender");
+        (borrower, borrowerKey) = makeAddrAndKey("borrower");
         UV = new UniqueValidator(LM, ConduitControllerInterface(address(conduitController)), strategist, 0);
 
         conduitKeyOne = bytes32(uint256(uint160(address(strategist))) << 96);
@@ -83,11 +86,11 @@ contract TestStarLite is BaseOrderTest {
         TestNFT nft = new TestNFT();
 
         vm.label(address(debtToken), "what");
-        vm.label(address(1), "borrower");
+        vm.label(borrower, "borrower");
 
         {
-            vm.startPrank(address(1));
-            nft.mint(address(1), 1);
+            vm.startPrank(borrower);
+            nft.mint(borrower, 1);
             nft.setApprovalForAll(address(consideration), true);
             vm.stopPrank();
         }
@@ -149,7 +152,7 @@ contract TestStarLite is BaseOrderTest {
                 details: abi.encode(loanDetails),
                 loan: LoanManager.Loan({
                     collateral: SpentItem({token: address(nft), amount: 1, identifier: 0, itemType: ItemType.ERC721}),
-                    debt: ReceivedItem({recipient: payable(address(1)), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
+                    debt: ReceivedItem({recipient: payable(borrower), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
                     validator: loanDetails.validator,
                     trigger: loanDetails.trigger,
                     resolver: loanDetails.resolver,
@@ -202,13 +205,17 @@ contract TestStarLite is BaseOrderTest {
             extraData: abi.encode(uint8(LoanManager.Action.OPEN), nlrs)
         });
 
-        vm.startPrank(address(1));
+        uint256 balanceBefore = debtToken.balanceOf(borrower);
+        vm.startPrank(borrower);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),
             fulfillerConduitKey: bytes32(0),
             recipient: address(this)
         });
+        uint256 balanceAfter = debtToken.balanceOf(borrower);
+
+        assertEq(balanceAfter - balanceBefore, 100);
         vm.stopPrank();
     }
 }
