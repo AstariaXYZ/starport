@@ -1,7 +1,6 @@
 pragma solidity =0.8.17;
 
 import {ERC721} from "solmate/tokens/ERC721.sol";
-import {ERC20} from "solmate/tokens/ERC20.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -14,6 +13,13 @@ import {
   ReceivedItem,
   OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {
+  ConduitTransfer,
+  ConduitItemType
+} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {
+  ConduitInterface
+} from "seaport-types/src/interfaces/ConduitInterface.sol";
 import {
   ConduitControllerInterface
 } from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
@@ -31,7 +37,11 @@ import {
   TokenReceiverInterface
 } from "src/interfaces/TokenReceiverInterface.sol";
 import {Validator} from "src/validators/Validator.sol";
+import {Trigger} from "src/triggers/Trigger.sol";
+import {Resolver} from "src/resolvers/Resolver.sol";
+import {Pricing} from "src/pricing/Pricing.sol";
 import "forge-std/console.sol";
+
 contract LoanManager is
   ERC721("LoanManager", "LM"),
   AmountDeriver,
@@ -39,24 +49,44 @@ contract LoanManager is
   TokenReceiverInterface
 {
   uint256 private constant MIN_DURATION = 1 hours;
+  uint256 private constant ONE_WORD = 0x20;
+
+  address public feeRecipient;
+  uint256 public fee;
 
   enum Action {
+    ASK,
+    MATCH,
     OPEN,
     CLOSE
   }
+
   struct Loan {
     SpentItem collateral;
     ReceivedItem debt;
     address validator;
+    address trigger;
+    address pricing;
+    address resolver;
     uint256 start;
     uint256 nonce;
-    bytes details;
+    bytes pricingData;
+    bytes resolverData;
+    bytes triggerData;
   }
 
+  struct ValidatorResponse {
+    address trigger; // isLoanHealthy
+    address resolver; // liquidationMethod
+    address pricing;
+    address recipient;
+    bytes pricingData;
+    bytes resolverData;
+    bytes triggerData;
+  }
 
   struct NewLoanRequest {
-    address lender;
-    ReceivedItem ask;
+    Loan loan;
     Validator.Signature signature;
     bytes details;
   }
@@ -78,7 +108,8 @@ contract LoanManager is
     COLLATERAL,
     INVALID_PAYMENT,
     ZERO_ADDRESS,
-    INVALID_LOAN
+    INVALID_LOAN,
+    INVALID_CONDUIT
   }
 
   error InvalidCollateral();
@@ -87,13 +118,15 @@ contract LoanManager is
   error UnsupportedExtraDataVersion(uint8 version);
   error InvalidExtraDataEncoding(uint8 version);
 
-  ConsiderationInterface public seaport;
-
+  ConsiderationInterface public immutable seaport;
+  ConduitControllerInterface public immutable CI;
   uint256 public loanCount;
 
   constructor(ConsiderationInterface consideration) {
     seaport = consideration;
+    (, , address conduitController) = consideration.information();
     loanCount = 1;
+    CI = ConduitControllerInterface(conduitController);
     emit SeaportCompatibleContractDeployed();
   }
 
@@ -111,7 +144,7 @@ contract LoanManager is
     address from,
     uint256 tokenId,
     bytes calldata data
-  ) public virtual returns (bytes4) {
+  ) public pure virtual returns (bytes4) {
     return TokenReceiverInterface.onERC721Received.selector;
   }
 
@@ -121,7 +154,7 @@ contract LoanManager is
     uint256,
     uint256,
     bytes calldata
-  ) external virtual returns (bytes4) {
+  ) external pure virtual returns (bytes4) {
     return TokenReceiverInterface.onERC1155Received.selector;
   }
 
@@ -131,7 +164,7 @@ contract LoanManager is
     uint256[] calldata,
     uint256[] calldata,
     bytes calldata
-  ) external virtual returns (bytes4) {
+  ) external pure virtual returns (bytes4) {
     return TokenReceiverInterface.onERC1155BatchReceived.selector;
   }
 
@@ -179,20 +212,22 @@ contract LoanManager is
     } else if (action == uint8(Action.CLOSE)) {
       (, Loan memory loan) = abi.decode(context, (uint8, Loan));
 
-      if (
-        Validator(loan.validator).isLoanHealthy(loan) &&
-        fulfiller != loan.debt.recipient
-      ) {
+      bool isLoanHealthy = Trigger(loan.trigger).isLoanHealthy(loan);
+      if (isLoanHealthy && fulfiller != loan.debt.recipient) {
         revert InvalidSender();
       }
 
       //now were in liquidation
       offer = new SpentItem[](1);
       offer[0] = loan.collateral;
+      uint256 owing = Pricing(loan.pricing).getOwed(loan, block.timestamp);
 
-      consideration = Validator(loan.validator).getClosedConsideration(
+      consideration = Resolver(loan.resolver).getClosedConsideration(
         loan,
-        maximumSpent[0]
+        maximumSpent[0],
+        owing,
+        ownerOf(uint256(keccak256(abi.encode(loan)))),
+        isLoanHealthy
       );
       //otherwise compute the ownership of the loan based on liquidation or not
     } else {
@@ -208,7 +243,7 @@ contract LoanManager is
    */
   function getSeaportMetadata()
     external
-    view
+    pure
     returns (string memory name, Schema[] memory schemas)
   {
     schemas = new Schema[](1);
@@ -265,8 +300,7 @@ contract LoanManager is
   ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
     //get the spent token and amount from the spent item
 
-    uint8 action = abi.decode(context[:32], (uint8));
-
+    uint8 action = abi.decode(context[:ONE_WORD], (uint8));
     if (action == uint8(Action.OPEN)) {
       _executeLoanOpen(consideration, context);
     } else if (action == uint8(Action.CLOSE)) {
@@ -306,6 +340,38 @@ contract LoanManager is
   }
 
   // INTERNAL FUNCTIONS
+  //  function _executeLoanMatch(bytes calldata context) internal {
+  //    //    if (consideration.length != 1) {
+  //    //      revert InvalidContext(ContextErrors.LENGTH_MISMATCH);
+  //    //    }
+  //    (Loan memory ask, LoanManager.NewLoanRequest memory nlr) = abi.decode(
+  //      context,
+  //      (Loan, LoanManager.NewLoanRequest)
+  //    );
+  //    if (ownerOf(uint256(keccak256(abi.encode(ask)))) == address(0)) {
+  //      revert InvalidContext(ContextErrors.INVALID_LOAN);
+  //    }
+  //    Loan memory loan = Loan({
+  //      validator: validator,
+  //      trigger: address(0),
+  //      pricing: address(0),
+  //      pricing: address(0),
+  //      collateral: SpentItem({
+  //        itemType: ask.itemType,
+  //        token: ask.token,
+  //        identifier: ask.identifier,
+  //        amount: ask.amount
+  //      }),
+  //      debt: nlr.ask,
+  //      start: block.timestamp,
+  //      nonce: ++loanCount,
+  //      details: nlr.details
+  //    });
+  //
+  //    //    uint256 beforeBalance = ERC20(nlr.ask.token).balanceOf(
+  //    //      nlr.ask.recipient
+  //    //    );
+  //  }
 
   function _executeLoanOpen(
     ReceivedItem[] calldata consideration,
@@ -315,51 +381,62 @@ contract LoanManager is
       context,
       (uint8, LoanManager.NewLoanRequest[])
     );
-
     if (nlrs.length != consideration.length) {
       revert InvalidContext(ContextErrors.LENGTH_MISMATCH);
     }
     uint256 i = 0;
     for (; i < nlrs.length; ) {
-      address validator;
-
-      assembly {
-        validator := calldataload(add(context.offset, 480))
-      }
-      if (validator == address(0)) {
+      Loan memory loan = nlrs[i].loan;
+      if (loan.validator == address(0)) {
         revert InvalidContext(ContextErrors.ZERO_ADDRESS);
       }
-
-      uint256 beforeBalance = ERC20(nlrs[i].ask.token).balanceOf(
-        nlrs[i].ask.recipient
-      );
-      Loan memory loan = Loan({
-        collateral: SpentItem({
-          itemType: consideration[i].itemType,
-          token: consideration[i].token,
-          identifier: consideration[i].identifier,
-          amount: consideration[i].amount
-        }),
-        debt: nlrs[i].ask,
-        validator: validator,
-        start: block.timestamp,
-        nonce: ++loanCount,
-        details: nlrs[i].details
-      });
-      address recipient = Validator(validator).execute(
+      loan.start = block.timestamp;
+      loan.nonce = ++loanCount;
+      (address lender, address conduit) = Validator(loan.validator).validate(
         loan,
-        nlrs[i].signature,
-        consideration[i]
+        nlrs[i].details,
+        nlrs[i].signature
       );
+      if (lender == address(0)) {
+        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
+      }
+      uint256 transferLength = feeAddress != address(0) ? 2 : 1;
+      ConduitTransfer[] memory transfers = new ConduitTransfer[](transferLength);
 
-      uint256 afterBalance = ERC20(loan.debt.token).balanceOf(
-        loan.debt.recipient
-      );
-      if (afterBalance - beforeBalance != nlrs[i].ask.amount) {
+      ConduitItemType itemType;
+
+      if (loan.debt.itemType == ItemType.ERC20) {
+        itemType = ConduitItemType.ERC20;
+      } else if (loan.debt.itemType == ItemType.ERC721) {
+        itemType = ConduitItemType.ERC721;
+      } else if (loan.debt.itemType == ItemType.ERC1155) {
+        itemType = ConduitItemType.ERC1155;
+      } else {
+        revert InvalidContext(ContextErrors.INVALID_LOAN);
+      }
+      transfers[0] = ConduitTransfer({
+        itemType: itemType,
+        from: lender,
+        token: loan.debt.token,
+        identifier: loan.debt.identifier,
+        amount: transferLength == 1 ? loan.debt.amount : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
+        to: loan.debt.recipient
+      });
+      if (transferLength == 2) {
+
+      }
+      ConduitInterface conduit = Validator(loan.validator).conduit();
+      if (CI.ownerOf(address(conduit)) != loan.validator ) {
+        revert InvalidContext(ContextErrors.INVALID_CONDUIT);
+      }
+      if (
+        ConduitInterface.execute.selector != conduit.execute(transfers)
+      ) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
+
       uint256 loanId = uint256(keccak256(abi.encode(loan)));
-      _safeMint(recipient, loanId);
+      _safeMint(lender, loanId);
       emit LoanOpened(loanId, loan);
       unchecked {
         ++i;
@@ -372,8 +449,7 @@ contract LoanManager is
     bytes calldata context
   ) internal {
     //make this cheaper, by just encoding the
-    //    Loan memory loan = abi.decode(context[32:], (Loan));
-    uint256 loanId = uint256(keccak256(context[32:]));
+    uint256 loanId = uint256(keccak256(context[ONE_WORD:]));
     emit LoanClosed(loanId, consideration);
     _burn(loanId);
   }

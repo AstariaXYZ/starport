@@ -23,6 +23,9 @@ import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
 import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {UniqueValidator} from "src/validators/UniqueValidator.sol";
+import {FixedTermPricing} from "src/pricing/Pricing.sol";
+import {FixedTermTrigger} from "src/triggers/Trigger.sol";
+import {FixedTermResolver} from "src/resolvers/Resolver.sol";
 
 contract TestNFT is MockERC721 {
     constructor() MockERC721("TestNFT", "TNFT") {}
@@ -36,6 +39,8 @@ contract TestStarLite is BaseOrderTest {
     //    address conduit;
     bytes32 conduitKey;
 
+    address lender;
+    uint256 lenderKey;
     address strategist;
     uint256 strategistKey;
     address seaportAddr;
@@ -54,22 +59,20 @@ contract TestStarLite is BaseOrderTest {
 
         LM = new LoanManager(ConsiderationInterface(address(consideration)));
         (strategist, strategistKey) = makeAddrAndKey("strategist");
+        (lender, lenderKey) = makeAddrAndKey("lender");
         UV = new UniqueValidator(LM, ConduitControllerInterface(address(conduitController)), strategist, 0);
 
         conduitKeyOne = bytes32(uint256(uint160(address(strategist))) << 96);
-        vm.startPrank(strategist);
-        //create conduit, update channel
-        conduit = Conduit(conduitController.createConduit(conduitKeyOne, address(strategist)));
-        debtToken.approve(address(conduit), 100000);
-        debtToken.mint(address(strategist), 1000);
-        conduitController.updateChannel(address(conduit), address(UV), true);
-        conduitController.updateChannel(address(conduit), address(consideration), true);
+        vm.startPrank(lender);
+        debtToken.approve(address(UV.conduit()), 100000);
+        debtToken.mint(address(lender), 1000);
 
         vm.stopPrank();
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         public
+        pure
         override
         returns (bytes4)
     {
@@ -89,18 +92,52 @@ contract TestStarLite is BaseOrderTest {
             vm.stopPrank();
         }
 
-        UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
+//        UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
+//            validator: address(UV),
+//            conduit: address(conduit),
+//            collateral: address(nft),
+//            debtToken: address(debtToken),
+//            identifier: 1,
+//            maxAmount: 100,
+//            rate: 1,
+//            loanDuration: 1000,
+//            deadline: block.timestamp + 100,
+//            settlement: UniqueValidator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
+//        });
+
+        //struct Details {
+        //    address validator;
+        //    address trigger; // isLoanHealthy
+        //    address resolver; // liquidationMethod
+        //    address pricing; // getOwed
+        //    uint256 deadline;
+        //    SpentItem collateral;
+        //    ReceivedItem debt;
+        //    bytes pricingData;
+        //    bytes resolverData;
+        //  }
+
+
+
+        UniqueValidator.Details memory loanDetails;
+
+        {
+            FixedTermPricing pricing = new FixedTermPricing();
+            FixedTermResolver resolver = new FixedTermResolver();
+            FixedTermTrigger trigger = new FixedTermTrigger();
+            loanDetails = UniqueValidator.Details({
             validator: address(UV),
-            conduit: address(conduit),
-            collateral: address(nft),
-            debtToken: address(debtToken),
-            identifier: 1,
-            maxAmount: 100,
-            rate: 1,
-            loanDuration: 1000,
+            trigger: address(trigger),
+            resolver: address(resolver),
+            pricing: address(pricing),
             deadline: block.timestamp + 100,
-            settlement: UniqueValidator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
-        });
+            collateral: SpentItem({token: address(nft), amount: 1, identifier: 0, itemType: ItemType.ERC721}),
+            debt: ReceivedItem({recipient: payable(lender), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
+            pricingData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
+            resolverData: abi.encode(FixedTermResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
+            triggerData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days }))
+            });
+        }
 
         bytes32 hash = keccak256(UV.encodeWithAccountCounter(address(strategist), abi.encode(loanDetails)));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategistKey, hash);
@@ -109,44 +146,27 @@ contract TestStarLite is BaseOrderTest {
             nft,
             address(LM),
             LoanManager.NewLoanRequest({
-                lender: address(strategist),
                 details: abi.encode(loanDetails),
-                ask: ReceivedItem({recipient: payable(address(this)), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
+                loan: LoanManager.Loan({
+                    collateral: SpentItem({token: address(nft), amount: 1, identifier: 0, itemType: ItemType.ERC721}),
+                    debt: ReceivedItem({recipient: payable(address(1)), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
+                    validator: loanDetails.validator,
+                    trigger: loanDetails.trigger,
+                    resolver: loanDetails.resolver,
+                    pricing: loanDetails.pricing,
+                    pricingData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
+                    resolverData: abi.encode(FixedTermResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
+                    triggerData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
+                    start: uint256(0),
+                    nonce: uint256(0)
+                }),
                 signature: Validator.Signature({v: v, r: r, s: s})
             })
         );
-
-        // UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
-        //            validator: address(UV),
-        //            conduit : address(conduit),
-        //            token : address(nft),
-        //            tokenId : 1,
-        //            maxAmount : 100,
-        //            rate : 1,
-        //            duration : 1000,
-        //            deadline : block.timestamp + 100
-        //        });
-
-        //        Validator.Loan memory l = Validator.Loan({
-        //            validator : address(UV),
-        //            token : address(nft),
-        //            tokenId : 1,
-        //            rate : 1,
-        //            duration : 1000,
-        //            deadline : block.timestamp + 100
-        //        });
     }
 
     function _executeNLR(TestNFT nft, address lm, LoanManager.NewLoanRequest memory nlr) internal {
-        //        nft.safeTransferFrom(address(1), lm, 1, abi.encode(nlr));
         nft.setApprovalForAll(address(consideration), true);
-        //struct AdvancedOrder {
-        //    OrderParameters parameters;
-        //    uint120 numerator;
-        //    uint120 denominator;
-        //    bytes signature;
-        //    bytes extraData;
-        //}
 
         ConsiderationItem[] memory consider = new ConsiderationItem[](1);
         consider[0] = ConsiderationItem({
@@ -179,15 +199,9 @@ contract TestStarLite is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(uint8(0), nlrs)
+            extraData: abi.encode(uint8(LoanManager.Action.OPEN), nlrs)
         });
 
-        //function fulfillAdvancedOrder(
-        //        AdvancedOrder calldata advancedOrder,
-        //        CriteriaResolver[] calldata criteriaResolvers,
-        //        bytes32 fulfillerConduitKey,
-        //        address recipient
-        //    ) external payable returns (bool fulfilled);
         vm.startPrank(address(1));
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
