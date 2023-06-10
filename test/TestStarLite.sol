@@ -25,7 +25,7 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {UniqueValidator} from "src/validators/UniqueValidator.sol";
 import {FixedTermPricing} from "src/pricing/Pricing.sol";
 import {FixedTermTrigger} from "src/triggers/Trigger.sol";
-import {FixedTermResolver} from "src/resolvers/Resolver.sol";
+import {DutchAuctionResolver} from "src/resolvers/DutchAuctionResolver.sol";
 
 contract TestNFT is MockERC721 {
     constructor() MockERC721("TestNFT", "TNFT") {}
@@ -126,7 +126,7 @@ contract TestStarLite is BaseOrderTest {
 
         {
             FixedTermPricing pricing = new FixedTermPricing();
-            FixedTermResolver resolver = new FixedTermResolver();
+            DutchAuctionResolver resolver = new DutchAuctionResolver();
             FixedTermTrigger trigger = new FixedTermTrigger();
             loanDetails = UniqueValidator.Details({
             validator: address(UV),
@@ -137,7 +137,7 @@ contract TestStarLite is BaseOrderTest {
             collateral: SpentItem({token: address(nft), amount: 1, identifier: 0, itemType: ItemType.ERC721}),
             debt: ReceivedItem({recipient: payable(lender), token: address(debtToken), amount: 100, identifier: 0, itemType: ItemType.ERC20}),
             pricingData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
-            resolverData: abi.encode(FixedTermResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
+            resolverData: abi.encode(DutchAuctionResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
             triggerData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days }))
             });
         }
@@ -158,7 +158,7 @@ contract TestStarLite is BaseOrderTest {
                     resolver: loanDetails.resolver,
                     pricing: loanDetails.pricing,
                     pricingData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
-                    resolverData: abi.encode(FixedTermResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
+                    resolverData: abi.encode(DutchAuctionResolver.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})),
                     triggerData: abi.encode(FixedTermPricing.Details({rate: uint256(uint256(1e16) / 365 * 1 days), loanDuration: 10 days })),
                     start: uint256(0),
                     nonce: uint256(0)
@@ -202,7 +202,7 @@ contract TestStarLite is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(uint8(LoanManager.Action.OPEN), nlrs)
+            extraData: abi.encode(uint8(LoanManager.Action.LOCK), nlrs)
         });
 
         uint256 balanceBefore = debtToken.balanceOf(borrower);

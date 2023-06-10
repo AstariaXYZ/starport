@@ -59,8 +59,8 @@ contract LoanManager is
   enum Action {
     ASK,
     MATCH,
-    OPEN,
-    CLOSE
+    LOCK,
+    UNLOCK
   }
 
   struct Loan {
@@ -111,14 +111,9 @@ contract LoanManager is
     INVALID_PAYMENT,
     ZERO_ADDRESS,
     INVALID_LOAN,
-    INVALID_CONDUIT
+    INVALID_CONDUIT,
+    INVALID_RESOLVER
   }
-
-  error InvalidCollateral();
-  error LoanHealthy();
-  error StateMismatch(uint256);
-  error UnsupportedExtraDataVersion(uint8 version);
-  error InvalidExtraDataEncoding(uint8 version);
 
   ConsiderationInterface public immutable seaport;
   ConduitControllerInterface public immutable CI;
@@ -200,7 +195,7 @@ contract LoanManager is
   {
     uint8 action = abi.decode(context[:32], (uint8));
 
-    if (action == uint8(Action.OPEN)) {
+    if (action == uint8(Action.LOCK)) {
       consideration = new ReceivedItem[](maximumSpent.length);
       for (uint256 i = 0; i < maximumSpent.length; i++) {
         consideration[i] = ReceivedItem({
@@ -211,27 +206,34 @@ contract LoanManager is
           recipient: payable(address(this))
         });
       }
-    } else if (action == uint8(Action.CLOSE)) {
+    } else if (action == uint8(Action.UNLOCK)) {
       (, Loan memory loan) = abi.decode(context, (uint8, Loan));
 
       bool isLoanHealthy = Trigger(loan.trigger).isLoanHealthy(loan);
-      if (isLoanHealthy && fulfiller != loan.debt.recipient) {
-        revert InvalidSender();
-      }
-
-      //now were in liquidation
+      uint256 owing = Pricing(loan.pricing).getOwed(loan);
+      address payable lender = payable(
+        ownerOf(uint256(keccak256(abi.encode(loan))))
+      );
       offer = new SpentItem[](1);
       offer[0] = loan.collateral;
-      uint256 owing = Pricing(loan.pricing).getOwed(loan, block.timestamp);
 
-      consideration = Resolver(loan.resolver).getClosedConsideration(
-        loan,
-        maximumSpent[0],
-        owing,
-        ownerOf(uint256(keccak256(abi.encode(loan)))),
-        isLoanHealthy
-      );
-      //otherwise compute the ownership of the loan based on liquidation or not
+      if (isLoanHealthy) {
+        if (fulfiller != loan.debt.recipient) {
+          revert InvalidSender();
+        }
+        loan.debt.recipient = lender;
+        loan.debt.amount = owing;
+        consideration = new ReceivedItem[](1);
+        consideration[0] = loan.debt;
+      } else {
+        //now were in liquidation
+        address restricted;
+        (consideration, restricted) = Resolver(loan.resolver)
+          .getUnlockConsideration(loan, maximumSpent, owing, lender);
+        if (restricted != address(0) && fulfiller != restricted) {
+          revert InvalidSender();
+        }
+      }
     } else {
       revert InvalidAction();
     }
@@ -303,10 +305,10 @@ contract LoanManager is
     //get the spent token and amount from the spent item
 
     uint8 action = abi.decode(context[:ONE_WORD], (uint8));
-    if (action == uint8(Action.OPEN)) {
-      _executeLoanOpen(consideration, context);
-    } else if (action == uint8(Action.CLOSE)) {
-      _executeLoanClosed(consideration, context);
+    if (action == uint8(Action.LOCK)) {
+      _executeLock(consideration, context);
+    } else if (action == uint8(Action.UNLOCK)) {
+      _executeUnlock(consideration, context);
     } else {
       revert InvalidAction();
     }
@@ -375,7 +377,7 @@ contract LoanManager is
   //    //    );
   //  }
 
-  function _executeLoanOpen(
+  function _executeLock(
     ReceivedItem[] calldata consideration,
     bytes calldata context
   ) internal {
@@ -403,7 +405,9 @@ contract LoanManager is
         revert InvalidContext(ContextErrors.ZERO_ADDRESS);
       }
       uint256 transferLength = feeRecipient != address(0) ? 2 : 1;
-      ConduitTransfer[] memory transfers = new ConduitTransfer[](transferLength);
+      ConduitTransfer[] memory transfers = new ConduitTransfer[](
+        transferLength
+      );
 
       ConduitItemType itemType;
 
@@ -421,7 +425,9 @@ contract LoanManager is
         from: lender,
         token: loan.debt.token,
         identifier: loan.debt.identifier,
-        amount: transferLength == 1 ? loan.debt.amount : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
+        amount: transferLength == 1
+          ? loan.debt.amount
+          : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
         to: loan.debt.recipient
       });
       if (transferLength == 2 && itemType == ConduitItemType.ERC20) {
@@ -430,15 +436,18 @@ contract LoanManager is
           from: lender,
           token: loan.debt.token,
           identifier: loan.debt.identifier,
-          amount: transferLength == 1 ? loan.debt.amount : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
+          amount: transferLength == 1
+            ? loan.debt.amount
+            : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
           to: feeRecipient
         });
       }
-      if (CI.ownerOf(conduit) != loan.validator ) {
+      if (CI.ownerOf(conduit) != loan.validator) {
         revert InvalidContext(ContextErrors.INVALID_CONDUIT);
       }
       if (
-        ConduitInterface.execute.selector != ConduitInterface(conduit).execute(transfers)
+        ConduitInterface.execute.selector !=
+        ConduitInterface(conduit).execute(transfers)
       ) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
@@ -452,12 +461,16 @@ contract LoanManager is
     }
   }
 
-  function _executeLoanClosed(
+  function _executeUnlock(
     ReceivedItem[] calldata consideration,
     bytes calldata context
   ) internal {
     //make this cheaper, by just encoding the
     uint256 loanId = uint256(keccak256(context[ONE_WORD:]));
+    (, Loan memory loan) = abi.decode(context, (uint8, Loan));
+    if (Resolver.resolve.selector != Resolver(loan.resolver).resolve(loan)) {
+      revert InvalidContext(ContextErrors.INVALID_RESOLVER);
+    }
     emit LoanClosed(loanId, consideration);
     _burn(loanId);
   }

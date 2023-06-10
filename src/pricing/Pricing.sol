@@ -4,9 +4,8 @@ import {LoanManager} from "src/LoanManager.sol";
 
 abstract contract Pricing {
   function getOwed(
-    LoanManager.Loan calldata loan,
-    uint256 timestamp
-  ) public pure virtual returns (uint256);
+    LoanManager.Loan calldata loan
+  ) public view virtual returns (uint256);
 }
 
 contract FixedTermPricing is Pricing {
@@ -16,11 +15,10 @@ contract FixedTermPricing is Pricing {
   }
 
   function getOwed(
-    LoanManager.Loan calldata loan,
-    uint256 timestamp
-  ) public pure override returns (uint256) {
+    LoanManager.Loan calldata loan
+  ) public view override returns (uint256) {
     Details memory details = abi.decode(loan.pricingData, (Details));
-    return _getOwed(loan, details, timestamp);
+    return _getOwed(loan, details, block.timestamp);
   }
 
   function _getOwed(

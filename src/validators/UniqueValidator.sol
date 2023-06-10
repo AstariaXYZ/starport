@@ -16,11 +16,6 @@ contract UniqueValidator is Validator {
     uint256 fee_
   ) Validator(LM_, CI_, strategist_, fee_) {}
 
-  struct SettlementData {
-    uint256 startingPrice;
-    uint256 endingPrice;
-    uint256 window;
-  }
   struct Details {
     address validator;
     address trigger; // isLoanHealthy
@@ -75,7 +70,9 @@ contract UniqueValidator is Validator {
     if (
       details.debt.token != loan.debt.token ||
       details.debt.identifier != loan.debt.identifier ||
-      details.debt.itemType != loan.debt.itemType || loan.debt.amount > details.debt.amount || loan.debt.amount == 0
+      details.debt.itemType != loan.debt.itemType ||
+      loan.debt.amount > details.debt.amount ||
+      loan.debt.amount == 0
     ) {
       revert InvalidDebtToken();
     }
