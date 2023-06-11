@@ -12,7 +12,7 @@ import {
 
 import {Validator} from "src/validators/Validator.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Resolver} from "src/resolvers/Resolver.sol";
 
 contract DutchAuctionResolver is Resolver, AmountDeriver {
@@ -51,7 +51,7 @@ contract DutchAuctionResolver is Resolver, AmountDeriver {
       revert InvalidAmount();
     }
 
-    uint256 fee = settlementPrice.mulWadDown(
+    uint256 fee = settlementPrice.mulWad(
       Validator(loan.validator).strategistFee()
     );
     uint256 considerationLength = 1;

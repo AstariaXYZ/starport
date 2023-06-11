@@ -25,7 +25,7 @@ import {
 
 import {Validator} from "src/validators/Validator.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Resolver} from "src/resolvers/Resolver.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {

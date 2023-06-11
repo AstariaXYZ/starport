@@ -1,6 +1,6 @@
 pragma solidity =0.8.17;
 
-import {ERC721} from "solmate/tokens/ERC721.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -32,11 +32,10 @@ import {
 import {
   ContractOffererInterface
 } from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {
   TokenReceiverInterface
 } from "src/interfaces/TokenReceiverInterface.sol";
-import {FixedPointMathLib} from "solmate/utils/FixedPointMathLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Validator} from "src/validators/Validator.sol";
 import {Trigger} from "src/triggers/Trigger.sol";
 import {Resolver} from "src/resolvers/Resolver.sol";
@@ -44,17 +43,18 @@ import {Pricing} from "src/pricing/Pricing.sol";
 import "forge-std/console.sol";
 
 contract LoanManager is
-  ERC721("LoanManager", "LM"),
-  AmountDeriver,
+  ERC721,
   ContractOffererInterface,
   TokenReceiverInterface
 {
   using FixedPointMathLib for uint256;
-  uint256 private constant MIN_DURATION = 1 hours;
   uint256 private constant ONE_WORD = 0x20;
 
+  uint96 public loanCount;
   address public feeRecipient;
   uint256 public fee;
+  ConsiderationInterface public immutable seaport;
+  ConduitControllerInterface public immutable CI;
 
   enum Action {
     ASK,
@@ -77,24 +77,14 @@ contract LoanManager is
     bytes triggerData;
   }
 
-  struct ValidatorResponse {
-    address trigger; // isLoanHealthy
-    address resolver; // liquidationMethod
-    address pricing;
-    address recipient;
-    bytes pricingData;
-    bytes resolverData;
-    bytes triggerData;
-  }
-
   struct NewLoanRequest {
     Loan loan;
     Validator.Signature signature;
     bytes details;
   }
 
-  event LoanOpened(uint256 indexed loanId, Loan loan);
-  event LoanClosed(uint256 indexed loanId, ReceivedItem[] consideration);
+  event Lock(uint256 indexed loanId, Loan loan);
+  event Unlock(uint256 indexed loanId);
   event SeaportCompatibleContractDeployed();
 
   error InvalidSender();
@@ -115,16 +105,20 @@ contract LoanManager is
     INVALID_RESOLVER
   }
 
-  ConsiderationInterface public immutable seaport;
-  ConduitControllerInterface public immutable CI;
-  uint256 public loanCount;
-
   constructor(ConsiderationInterface consideration) {
     seaport = consideration;
     (, , address conduitController) = consideration.information();
     loanCount = 1;
     CI = ConduitControllerInterface(conduitController);
     emit SeaportCompatibleContractDeployed();
+  }
+
+  function name() public view override returns (string memory) {
+    return "Loan Manager";
+  }
+
+  function symbol() public view override returns (string memory) {
+    return "LM";
   }
 
   // MODIFIERS
@@ -196,46 +190,82 @@ contract LoanManager is
     uint8 action = abi.decode(context[:32], (uint8));
 
     if (action == uint8(Action.LOCK)) {
-      consideration = new ReceivedItem[](maximumSpent.length);
-      for (uint256 i = 0; i < maximumSpent.length; i++) {
-        consideration[i] = ReceivedItem({
-          itemType: maximumSpent[i].itemType,
-          token: maximumSpent[i].token,
-          identifier: maximumSpent[i].identifier,
-          amount: maximumSpent[i].amount,
-          recipient: payable(address(this))
-        });
-      }
-    } else if (action == uint8(Action.UNLOCK)) {
-      (, Loan memory loan) = abi.decode(context, (uint8, Loan));
-
-      bool isLoanHealthy = Trigger(loan.trigger).isLoanHealthy(loan);
-      uint256 owing = Pricing(loan.pricing).getOwed(loan);
-      address payable lender = payable(
-        ownerOf(uint256(keccak256(abi.encode(loan))))
+      (offer, consideration) = _previewLock(
+        caller,
+        fulfiller,
+        minimumReceived,
+        maximumSpent,
+        context
       );
-      offer = new SpentItem[](1);
-      offer[0] = loan.collateral;
-
-      if (isLoanHealthy) {
-        if (fulfiller != loan.debt.recipient) {
-          revert InvalidSender();
-        }
-        loan.debt.recipient = lender;
-        loan.debt.amount = owing;
-        consideration = new ReceivedItem[](1);
-        consideration[0] = loan.debt;
-      } else {
-        //now were in liquidation
-        address restricted;
-        (consideration, restricted) = Resolver(loan.resolver)
-          .getUnlockConsideration(loan, maximumSpent, owing, lender);
-        if (restricted != address(0) && fulfiller != restricted) {
-          revert InvalidSender();
-        }
-      }
+    } else if (action == uint8(Action.UNLOCK)) {
+      (offer, consideration) = _previewUnlock(
+        caller,
+        fulfiller,
+        minimumReceived,
+        maximumSpent,
+        context
+      );
     } else {
       revert InvalidAction();
+    }
+  }
+
+  function _previewLock(
+    address caller,
+    address fulfiller,
+    SpentItem[] calldata minimumReceived,
+    SpentItem[] calldata maximumSpent,
+    bytes calldata context
+  )
+    internal
+    view
+    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
+  {
+    consideration = new ReceivedItem[](maximumSpent.length);
+    uint256 i = 0;
+    for (; i < maximumSpent.length; ) {
+      consideration[i] = ReceivedItem({
+        itemType: maximumSpent[i].itemType,
+        token: maximumSpent[i].token,
+        identifier: maximumSpent[i].identifier,
+        amount: maximumSpent[i].amount,
+        recipient: payable(address(this))
+      });
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function _previewUnlock(
+    address caller,
+    address fulfiller,
+    SpentItem[] calldata minimumReceived,
+    SpentItem[] calldata maximumSpent,
+    bytes calldata context
+  )
+    internal
+    view
+    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
+  {
+    (, Loan memory loan) = abi.decode(context, (uint8, Loan));
+
+    bool isLoanHealthy = Trigger(loan.trigger).isLoanHealthy(loan);
+    uint256 owing = Pricing(loan.pricing).getOwed(loan);
+    address payable lender = payable(
+      ownerOf(uint256(keccak256(abi.encode(loan))))
+    );
+    offer = new SpentItem[](1);
+    offer[0] = loan.collateral;
+    address restricted;
+    (consideration, restricted) = Resolver(loan.resolver)
+      .getUnlockConsideration(loan, maximumSpent, owing, lender);
+
+    if (
+      (isLoanHealthy && fulfiller != loan.debt.recipient) ||
+      (!isLoanHealthy && restricted != address(0) && fulfiller != restricted)
+    ) {
+      revert InvalidSender();
     }
   }
 
@@ -391,70 +421,35 @@ contract LoanManager is
     uint256 i = 0;
     for (; i < nlrs.length; ) {
       Loan memory loan = nlrs[i].loan;
-      if (loan.validator == address(0)) {
-        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
-      }
+      //      if (loan.validator == address(0)) {
+      //        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
+      //      }
       loan.start = block.timestamp;
       loan.nonce = ++loanCount;
-      (address lender, address conduit) = Validator(loan.validator).validate(
+      Validator.Response memory response = Validator(loan.validator).validate(
         loan,
         nlrs[i].details,
         nlrs[i].signature
       );
-      if (lender == address(0)) {
-        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
-      }
-      uint256 transferLength = feeRecipient != address(0) ? 2 : 1;
-      ConduitTransfer[] memory transfers = new ConduitTransfer[](
-        transferLength
-      );
-
-      ConduitItemType itemType;
-
-      if (loan.debt.itemType == ItemType.ERC20) {
-        itemType = ConduitItemType.ERC20;
-      } else if (loan.debt.itemType == ItemType.ERC721) {
-        itemType = ConduitItemType.ERC721;
-      } else if (loan.debt.itemType == ItemType.ERC1155) {
-        itemType = ConduitItemType.ERC1155;
-      } else {
-        revert InvalidContext(ContextErrors.INVALID_LOAN);
-      }
-      transfers[0] = ConduitTransfer({
-        itemType: itemType,
-        from: lender,
-        token: loan.debt.token,
-        identifier: loan.debt.identifier,
-        amount: transferLength == 1
-          ? loan.debt.amount
-          : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
-        to: loan.debt.recipient
-      });
-      if (transferLength == 2 && itemType == ConduitItemType.ERC20) {
-        transfers[1] = ConduitTransfer({
-          itemType: itemType,
-          from: lender,
-          token: loan.debt.token,
-          identifier: loan.debt.identifier,
-          amount: transferLength == 1
-            ? loan.debt.amount
-            : loan.debt.amount - loan.debt.amount.mulWadDown(fee),
-          to: feeRecipient
-        });
-      }
-      if (CI.ownerOf(conduit) != loan.validator) {
+      //      if (lender == address(0)) {
+      //        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
+      //      }
+      if (CI.ownerOf(response.conduit) != loan.validator) {
         revert InvalidContext(ContextErrors.INVALID_CONDUIT);
       }
       if (
         ConduitInterface.execute.selector !=
-        ConduitInterface(conduit).execute(transfers)
+        ConduitInterface(response.conduit).execute(
+          _packageTransfers(loan, response.lender)
+        )
       ) {
         revert InvalidContext(ContextErrors.INVALID_PAYMENT);
       }
 
-      uint256 loanId = uint256(keccak256(abi.encode(loan)));
-      _safeMint(lender, loanId);
-      emit LoanOpened(loanId, loan);
+      bytes memory encodedLoan = abi.encode(loan);
+      uint256 loanId = uint256(keccak256(encodedLoan));
+      _safeMint(response.lender, loanId, encodedLoan);
+      emit Lock(loanId, loan);
       unchecked {
         ++i;
       }
@@ -471,7 +466,50 @@ contract LoanManager is
     if (Resolver.resolve.selector != Resolver(loan.resolver).resolve(loan)) {
       revert InvalidContext(ContextErrors.INVALID_RESOLVER);
     }
-    emit LoanClosed(loanId, consideration);
+    emit Unlock(loanId);
     _burn(loanId);
+  }
+
+  function _packageTransfers(
+    LoanManager.Loan memory loan,
+    address lender
+  ) internal view returns (ConduitTransfer[] memory transfers) {
+    uint256 transferLength = feeRecipient != address(0) ? 2 : 1;
+
+    transfers = new ConduitTransfer[](transferLength);
+
+    ConduitItemType itemType;
+
+    if (loan.debt.itemType == ItemType.ERC20) {
+      itemType = ConduitItemType.ERC20;
+    } else if (loan.debt.itemType == ItemType.ERC721) {
+      itemType = ConduitItemType.ERC721;
+    } else if (loan.debt.itemType == ItemType.ERC1155) {
+      itemType = ConduitItemType.ERC1155;
+    } else {
+      revert InvalidContext(ContextErrors.INVALID_LOAN);
+    }
+    transfers[0] = ConduitTransfer({
+      itemType: itemType,
+      from: lender,
+      token: loan.debt.token,
+      identifier: loan.debt.identifier,
+      amount: transferLength == 1
+        ? loan.debt.amount
+        : loan.debt.amount - loan.debt.amount.mulWad(fee),
+      to: loan.debt.recipient
+    });
+    if (transferLength == 2 && itemType == ConduitItemType.ERC20) {
+      transfers[1] = ConduitTransfer({
+        itemType: itemType,
+        from: lender,
+        token: loan.debt.token,
+        identifier: loan.debt.identifier,
+        amount: transferLength == 1
+          ? loan.debt.amount
+          : loan.debt.amount - loan.debt.amount.mulWad(fee),
+        to: feeRecipient
+      });
+    }
   }
 }

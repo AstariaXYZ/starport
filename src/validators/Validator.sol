@@ -17,13 +17,29 @@ import {
   ConduitInterface
 } from "seaport-types/src/interfaces/ConduitInterface.sol";
 
+import {ECDSA} from "solady/src/utils/ECDSA.sol";
+
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 abstract contract Validator {
+  error InvalidCaller();
+  error InvalidDeadline();
+  error InvalidValidator();
+  error InvalidCollateral();
+  error InvalidBorrowAmount();
+  error InvalidAmount();
+  error InvalidDebtToken();
+  error InvalidRate();
+  error InvalidSigner();
   // Signature structure which consists of v, r, and s for ECDSA
   struct Signature {
     uint8 v;
     bytes32 r;
     bytes32 s;
+  }
+
+  struct Response {
+    address lender;
+    address conduit;
   }
 
   LoanManager public immutable LM;
@@ -67,7 +83,7 @@ abstract contract Validator {
     LoanManager.Loan calldata,
     bytes calldata,
     Signature calldata
-  ) external view virtual returns (address, address);
+  ) external view virtual returns (Response memory);
 
   // Encode the data with the account's nonce for generating a signature
   function encodeWithAccountCounter(
@@ -106,5 +122,16 @@ abstract contract Validator {
           address(this)
         )
       );
+  }
+
+  function _validateSignature(
+    bytes32 hash,
+    Signature memory signature
+  ) internal view virtual {
+    if (
+      ECDSA.recover(hash, signature.v, signature.r, signature.s) != strategist
+    ) {
+      revert InvalidSigner();
+    }
   }
 }

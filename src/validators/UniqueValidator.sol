@@ -33,7 +33,7 @@ contract UniqueValidator is Validator {
     LoanManager.Loan calldata loan,
     bytes calldata nlrDetails,
     Signature calldata signature
-  ) external view override returns (address, address) {
+  ) external view override returns (Response memory response) {
     if (msg.sender != address(LM)) {
       revert InvalidCaller();
     }
@@ -42,8 +42,9 @@ contract UniqueValidator is Validator {
 
     _validateExecution(details, loan, nlrDetails, signature);
 
-    //the recipient is the lender since we resuse the struct
-    return (details.debt.recipient, address(conduit));
+    //the recipient is the lender since we reuse the struct
+    return
+      Response({lender: details.debt.recipient, conduit: address(conduit)});
   }
 
   function _decodeLoanDetails(
@@ -89,27 +90,9 @@ contract UniqueValidator is Validator {
       revert InvalidLoan();
     }
 
-    address signer = ecrecover(
+    _validateSignature(
       keccak256(encodeWithAccountCounter(strategist, nlrDetails)),
-      signature.v,
-      signature.r,
-      signature.s
+      signature
     );
-
-    if (signer != strategist) {
-      revert InvalidSigner(signer);
-    }
   }
-
-  error InvalidCaller();
-  error InvalidDeadline();
-  error InvalidValidator();
-  error InvalidCollateral();
-  error InvalidBorrowAmount();
-  error InvalidAmount();
-  error InvalidDebtToken();
-  error InvalidRate();
-  error InvalidSigner(address);
-  error InvalidConduitTransfer();
-  error LoanHealthy();
 }
