@@ -6,7 +6,7 @@ interface TokenReceiverInterface {
     address from,
     uint256 tokenId,
     bytes calldata data
-  ) external returns (bytes4);
+  ) external virtual returns (bytes4);
 
   function onERC1155Received(
     address,
