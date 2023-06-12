@@ -20,10 +20,10 @@ import {
   ConduitController
 } from "seaport-core/src/conduit/ConduitController.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
-import {UniqueValidator} from "src/validators/UniqueValidator.sol";
-import {FixedTermPricing} from "src/pricing/Pricing.sol";
-import {FixedTermTrigger} from "src/triggers/FixedTermTrigger.sol";
-import {DutchAuctionResolver} from "src/resolvers/DutchAuctionResolver.sol";
+import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
+import {FixedTermPricing} from "src/pricing/FixedTermPricing.sol";
+import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
+import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 
 //contract TestNFT is MockERC721 {
 //  constructor() MockERC721("TestNFT", "TNFT") {}
@@ -43,9 +43,10 @@ contract TestStarLite is BaseOrderTest {
   Account strategist;
 
   bytes32 conduitKey;
+  address lenderConduit;
   address seaportAddr;
   LoanManager LM;
-  UniqueValidator UV;
+  UniqueOriginator UO;
 
   function _deployAndConfigureConsideration() public {
     conduitController = new ConduitController();
@@ -77,16 +78,22 @@ contract TestStarLite is BaseOrderTest {
     strategist = makeAndAllocateAccount("strategist");
 
     LM = new LoanManager(ConsiderationInterface(address(consideration)));
-    UV = new UniqueValidator(
+    UO = new UniqueOriginator(
       LM,
       ConduitControllerInterface(address(conduitController)),
       strategist.addr,
-      0
+      1e16
     );
 
-    conduitKeyOne = bytes32(uint256(uint160(address(strategist.addr))) << 96);
+    conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
+
     vm.startPrank(lender.addr);
-    erc20s[0].approve(address(UV.conduit()), 100000);
+    lenderConduit = conduitController.createConduit(
+      conduitKeyOne,
+      address(lender.addr)
+    );
+    conduitController.updateChannel(lenderConduit, address(UO), true);
+    erc20s[0].approve(address(UO.conduit()), 100000);
     vm.stopPrank();
   }
 
@@ -111,8 +118,8 @@ contract TestStarLite is BaseOrderTest {
       vm.stopPrank();
     }
 
-    //        UniqueValidator.Details memory loanDetails = UniqueValidator.Details({
-    //            validator: address(UV),
+    //        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+    //            validator: address(UO),
     //            conduit: address(conduit),
     //            collateral: address(nft),
     //            debtToken: address(debtToken),
@@ -121,7 +128,7 @@ contract TestStarLite is BaseOrderTest {
     //            rate: 1,
     //            loanDuration: 1000,
     //            deadline: block.timestamp + 100,
-    //            settlement: UniqueValidator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
+    //            settlement: UniqueOriginator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
     //        });
 
     //struct Details {
@@ -136,16 +143,16 @@ contract TestStarLite is BaseOrderTest {
     //    bytes resolverData;
     //  }
 
-    UniqueValidator.Details memory loanDetails;
+    UniqueOriginator.Details memory loanDetails;
 
     {
       FixedTermPricing pricing = new FixedTermPricing();
-      DutchAuctionResolver resolver = new DutchAuctionResolver();
-      FixedTermTrigger trigger = new FixedTermTrigger();
-      loanDetails = UniqueValidator.Details({
-        validator: address(UV),
-        trigger: address(trigger),
-        resolver: address(resolver),
+      DutchAuctionHandler handler = new DutchAuctionHandler();
+      FixedTermHook hook = new FixedTermHook();
+      loanDetails = UniqueOriginator.Details({
+        originator: address(UO),
+        hook: address(hook),
+        handler: address(handler),
         pricing: address(pricing),
         deadline: block.timestamp + 100,
         collateral: SpentItem({
@@ -167,14 +174,14 @@ contract TestStarLite is BaseOrderTest {
             loanDuration: 10 days
           })
         ),
-        resolverData: abi.encode(
-          DutchAuctionResolver.Details({
+        handlerData: abi.encode(
+          DutchAuctionHandler.Details({
             startingPrice: uint256(500 ether),
             endingPrice: 100 wei,
             window: 7 days
           })
         ),
-        triggerData: abi.encode(
+        hookData: abi.encode(
           FixedTermPricing.Details({
             rate: uint256((uint256(1e16) / 365) * 1 days),
             loanDuration: 10 days
@@ -184,7 +191,7 @@ contract TestStarLite is BaseOrderTest {
     }
 
     bytes32 hash = keccak256(
-      UV.encodeWithAccountCounter(strategist.addr, abi.encode(loanDetails))
+      UO.encodeWithAccountCounter(strategist.addr, abi.encode(loanDetails))
     );
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, hash);
 
@@ -206,9 +213,9 @@ contract TestStarLite is BaseOrderTest {
             identifier: 0,
             itemType: ItemType.ERC20
           }),
-          validator: loanDetails.validator,
-          trigger: loanDetails.trigger,
-          resolver: loanDetails.resolver,
+          originator: loanDetails.originator,
+          hook: loanDetails.hook,
+          handler: loanDetails.handler,
           pricing: loanDetails.pricing,
           pricingData: abi.encode(
             FixedTermPricing.Details({
@@ -216,14 +223,14 @@ contract TestStarLite is BaseOrderTest {
               loanDuration: 10 days
             })
           ),
-          resolverData: abi.encode(
-            DutchAuctionResolver.Details({
+          handlerData: abi.encode(
+            DutchAuctionHandler.Details({
               startingPrice: uint256(500 ether),
               endingPrice: 100 wei,
               window: 7 days
             })
           ),
-          triggerData: abi.encode(
+          hookData: abi.encode(
             FixedTermPricing.Details({
               rate: uint256((uint256(1e16) / 365) * 1 days),
               loanDuration: 10 days
@@ -232,7 +239,7 @@ contract TestStarLite is BaseOrderTest {
           start: uint256(0),
           nonce: uint256(0)
         }),
-        signature: Validator.Signature({v: v, r: r, s: s})
+        signature: Originator.Signature({v: v, r: r, s: s})
       })
     );
   }

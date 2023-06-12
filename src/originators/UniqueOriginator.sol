@@ -3,10 +3,9 @@ pragma solidity =0.8.17;
 import {LoanManager} from "src/LoanManager.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import "./Validator.sol";
-import "forge-std/console.sol";
+import "src/originators/Originator.sol";
 
-contract UniqueValidator is Validator {
+contract UniqueOriginator is Originator {
   error InvalidLoan();
 
   constructor(
@@ -14,19 +13,19 @@ contract UniqueValidator is Validator {
     ConduitControllerInterface CI_,
     address strategist_,
     uint256 fee_
-  ) Validator(LM_, CI_, strategist_, fee_) {}
+  ) Originator(LM_, CI_, strategist_, fee_) {}
 
   struct Details {
-    address validator;
-    address trigger; // isLoanHealthy
-    address resolver; // liquidationMethod
+    address originator;
+    address hook; // isLoanHealthy
+    address handler; // liquidationMethod
     address pricing; // getOwed
     uint256 deadline;
     SpentItem collateral;
     ReceivedItem debt;
     bytes pricingData;
-    bytes resolverData;
-    bytes triggerData;
+    bytes handlerData;
+    bytes hookData;
   }
 
   function validate(
@@ -52,7 +51,7 @@ contract UniqueValidator is Validator {
   ) internal view returns (Details memory details) {
     details = abi.decode(nlrDetails, (Details));
 
-    if (address(this) != details.validator) {
+    if (address(this) != details.originator) {
       revert InvalidValidator();
     }
     if (block.timestamp > details.deadline) {
@@ -79,13 +78,13 @@ contract UniqueValidator is Validator {
     }
 
     if (
-      loan.validator != address(this) ||
-      loan.trigger != details.trigger ||
-      loan.resolver != details.resolver ||
+      loan.originator != address(this) ||
+      loan.hook != details.hook ||
+      loan.handler != details.handler ||
       loan.pricing != details.pricing ||
       keccak256(details.pricingData) != keccak256(details.pricingData) ||
-      keccak256(details.resolverData) != keccak256(details.resolverData) ||
-      keccak256(details.triggerData) != keccak256(details.triggerData)
+      keccak256(details.handlerData) != keccak256(details.handlerData) ||
+      keccak256(details.hookData) != keccak256(details.hookData)
     ) {
       revert InvalidLoan();
     }

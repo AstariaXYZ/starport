@@ -23,10 +23,8 @@ import {
   OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Validator} from "src/validators/Validator.sol";
-import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Resolver} from "src/resolvers/Resolver.sol";
+import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {
   ConsiderationItem,
@@ -37,7 +35,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 
-contract EnglishAuctionResolver is Resolver {
+contract EnglishAuctionHandler is SettlementHandler {
   struct Details {
     uint256 reservePrice;
     uint256 window;
@@ -54,10 +52,10 @@ contract EnglishAuctionResolver is Resolver {
     consideration = consideration_;
   }
 
-  function resolve(
+  function execute(
     LoanManager.Loan calldata loan
   ) external virtual override returns (bytes4) {
-    Details memory details = abi.decode(loan.resolverData, (Details));
+    Details memory details = abi.decode(loan.handlerData, (Details));
     uint256 owing = Pricing(loan.pricing).getOwed(loan);
 
     if (owing < details.reservePrice) {
@@ -105,10 +103,10 @@ contract EnglishAuctionResolver is Resolver {
     if (!isValid) {
       revert InvalidOrder();
     }
-    return Resolver.resolve.selector;
+    return SettlementHandler.execute.selector;
   }
 
-  function getUnlockConsideration(
+  function getSettlement(
     LoanManager.Loan memory loan,
     SpentItem[] calldata maximumSpent,
     uint256 owing,

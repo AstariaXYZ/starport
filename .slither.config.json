@@ -1,0 +1,8 @@
+{
+  "solc_remaps": [
+    "solady/=./lib/solady/",
+    "ds-test/=./lib/ds-test/src/",
+    "openzeppelin/=./lib/openzeppelin-contracts/contracts/",
+    "seaport/=./lib/seaport/contracts/"
+  ]
+}

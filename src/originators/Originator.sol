@@ -20,7 +20,7 @@ import {
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
-abstract contract Validator {
+abstract contract Originator {
   error InvalidCaller();
   error InvalidDeadline();
   error InvalidValidator();
@@ -51,9 +51,8 @@ abstract contract Validator {
     keccak256(
       "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
     );
-  bytes32 public constant VALIDATOR_TYPEHASH =
-    keccak256("ValidatorDetails(uint256 nonce,bytes32 hash)");
-
+  bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
+    keccak256("OriginatorDetails(uint256 nonce,bytes32 hash)");
   bytes32 constant VERSION = keccak256("0");
 
   bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -105,7 +104,11 @@ abstract contract Validator {
     returns (bytes memory)
   {
     bytes32 hash = keccak256(
-      abi.encode(VALIDATOR_TYPEHASH, _counter[account], keccak256(context))
+      abi.encode(
+        ORIGINATOR_DETAILS_TYPEHASH,
+        _counter[account],
+        keccak256(context)
+      )
     );
 
     return

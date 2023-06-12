@@ -1,6 +1,8 @@
 pragma solidity =0.8.17;
 
 import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC20} from "solady/src/tokens/ERC20.sol";
+import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -36,10 +38,11 @@ import {
   TokenReceiverInterface
 } from "src/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Validator} from "src/validators/Validator.sol";
-import {Trigger} from "src/triggers/Trigger.sol";
-import {Resolver} from "src/resolvers/Resolver.sol";
+import {Originator} from "src/originators/Originator.sol";
+import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
+
 import "forge-std/console.sol";
 
 contract LoanManager is
@@ -66,20 +69,20 @@ contract LoanManager is
   struct Loan {
     SpentItem collateral;
     ReceivedItem debt;
-    address validator;
-    address trigger;
+    address originator;
+    address hook;
     address pricing;
-    address resolver;
+    address handler;
     uint256 start;
     uint256 nonce;
     bytes pricingData;
-    bytes resolverData;
-    bytes triggerData;
+    bytes handlerData;
+    bytes hookData;
   }
 
   struct NewLoanRequest {
     Loan loan;
-    Validator.Signature signature;
+    Originator.Signature signature;
     bytes details;
   }
 
@@ -95,6 +98,7 @@ contract LoanManager is
   error InvalidContext(ContextErrors);
 
   enum ContextErrors {
+    BAD_ORIGINATION,
     LENGTH_MISMATCH,
     BORROWER_MISMATCH,
     COLLATERAL,
@@ -253,7 +257,7 @@ contract LoanManager is
   {
     (, Loan memory loan) = abi.decode(context, (uint8, Loan));
 
-    bool isLoanHealthy = Trigger(loan.trigger).isLoanHealthy(loan);
+    bool isLoanHealthy = SettlementHook(loan.hook).isActive(loan);
     uint256 owing = Pricing(loan.pricing).getOwed(loan);
     address payable lender = payable(
       ownerOf(uint256(keccak256(abi.encode(loan))))
@@ -261,8 +265,12 @@ contract LoanManager is
     offer = new SpentItem[](1);
     offer[0] = loan.collateral;
     address restricted;
-    (consideration, restricted) = Resolver(loan.resolver)
-      .getUnlockConsideration(loan, maximumSpent, owing, lender);
+    (consideration, restricted) = SettlementHandler(loan.handler).getSettlement(
+      loan,
+      maximumSpent,
+      owing,
+      lender
+    );
 
     if (
       (isLoanHealthy && fulfiller != loan.debt.recipient) ||
@@ -308,14 +316,37 @@ contract LoanManager is
     onlySeaport
     returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
-    return
-      previewOrder(
-        msg.sender,
-        fulfiller,
-        minimumReceived,
-        maximumSpent,
-        context
-      );
+    (offer, consideration) = previewOrder(
+      msg.sender,
+      fulfiller,
+      minimumReceived,
+      maximumSpent,
+      context
+    );
+
+    if (offer.length > 0) {
+      _setOfferApprovals(offer);
+    }
+  }
+
+  function _setOfferApprovals(SpentItem[] memory offer) internal {
+    for (uint256 i = 0; i < offer.length; i++) {
+      //approve consideration based on item type
+      if (offer[i].itemType == ItemType.ERC1155) {
+        ERC1155(offer[i].token).setApprovalForAll(address(seaport), true);
+      } else if (offer[i].itemType == ItemType.ERC721) {
+        ERC721(offer[i].token).setApprovalForAll(address(seaport), true);
+      } else if (offer[i].itemType == ItemType.ERC20) {
+        uint256 allowance = ERC20(offer[i].token).allowance(
+          address(this),
+          address(seaport)
+        );
+        if (allowance != 0) {
+          ERC20(offer[i].token).approve(address(seaport), 0);
+        }
+        ERC20(offer[i].token).approve(address(seaport), offer[i].amount);
+      }
+    }
   }
 
   /**
@@ -428,15 +459,14 @@ contract LoanManager is
       //      }
       loan.start = block.timestamp;
       loan.nonce = ++loanCount;
-      Validator.Response memory response = Validator(loan.validator).validate(
-        loan,
-        nlrs[i].details,
-        nlrs[i].signature
-      );
+
+      //setup the lender somewhere here
+      Originator.Response memory response = Originator(loan.originator)
+        .validate(loan, nlrs[i].details, nlrs[i].signature);
       //      if (lender == address(0)) {
       //        revert InvalidContext(ContextErrors.ZERO_ADDRESS);
       //      }
-      if (CI.ownerOf(response.conduit) != loan.validator) {
+      if (CI.ownerOf(response.conduit) != loan.originator) {
         revert InvalidContext(ContextErrors.INVALID_CONDUIT);
       }
       if (
@@ -445,7 +475,7 @@ contract LoanManager is
           _packageTransfers(loan, response.lender)
         )
       ) {
-        revert InvalidContext(ContextErrors.INVALID_PAYMENT);
+        revert InvalidContext(ContextErrors.BAD_ORIGINATION);
       }
 
       bytes memory encodedLoan = abi.encode(loan);
@@ -465,7 +495,10 @@ contract LoanManager is
     //make this cheaper, by just encoding the
     uint256 loanId = uint256(keccak256(context[ONE_WORD:]));
     (, Loan memory loan) = abi.decode(context, (uint8, Loan));
-    if (Resolver.resolve.selector != Resolver(loan.resolver).resolve(loan)) {
+    if (
+      SettlementHandler.execute.selector !=
+      SettlementHandler(loan.handler).execute(loan)
+    ) {
       revert InvalidContext(ContextErrors.INVALID_RESOLVER);
     }
     emit Unlock(loanId);
@@ -477,8 +510,8 @@ contract LoanManager is
     view
     returns (ConduitTransfer[] memory transfers)
   {
-    ReceivedItem memory debt = loan.debt;
     ConduitItemType itemType;
+    ReceivedItem memory debt = loan.debt;
     assembly {
       itemType := mload(debt)
       switch itemType
@@ -497,25 +530,20 @@ contract LoanManager is
     }
 
     uint256 amount;
-    if (feeRecipient != address(0)) {
-      if (itemType == ConduitItemType.ERC20) {
-        transfers = new ConduitTransfer[](2);
-        uint256 feeValue = debt.amount.mulWad(fee);
+    if (feeRecipient != address(0) && itemType == ConduitItemType.ERC20) {
+      transfers = new ConduitTransfer[](2);
+      uint256 feeValue = debt.amount.mulWad(fee);
 
-        amount = debt.amount - feeValue;
+      amount = debt.amount - feeValue;
 
-        transfers[1] = ConduitTransfer({
-          itemType: itemType,
-          from: lender,
-          token: debt.token,
-          identifier: debt.identifier,
-          amount: feeValue,
-          to: feeRecipient
-        });
-      } else {
-        transfers = new ConduitTransfer[](1);
-        amount = debt.amount;
-      }
+      transfers[1] = ConduitTransfer({
+        itemType: itemType,
+        from: lender,
+        token: debt.token,
+        identifier: debt.identifier,
+        amount: feeValue,
+        to: feeRecipient
+      });
     } else {
       transfers = new ConduitTransfer[](1);
       amount = debt.amount;
