@@ -37,28 +37,20 @@ contract UniqueOriginator is Originator {
       revert InvalidCaller();
     }
 
-    Details memory details = _decodeLoanDetails(nlrDetails);
+    if (address(this) != loan.originator) {
+      revert InvalidValidator();
+    }
+
+    Details memory details = abi.decode(nlrDetails, (Details));
+    if (block.timestamp > details.deadline) {
+      revert InvalidDeadline();
+    }
 
     _validateExecution(details, loan, nlrDetails, signature);
 
     //the recipient is the lender since we reuse the struct
     return
       Response({lender: details.debt.recipient, conduit: address(conduit)});
-  }
-
-  function _decodeLoanDetails(
-    bytes calldata nlrDetails
-  ) internal view returns (Details memory details) {
-    details = abi.decode(nlrDetails, (Details));
-
-    if (address(this) != details.originator) {
-      revert InvalidValidator();
-    }
-    if (block.timestamp > details.deadline) {
-      revert InvalidDeadline();
-    }
-
-    return details;
   }
 
   function _validateExecution(
@@ -82,7 +74,7 @@ contract UniqueOriginator is Originator {
       loan.hook != details.hook ||
       loan.handler != details.handler ||
       loan.pricing != details.pricing ||
-      keccak256(details.pricingData) != keccak256(details.pricingData) ||
+      keccak256(loan.pricingData) != keccak256(details.pricingData) ||
       keccak256(details.handlerData) != keccak256(details.handlerData) ||
       keccak256(details.hookData) != keccak256(details.hookData)
     ) {
