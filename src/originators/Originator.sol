@@ -12,7 +12,7 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 abstract contract Originator {
     error InvalidCaller();
     error InvalidDeadline();
-    error InvalidValidator();
+    error InvalidOriginator();
     error InvalidCollateral();
     error InvalidBorrowAmount();
     error InvalidAmount();

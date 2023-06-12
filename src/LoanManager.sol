@@ -46,8 +46,6 @@ contract LoanManager is ERC721, ContractOffererInterface, TokenReceiverInterface
     }
 
     struct Loan {
-        SpentItem collateral;
-        ReceivedItem debt;
         address originator;
         address hook;
         address pricing;
@@ -57,6 +55,8 @@ contract LoanManager is ERC721, ContractOffererInterface, TokenReceiverInterface
         bytes pricingData;
         bytes handlerData;
         bytes hookData;
+        SpentItem collateral;
+        ReceivedItem debt;
     }
 
     struct NewLoanRequest {
