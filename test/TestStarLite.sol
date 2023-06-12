@@ -212,41 +212,41 @@ contract TestStarLite is BaseOrderTest {
     activeLoan = _executeNLR(
       LoanManager.NewLoanRequest({
         details: abi.encode(loanDetails),
-        loan: LoanManager.Loan({
-          collateral: emptySpent, // gets set during the lock
-          debt: ReceivedItem({
-            recipient: payable(borrower.addr),
-            token: address(debtToken),
-            amount: 100,
-            identifier: 0,
-            itemType: ItemType.ERC20
-          }),
-          originator: loanDetails.originator,
-          hook: loanDetails.hook,
-          handler: loanDetails.handler,
-          pricing: loanDetails.pricing,
-          pricingData: abi.encode(
-            FixedTermPricing.Details({
-              rate: uint256((uint256(1e16) / 365) * 1 days),
-              loanDuration: 10 days
-            })
-          ),
-          handlerData: abi.encode(
-            DutchAuctionHandler.Details({
-              startingPrice: uint256(500 ether),
-              endingPrice: 100 wei,
-              window: 7 days
-            })
-          ),
-          hookData: abi.encode(
-            FixedTermPricing.Details({
-              rate: uint256((uint256(1e16) / 365) * 1 days),
-              loanDuration: 10 days
-            })
-          ),
-          start: uint256(0), // gets set during the lock
-          nonce: uint256(0) // gets set during the lock
+        //        loan: LoanManager.Loan({
+        //          collateral: emptySpent, // gets set during the lock
+        debt: ReceivedItem({
+          recipient: payable(borrower.addr),
+          token: address(debtToken),
+          amount: 100,
+          identifier: 0,
+          itemType: ItemType.ERC20
         }),
+        originator: loanDetails.originator,
+        hook: loanDetails.hook,
+        handler: loanDetails.handler,
+        pricing: loanDetails.pricing,
+        pricingData: abi.encode(
+          FixedTermPricing.Details({
+            rate: uint256((uint256(1e16) / 365) * 1 days),
+            loanDuration: 10 days
+          })
+        ),
+        handlerData: abi.encode(
+          DutchAuctionHandler.Details({
+            startingPrice: uint256(500 ether),
+            endingPrice: 100 wei,
+            window: 7 days
+          })
+        ),
+        hookData: abi.encode(
+          FixedTermPricing.Details({
+            rate: uint256((uint256(1e16) / 365) * 1 days),
+            loanDuration: 10 days
+          })
+        ),
+        //          start: uint256(0), // gets set during the lock
+        //          nonce: uint256(0) // gets set during the lock
+        //        }),
         signature: Originator.Signature({v: v, r: r, s: s})
       })
     );

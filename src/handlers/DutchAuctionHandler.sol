@@ -50,7 +50,6 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
       roundUp: true
     });
 
-
     if (minimumReceived[0].amount < settlementPrice) {
       revert InvalidAmount();
     }

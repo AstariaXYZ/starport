@@ -4,9 +4,9 @@ import {LoanManager} from "src/LoanManager.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 
 contract FixedTermHook is SettlementHook {
-    struct Details {
-        uint256 loanDuration;
-    }
+  struct Details {
+    uint256 loanDuration;
+  }
 
   function isActive(
     LoanManager.Loan calldata loan
