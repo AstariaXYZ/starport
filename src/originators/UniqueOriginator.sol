@@ -1,7 +1,6 @@
 pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
-import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import "src/originators/Originator.sol";
 
@@ -67,4 +66,8 @@ contract UniqueOriginator is Originator {
         //the recipient is the lender since we reuse the struct
         return Response({lender: details.debt.recipient, conduit: address(conduit)});
     }
+
+  function getFeeConsideration(
+    LoanManager.Loan calldata loan
+  ) external view override returns (ReceivedItem memory consideration) {}
 }

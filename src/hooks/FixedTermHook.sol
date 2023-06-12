@@ -8,8 +8,10 @@ contract FixedTermHook is SettlementHook {
         uint256 loanDuration;
     }
 
-    function isActive(LoanManager.Loan calldata loan) external view override returns (bool) {
-        Details memory details = abi.decode(loan.pricingData, (Details));
-        return loan.start + details.loanDuration < block.timestamp;
-    }
+  function isActive(
+    LoanManager.Loan calldata loan
+  ) external view override returns (bool) {
+    Details memory details = abi.decode(loan.pricingData, (Details));
+    return loan.start + details.loanDuration > block.timestamp;
+  }
 }

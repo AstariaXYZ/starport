@@ -108,9 +108,18 @@ abstract contract Originator {
         return _DOMAIN_SEPARATOR;
     }
 
-    function _validateSignature(bytes32 hash, Signature memory signature) internal view virtual {
-        if (ECDSA.recover(hash, signature.v, signature.r, signature.s) != strategist) {
-            revert InvalidSigner();
-        }
+  function _validateSignature(
+    bytes32 hash,
+    Signature memory signature
+  ) internal view virtual {
+    if (
+      ECDSA.recover(hash, signature.v, signature.r, signature.s) != strategist
+    ) {
+      revert InvalidSigner();
     }
+  }
+
+  function getFeeConsideration(
+    LoanManager.Loan calldata loan
+  ) external view virtual returns (ReceivedItem memory consideration);
 }
