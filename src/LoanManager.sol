@@ -395,7 +395,7 @@ contract LoanManager is ERC721, ContractOffererInterface, TokenReceiverInterface
             Loan memory loan = nlrs[i].loan;
             loan.start = block.timestamp;
             loan.nonce = ++count;
-          _validateCollateral(loan, consideration[i]);
+            _setCollateral(loan, consideration[i]);
             Originator.Response memory response =
                 Originator(loan.originator).validate(loan, nlrs[i].details, nlrs[i].signature);
             if (CI.ownerOf(response.conduit) != loan.originator) {
@@ -420,18 +420,15 @@ contract LoanManager is ERC721, ContractOffererInterface, TokenReceiverInterface
     }
 
 
-  function _validateCollateral(
+  function _setCollateral(
     Loan memory loan,
     ReceivedItem memory collateral
   ) internal view {
-    if (
-      collateral.amount != loan.collateral.amount ||
-      collateral.identifier != loan.collateral.identifier ||
-      collateral.itemType != loan.collateral.itemType ||
-      collateral.token != loan.collateral.token
-    ) {
-      revert InvalidContext(ContextErrors.INVALID_COLLATERAL);
-    }
+      loan.collateral.itemType == collateral.itemType;
+        loan.collateral.token == collateral.token;
+        loan.collateral.identifier == collateral.identifier;
+        loan.collateral.amount == collateral.amount;
+
   }
     function _executeUnlock(ReceivedItem[] calldata consideration, bytes calldata context) internal {
         //make this cheaper, by just encoding the

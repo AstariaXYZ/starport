@@ -208,16 +208,12 @@ contract TestStarLite is BaseOrderTest {
     );
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, hash);
 
+    SpentItem memory emptySpent;
     activeLoan = _executeNLR(
       LoanManager.NewLoanRequest({
         details: abi.encode(loanDetails),
         loan: LoanManager.Loan({
-          collateral: SpentItem({
-            token: address(erc721s[0]),
-            amount: 1,
-            identifier: 1,
-            itemType: ItemType.ERC721
-          }),
+          collateral: emptySpent, // gets set during the lock
           debt: ReceivedItem({
             recipient: payable(borrower.addr),
             token: address(debtToken),
@@ -248,8 +244,8 @@ contract TestStarLite is BaseOrderTest {
               loanDuration: 10 days
             })
           ),
-          start: uint256(0),
-          nonce: uint256(0)
+          start: uint256(0), // gets set during the lock
+          nonce: uint256(0) // gets set during the lock
         }),
         signature: Originator.Signature({v: v, r: r, s: s})
       })
