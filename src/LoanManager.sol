@@ -159,9 +159,12 @@ contract LoanManager is
     return TokenReceiverInterface.onERC1155BatchReceived.selector;
   }
 
-  function tokenURI(
-    uint256 tokenId
-  ) public view override returns (string memory) {
+  function tokenURI(uint256 tokenId)
+    public
+    view
+    override
+    returns (string memory)
+  {
     return string(abi.encodePacked("https://astaria.xyz/loans?id=", tokenId));
   }
 
@@ -335,6 +338,7 @@ contract LoanManager is
     //get the spent token and amount from the spent item
 
     uint8 action = abi.decode(context[:ONE_WORD], (uint8));
+
     if (action == uint8(Action.LOCK)) {
       _executeLock(consideration, context);
     } else if (action == uint8(Action.UNLOCK)) {
@@ -358,9 +362,7 @@ contract LoanManager is
   //    ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
   //  }
 
-  function supportsInterface(
-    bytes4 interfaceId
-  )
+  function supportsInterface(bytes4 interfaceId)
     public
     view
     virtual
@@ -470,46 +472,62 @@ contract LoanManager is
     _burn(loanId);
   }
 
-  function _packageTransfers(
-    LoanManager.Loan memory loan,
-    address lender
-  ) internal view returns (ConduitTransfer[] memory transfers) {
-    uint256 transferLength = feeRecipient != address(0) ? 2 : 1;
-
-    transfers = new ConduitTransfer[](transferLength);
-
+  function _packageTransfers(LoanManager.Loan memory loan, address lender)
+    internal
+    view
+    returns (ConduitTransfer[] memory transfers)
+  {
+    ReceivedItem memory debt = loan.debt;
     ConduitItemType itemType;
+    assembly {
+      itemType := mload(debt)
+      switch itemType
+      case 1 {
 
-    if (loan.debt.itemType == ItemType.ERC20) {
-      itemType = ConduitItemType.ERC20;
-    } else if (loan.debt.itemType == ItemType.ERC721) {
-      itemType = ConduitItemType.ERC721;
-    } else if (loan.debt.itemType == ItemType.ERC1155) {
-      itemType = ConduitItemType.ERC1155;
-    } else {
-      revert InvalidContext(ContextErrors.INVALID_LOAN);
+      }
+      case 2 {
+
+      }
+      case 3 {
+
+      }
+      default {
+        revert(0, 0) //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
+      }
     }
+
+    uint256 amount;
+    if (feeRecipient != address(0)) {
+      if (itemType == ConduitItemType.ERC20) {
+        transfers = new ConduitTransfer[](2);
+        uint256 feeValue = debt.amount.mulWad(fee);
+
+        amount = debt.amount - feeValue;
+
+        transfers[1] = ConduitTransfer({
+          itemType: itemType,
+          from: lender,
+          token: debt.token,
+          identifier: debt.identifier,
+          amount: feeValue,
+          to: feeRecipient
+        });
+      } else {
+        transfers = new ConduitTransfer[](1);
+        amount = debt.amount;
+      }
+    } else {
+      transfers = new ConduitTransfer[](1);
+      amount = debt.amount;
+    }
+
     transfers[0] = ConduitTransfer({
       itemType: itemType,
       from: lender,
-      token: loan.debt.token,
-      identifier: loan.debt.identifier,
-      amount: transferLength == 1
-        ? loan.debt.amount
-        : loan.debt.amount - loan.debt.amount.mulWad(fee),
-      to: loan.debt.recipient
+      token: debt.token,
+      identifier: debt.identifier,
+      amount: amount,
+      to: debt.recipient
     });
-    if (transferLength == 2 && itemType == ConduitItemType.ERC20) {
-      transfers[1] = ConduitTransfer({
-        itemType: itemType,
-        from: lender,
-        token: loan.debt.token,
-        identifier: loan.debt.identifier,
-        amount: transferLength == 1
-          ? loan.debt.amount
-          : loan.debt.amount - loan.debt.amount.mulWad(fee),
-        to: feeRecipient
-      });
-    }
   }
 }

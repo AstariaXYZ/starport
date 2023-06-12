@@ -53,7 +53,10 @@ abstract contract Validator {
     );
   bytes32 public constant VALIDATOR_TYPEHASH =
     keccak256("ValidatorDetails(uint256 nonce,bytes32 hash)");
+
   bytes32 constant VERSION = keccak256("0");
+
+  bytes32 internal immutable _DOMAIN_SEPARATOR;
 
   // Strategist address and fee
   address public strategist;
@@ -73,6 +76,15 @@ abstract contract Validator {
     LM = LM_;
     CI = CI_;
 
+    _DOMAIN_SEPARATOR = keccak256(
+      abi.encode(
+        EIP_DOMAIN,
+        VERSION, //version
+        block.chainid,
+        address(this)
+      )
+    );
+
     bytes32 conduitKey = bytes32(uint256(uint160(address(this))) << 96);
     conduit = ConduitInterface(CI.createConduit(conduitKey, address(this)));
     CI.updateChannel(address(conduit), address(LM), true);
@@ -86,15 +98,18 @@ abstract contract Validator {
   ) external view virtual returns (Response memory);
 
   // Encode the data with the account's nonce for generating a signature
-  function encodeWithAccountCounter(
-    address account,
-    bytes calldata context
-  ) public view virtual returns (bytes memory) {
+  function encodeWithAccountCounter(address account, bytes calldata context)
+    public
+    view
+    virtual
+    returns (bytes memory)
+  {
     bytes32 hash = keccak256(
       abi.encode(VALIDATOR_TYPEHASH, _counter[account], keccak256(context))
     );
+
     return
-      abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator(), hash);
+      abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
   }
 
   function getStrategistData() public view virtual returns (address, uint256) {
@@ -113,21 +128,14 @@ abstract contract Validator {
 
   // Function to generate the domain separator for signatures
   function domainSeparator() public view virtual returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          EIP_DOMAIN,
-          VERSION, //version
-          block.chainid,
-          address(this)
-        )
-      );
+    return _DOMAIN_SEPARATOR;
   }
 
-  function _validateSignature(
-    bytes32 hash,
-    Signature memory signature
-  ) internal view virtual {
+  function _validateSignature(bytes32 hash, Signature memory signature)
+    internal
+    view
+    virtual
+  {
     if (
       ECDSA.recover(hash, signature.v, signature.r, signature.s) != strategist
     ) {
