@@ -368,11 +368,14 @@ contract LoanManager is
   ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
     //get the spent token and amount from the spent item
 
-    uint8 action = abi.decode(context[:ONE_WORD], (uint8));
+    Action action;
+    assembly {
+      action := calldataload(context.offset)
+    }
 
-    if (action == uint8(Action.LOCK)) {
+    if (action == Action.LOCK) {
       _executeLock(consideration, context);
-    } else if (action == uint8(Action.UNLOCK)) {
+    } else if (action == Action.UNLOCK) {
       _executeUnlock(consideration, context);
     } else {
       revert InvalidAction();
