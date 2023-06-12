@@ -1,14 +1,14 @@
 pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
-import {Trigger} from "src/triggers/Trigger.sol";
+import {SettlementHook} from "src/hooks/SettlementHook.sol";
 
-contract FixedTermTrigger is Trigger {
+contract FixedTermHook is SettlementHook {
   struct Details {
     uint256 loanDuration;
   }
 
-  function isLoanHealthy(
+  function isActive(
     LoanManager.Loan calldata loan
   ) external view override returns (bool) {
     Details memory details = abi.decode(loan.pricingData, (Details));

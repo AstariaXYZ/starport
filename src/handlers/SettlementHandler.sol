@@ -7,14 +7,14 @@ import {
   ReceivedItem
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-abstract contract Resolver {
-  function resolve(
+abstract contract SettlementHandler {
+  function execute(
     LoanManager.Loan calldata loan
   ) external virtual returns (bytes4) {
-    return Resolver.resolve.selector;
+    return SettlementHandler.execute.selector;
   }
 
-  function getUnlockConsideration(
+  function getSettlement(
     LoanManager.Loan memory loan,
     SpentItem[] calldata maximumSpent,
     uint256 owing,

@@ -1,7 +1,5 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-
 import {
   ItemType,
   OfferItem,
@@ -10,12 +8,15 @@ import {
   OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Validator} from "src/validators/Validator.sol";
+import {Originator} from "src/originators/Originator.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Resolver} from "src/resolvers/Resolver.sol";
+import {
+  LoanManager,
+  SettlementHandler
+} from "src/handlers/SettlementHandler.sol";
 
-contract DutchAuctionResolver is Resolver, AmountDeriver {
+contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
   using FixedPointMathLib for uint256;
   error InvalidAmount();
   struct Details {
@@ -24,7 +25,7 @@ contract DutchAuctionResolver is Resolver, AmountDeriver {
     uint256 window;
   }
 
-  function getUnlockConsideration(
+  function getSettlement(
     LoanManager.Loan memory loan,
     SpentItem[] calldata maximumSpent,
     uint256 owing,
@@ -36,7 +37,7 @@ contract DutchAuctionResolver is Resolver, AmountDeriver {
     override
     returns (ReceivedItem[] memory consideration, address restricted)
   {
-    Details memory details = abi.decode(loan.resolverData, (Details));
+    Details memory details = abi.decode(loan.handlerData, (Details));
     uint256 settlementPrice;
 
     settlementPrice = _locateCurrentAmount({
@@ -52,7 +53,7 @@ contract DutchAuctionResolver is Resolver, AmountDeriver {
     }
 
     uint256 fee = settlementPrice.mulWad(
-      Validator(loan.validator).strategistFee()
+      Originator(loan.originator).strategistFee()
     );
     uint256 considerationLength = 1;
     uint256 payment = maximumSpent[0].amount;
@@ -71,7 +72,7 @@ contract DutchAuctionResolver is Resolver, AmountDeriver {
         token: loan.debt.token,
         identifier: 0,
         amount: fee,
-        recipient: payable(loan.validator)
+        recipient: payable(loan.originator)
       });
     }
 
