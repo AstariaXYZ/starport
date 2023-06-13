@@ -115,6 +115,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
   error InvalidContext(ContextErrors);
 
   enum ContextErrors {
+    INVALID_STATE,
     BAD_ORIGINATION,
     LENDER_ERROR,
     LENGTH_MISMATCH,
@@ -286,7 +287,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     bytes memory encodedLoan = abi.encode(loan);
 
     uint256 loanId = uint256(keccak256(encodedLoan));
-    _setExtraData(loanId, uint8(1));
+    _setExtraData(loanId, uint8(1)); //enable minting
     if (
       Originator.execute.selector !=
       Originator(loan.originator).execute(
@@ -310,35 +311,15 @@ contract LoanManager is ERC721, ContractOffererInterface {
     return ContractOffererInterface.ratifyOrder.selector;
   }
 
-  function _isLazy(uint256 tokenId) internal view returns (bool) {
+  function _canMint(uint256 tokenId) internal view returns (bool) {
     return _getExtraData(tokenId) == 1;
   }
 
-  function safeTransferFrom(
-    address from,
-    address to,
-    uint256 tokenId,
-    bytes calldata data
-  ) public payable override {
-    uint256 lazy = _getExtraData(tokenId);
-    if (_isLazy(tokenId)) {
-      _safeMint(to, tokenId, data);
-    } else {
-      super.safeTransferFrom(from, to, tokenId, data);
+  function mint(address to, uint256 tokenId, bytes calldata data) external {
+    if (!_canMint(tokenId)) {
+      revert InvalidContext(ContextErrors.INVALID_STATE);
     }
-  }
-
-  function transferFrom(
-    address from,
-    address to,
-    uint256 tokenId
-  ) public payable override {
-    uint256 lazy = _getExtraData(tokenId);
-    if (!_isLazy(tokenId)) {
-      super.transferFrom(from, to, tokenId);
-    } else {
-      revert("Lazy tokens cannot be transferred without data");
-    }
+    _safeMint(to, tokenId, data);
   }
 
   function _getAction(

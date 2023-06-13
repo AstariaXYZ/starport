@@ -124,8 +124,7 @@ contract UniqueOriginator is Originator {
       revert ConduitTransferError();
     }
 
-    LoanManager(msg.sender).safeTransferFrom(
-      address(this),
+    LoanManager(msg.sender).mint(
       details.lender,
       params.loanId,
       params.encodedLoan
