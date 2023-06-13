@@ -41,15 +41,16 @@ contract EnglishAuctionHandler is SettlementHandler {
     uint256 window;
   }
 
-  LoanManager LM;
   ConsiderationInterface consideration;
   address public constant ENGLISH_AUCTION_ZONE =
     0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd;
 
   error InvalidOrder();
 
-  constructor(LoanManager LM_, ConsiderationInterface consideration_) {
-    LM = LM_;
+  constructor(
+    LoanManager LM_,
+    ConsiderationInterface consideration_
+  ) SettlementHandler(LM_) {
     consideration = consideration_;
   }
 
@@ -57,30 +58,44 @@ contract EnglishAuctionHandler is SettlementHandler {
     LoanManager.Loan calldata loan
   ) external virtual override returns (bytes4) {
     Details memory details = abi.decode(loan.handlerData, (Details));
-    uint256 owing = Pricing(loan.pricing).getOwed(loan);
+    uint256[] memory owing = Pricing(loan.pricing).getOwed(loan);
 
-    if (owing < details.reservePrice) {
-      owing = details.reservePrice;
+    if (owing[0] < details.reservePrice) {
+      owing[0] = details.reservePrice;
     }
     //check the loan debt type and set the order type based on that
 
-    OfferItem[] memory offerItems = new OfferItem[](1);
-    offerItems[0] = OfferItem({
-      itemType: loan.collateral.itemType,
-      token: loan.collateral.token,
-      identifierOrCriteria: loan.collateral.identifier,
-      startAmount: loan.collateral.amount,
-      endAmount: loan.collateral.amount
-    });
-    ConsiderationItem[] memory considerations = new ConsiderationItem[](1);
-    considerations[0] = ConsiderationItem({
-      itemType: loan.debt.itemType,
-      token: loan.debt.token,
-      identifierOrCriteria: loan.debt.identifier,
-      startAmount: details.reservePrice,
-      endAmount: owing,
-      recipient: loan.debt.recipient
-    });
+    OfferItem[] memory offerItems = new OfferItem[](loan.collateral.length);
+    //convert offer items from spent items
+    uint256 i = 0;
+    for (; i < loan.collateral.length; ) {
+      offerItems[i] = OfferItem({
+        itemType: loan.collateral[i].itemType,
+        token: loan.collateral[i].token,
+        identifierOrCriteria: loan.collateral[i].identifier,
+        startAmount: loan.collateral[i].amount,
+        endAmount: loan.collateral[i].amount
+      });
+      unchecked {
+        ++i;
+      }
+    }
+    ConsiderationItem[] memory considerations = new ConsiderationItem[](
+      loan.debt.length
+    );
+    for (; i < loan.debt.length; ) {
+      considerations[i] = ConsiderationItem({
+        itemType: loan.debt[i].itemType,
+        token: loan.debt[i].token,
+        identifierOrCriteria: loan.debt[i].identifier,
+        startAmount: loan.debt[i].amount,
+        endAmount: loan.debt[i].amount,
+        recipient: payable(LM.ownerOf(uint256(keccak256(abi.encode(loan)))))
+      });
+      unchecked {
+        ++i;
+      }
+    }
 
     OrderParameters memory op = OrderParameters({
       offerer: address(LM),
@@ -109,9 +124,7 @@ contract EnglishAuctionHandler is SettlementHandler {
 
   function getSettlement(
     LoanManager.Loan memory loan,
-    SpentItem[] calldata maximumSpent,
-    uint256 owing,
-    address payable lmOwner
+    SpentItem[] calldata maximumSpent
   )
     external
     view

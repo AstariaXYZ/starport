@@ -45,20 +45,28 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 import "forge-std/console.sol";
 
-contract LoanManager is
-  ERC721,
-  ContractOffererInterface,
-  TokenReceiverInterface
-{
+contract FeeRecipient {
+  address public feeRecipient;
+
+  constructor(address feeRecipient_) {
+    feeRecipient = feeRecipient_;
+  }
+
+  modifier onlyFeeRecipient() {
+    require(msg.sender == feeRecipient, "LoanManager: not fee recipient");
+    _;
+  }
+}
+
+contract LoanManager is ERC721, ContractOffererInterface {
   using FixedPointMathLib for uint256;
 
-  uint256 private constant ONE_WORD = 0x20;
-
-  uint96 public loanCount;
+  address public immutable custodian;
   address public feeRecipient;
-  uint256 public fee;
   ConsiderationInterface public immutable seaport;
   ConduitControllerInterface public immutable CI;
+  uint256 public fee;
+  uint256 private constant ONE_WORD = 0x20;
 
   enum Action {
     ASK,
@@ -68,6 +76,7 @@ contract LoanManager is
   }
 
   struct Loan {
+    address borrower;
     address originator;
     address hook;
     address pricing;
@@ -77,11 +86,12 @@ contract LoanManager is
     bytes pricingData;
     bytes handlerData;
     bytes hookData;
-    SpentItem collateral;
-    ReceivedItem debt;
+    SpentItem[] collateral;
+    SpentItem[] debt;
   }
 
   struct NewLoanRequest {
+    address borrower;
     address originator;
     address hook;
     address pricing;
@@ -89,13 +99,12 @@ contract LoanManager is
     bytes pricingData;
     bytes handlerData;
     bytes hookData;
-    ReceivedItem debt;
+    SpentItem[] debt;
     Originator.Signature signature;
     bytes details;
   }
 
   event Lock(uint256 indexed loanId, Loan loan);
-  event Unlock(uint256 indexed loanId);
   event SeaportCompatibleContractDeployed();
 
   error InvalidSender();
@@ -107,6 +116,7 @@ contract LoanManager is
 
   enum ContextErrors {
     BAD_ORIGINATION,
+    LENDER_ERROR,
     LENGTH_MISMATCH,
     BORROWER_MISMATCH,
     COLLATERAL,
@@ -120,8 +130,8 @@ contract LoanManager is
 
   constructor(ConsiderationInterface consideration) {
     seaport = consideration;
+    custodian = address(new Custodian(this, address(consideration)));
     (, , address conduitController) = consideration.information();
-    loanCount = 1;
     CI = ConduitControllerInterface(conduitController);
     emit SeaportCompatibleContractDeployed();
   }
@@ -142,40 +152,17 @@ contract LoanManager is
     _;
   }
 
-  // PUBLIC FUNCTIONS
-  function onERC721Received(
-    address operator,
-    address from,
-    uint256 tokenId,
-    bytes calldata data
-  ) public pure virtual returns (bytes4) {
-    return TokenReceiverInterface.onERC721Received.selector;
-  }
-
-  function onERC1155Received(
-    address,
-    address,
-    uint256,
-    uint256,
-    bytes calldata
-  ) external pure virtual returns (bytes4) {
-    return TokenReceiverInterface.onERC1155Received.selector;
-  }
-
-  function onERC1155BatchReceived(
-    address,
-    address,
-    uint256[] calldata,
-    uint256[] calldata,
-    bytes calldata
-  ) external pure virtual returns (bytes4) {
-    return TokenReceiverInterface.onERC1155BatchReceived.selector;
-  }
-
   function tokenURI(
     uint256 tokenId
   ) public view override returns (string memory) {
     return string(abi.encodePacked("https://astaria.xyz/loans?id=", tokenId));
+  }
+
+  function burn(uint256 tokenId) external {
+    if (msg.sender != address(custodian)) {
+      revert InvalidSender();
+    }
+    _burn(tokenId);
   }
 
   /**
@@ -200,40 +187,6 @@ contract LoanManager is
     view
     returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
-    Action action = _getAction(context);
-
-    if (action == Action.LOCK) {
-      (offer, consideration) = _previewLock(
-        caller,
-        fulfiller,
-        minimumReceived,
-        maximumSpent,
-        context
-      );
-    } else if (action == Action.UNLOCK) {
-      (offer, consideration) = _previewUnlock(
-        caller,
-        fulfiller,
-        minimumReceived,
-        maximumSpent,
-        context
-      );
-    } else {
-      revert InvalidAction();
-    }
-  }
-
-  function _previewLock(
-    address caller,
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
-  )
-    internal
-    view
-    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
-  {
     consideration = new ReceivedItem[](maximumSpent.length);
     for (uint256 i = 0; i < maximumSpent.length; ) {
       consideration[i] = ReceivedItem({
@@ -241,52 +194,10 @@ contract LoanManager is
         token: maximumSpent[i].token,
         identifier: maximumSpent[i].identifier,
         amount: maximumSpent[i].amount,
-        recipient: payable(address(this))
+        recipient: payable(custodian)
       });
       unchecked {
         ++i;
-      }
-    }
-  }
-
-  function _previewUnlock(
-    address caller,
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
-  )
-    internal
-    view
-    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
-  {
-    (, Loan memory loan) = abi.decode(context, (uint8, Loan));
-    offer = new SpentItem[](1);
-    offer[0] = loan.collateral;
-    ReceivedItem memory feeConsideration = Originator(loan.originator)
-      .getFeeConsideration(loan);
-    if (SettlementHook(loan.hook).isActive(loan)) {
-      if (fulfiller != loan.debt.recipient) {
-        revert InvalidSender();
-      }
-      ReceivedItem memory paymentConsideration = Pricing(loan.pricing)
-        .getPaymentConsideration(loan);
-
-      consideration = new ReceivedItem[](1);
-      //      consideration[0] = feeConsideration;
-      consideration[0] = paymentConsideration;
-    } else {
-      uint256 owing = Pricing(loan.pricing).getOwed(loan);
-      address payable lender = payable(
-        ownerOf(uint256(keccak256(abi.encode(loan))))
-      );
-
-      address restricted;
-      (consideration, restricted) = SettlementHandler(loan.handler)
-        .getSettlement(loan, minimumReceived, owing, lender);
-
-      if (restricted != address(0) && fulfiller != restricted) {
-        revert InvalidSender();
       }
     }
   }
@@ -305,6 +216,277 @@ contract LoanManager is
     schemas = new Schema[](1);
     schemas[0] = Schema(8, "");
     return ("Loans", schemas);
+  }
+
+  /**
+   * @dev Generates the order for this contract offerer.
+   *
+   * @param fulfiller        The address of the contract fulfiller.
+   * @param maximumSpent     The maximum amount of items to be spent by the order.
+   * @param context          The context of the order.
+   * @return offer           The items spent by the order.
+   * @return consideration   The items received by the order.
+   */
+  function generateOrder(
+    address fulfiller,
+    SpentItem[] calldata minimumReceived,
+    SpentItem[] calldata maximumSpent,
+    bytes calldata context // encoded based on the schemaID
+  )
+    external
+    onlySeaport
+    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
+  {
+    (offer, consideration) = previewOrder(
+      msg.sender,
+      fulfiller,
+      minimumReceived,
+      maximumSpent,
+      context
+    );
+  }
+
+  /**
+   * @dev Generates the order for this contract offerer.
+   *
+   * @param offer            The address of the contract fulfiller.
+   * @param consideration    The maximum amount of items to be spent by the order.
+   * @param context          The context of the order.
+   * @param orderHashes      The context of the order.
+   * @param contractNonce    The context of the order.
+   * @return ratifyOrderMagicValue The magic value returned by the ratify.
+   */
+  function ratifyOrder(
+    SpentItem[] calldata offer,
+    ReceivedItem[] calldata consideration,
+    bytes calldata context, // encoded based on the schemaID
+    bytes32[] calldata orderHashes,
+    uint256 contractNonce
+  ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
+    //get the spent token and amount from the spent item
+
+    LoanManager.NewLoanRequest memory nlr = abi.decode(
+      context,
+      (LoanManager.NewLoanRequest)
+    );
+    Loan memory loan;
+    loan.borrower = nlr.borrower;
+    loan.originator = nlr.originator;
+    loan.hook = nlr.hook;
+    loan.handler = nlr.handler;
+    loan.pricing = nlr.pricing;
+    loan.hookData = nlr.hookData;
+    loan.handlerData = nlr.handlerData;
+    loan.pricingData = nlr.pricingData;
+    loan.start = block.timestamp;
+    loan.nonce = contractNonce;
+    _setCollateral(loan, consideration);
+    loan.debt = nlr.debt;
+
+    bytes memory encodedLoan = abi.encode(loan);
+
+    uint256 loanId = uint256(keccak256(encodedLoan));
+    _setExtraData(loanId, uint8(1));
+    if (
+      Originator.execute.selector !=
+      Originator(loan.originator).execute(
+        Originator.ExecuteParams({
+          loanId: loanId,
+          loan: loan,
+          encodedLoan: encodedLoan,
+          nlrDetails: nlr.details,
+          signature: nlr.signature
+        })
+      )
+    ) {
+      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+    }
+    if (!_exists(loanId)) {
+      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+    }
+    _setExtraData(loanId, uint8(0));
+    emit Lock(loanId, loan);
+
+    return ContractOffererInterface.ratifyOrder.selector;
+  }
+
+  function _isLazy(uint256 tokenId) internal view returns (bool) {
+    return _getExtraData(tokenId) == 1;
+  }
+
+  function safeTransferFrom(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes calldata data
+  ) public payable override {
+    uint256 lazy = _getExtraData(tokenId);
+    if (_isLazy(tokenId)) {
+      _safeMint(to, tokenId, data);
+    } else {
+      super.safeTransferFrom(from, to, tokenId, data);
+    }
+  }
+
+  function transferFrom(
+    address from,
+    address to,
+    uint256 tokenId
+  ) public payable override {
+    uint256 lazy = _getExtraData(tokenId);
+    if (!_isLazy(tokenId)) {
+      super.transferFrom(from, to, tokenId);
+    } else {
+      revert("Lazy tokens cannot be transferred without data");
+    }
+  }
+
+  function _getAction(
+    bytes calldata context
+  ) internal pure returns (Action action) {
+    assembly {
+      action := calldataload(context.offset)
+    }
+  }
+
+  function supportsInterface(
+    bytes4 interfaceId
+  )
+    public
+    view
+    virtual
+    override(ERC721, ContractOffererInterface)
+    returns (bool)
+  {
+    return
+      interfaceId == type(ContractOffererInterface).interfaceId ||
+      interfaceId == type(ERC721).interfaceId ||
+      super.supportsInterface(interfaceId);
+  }
+
+  // INTERNAL FUNCTIONS
+  //  function _executeLoanMatch(bytes calldata context) internal {
+  //    //    if (consideration.length != 1) {
+  //    //      revert InvalidContext(ContextErrors.LENGTH_MISMATCH);
+  //    //    }
+  //    (Loan memory ask, LoanManager.NewLoanRequest memory nlr) = abi.decode(
+  //      context,
+  //      (Loan, LoanManager.NewLoanRequest)
+  //    );
+  //    if (ownerOf(uint256(keccak256(abi.encode(ask)))) == address(0)) {
+  //      revert InvalidContext(ContextErrors.INVALID_LOAN);
+  //    }
+  //    Loan memory loan = Loan({
+  //      validator: validator,
+  //      trigger: address(0),
+  //      pricing: address(0),
+  //      pricing: address(0),
+  //      collateral: SpentItem({
+  //        itemType: ask.itemType,
+  //        token: ask.token,
+  //        identifier: ask.identifier,
+  //        amount: ask.amount
+  //      }),
+  //      debt: nlr.ask,
+  //      start: block.timestamp,
+  //      nonce: ++loanCount,
+  //      details: nlr.details
+  //    });
+  //
+  //    //    uint256 beforeBalance = ERC20(nlr.ask.token).balanceOf(
+  //    //      nlr.ask.recipient
+  //    //    );
+  //  }
+
+  function _setCollateral(
+    Loan memory loan,
+    ReceivedItem[] memory collateral
+  ) internal pure {
+    loan.collateral = new SpentItem[](collateral.length);
+    for (uint256 i = 0; i < collateral.length; i++) {
+      loan.collateral[i].itemType = collateral[i].itemType;
+      loan.collateral[i].token = collateral[i].token;
+      loan.collateral[i].identifier = collateral[i].identifier;
+      loan.collateral[i].amount = collateral[i].amount;
+    }
+  }
+}
+
+contract Custodian is ContractOffererInterface, TokenReceiverInterface {
+  LoanManager public immutable LM;
+  address public immutable seaport;
+  event Unlock(uint256 indexed loanId);
+
+  constructor(LoanManager LM_, address seaport_) {
+    seaport = seaport_;
+    LM = LM_;
+  }
+
+  function supportsInterface(
+    bytes4 interfaceId
+  ) public view virtual override(ContractOffererInterface) returns (bool) {
+    return interfaceId == type(ContractOffererInterface).interfaceId;
+  }
+
+  modifier onlySeaport() {
+    if (msg.sender != address(seaport)) {
+      revert InvalidSender();
+    }
+    _;
+  }
+
+  error InvalidSender();
+  error InvalidAction();
+  error InvalidLoan(uint256);
+  error InvalidAmount();
+  error InvalidDuration();
+  error InvalidContext(ContextErrors);
+
+  enum ContextErrors {
+    BAD_ORIGINATION,
+    LENDER_ERROR,
+    LENGTH_MISMATCH,
+    BORROWER_MISMATCH,
+    COLLATERAL,
+    INVALID_PAYMENT,
+    ZERO_ADDRESS,
+    INVALID_LOAN,
+    INVALID_CONDUIT,
+    INVALID_RESOLVER,
+    INVALID_COLLATERAL
+  }
+
+  /**
+   * @dev Generates the order for this contract offerer.
+   *
+   * @param offer            The address of the contract fulfiller.
+   * @param consideration    The maximum amount of items to be spent by the order.
+   * @param context          The context of the order.
+   * @param orderHashes      The context of the order.
+   * @param contractNonce    The context of the order.
+   * @return ratifyOrderMagicValue The magic value returned by the ratify.
+   */
+  function ratifyOrder(
+    SpentItem[] calldata offer,
+    ReceivedItem[] calldata consideration,
+    bytes calldata context, // encoded based on the schemaID
+    bytes32[] calldata orderHashes,
+    uint256 contractNonce
+  ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
+    //get the spent token and amount from the spent item
+
+    LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+    uint256 loanId = uint256(keccak256(abi.encode(loan)));
+    if (
+      SettlementHandler.execute.selector !=
+      SettlementHandler(loan.handler).execute(loan)
+    ) {
+      revert InvalidContext(ContextErrors.INVALID_RESOLVER);
+    }
+    emit Unlock(loanId);
+    LM.burn(loanId);
+
+    return ContractOffererInterface.ratifyOrder.selector;
   }
 
   /**
@@ -360,237 +542,92 @@ contract LoanManager is
   }
 
   /**
-   * @dev Generates the order for this contract offerer.
+   * @dev previews the order for this contract offerer.
    *
-   * @param offer            The address of the contract fulfiller.
-   * @param consideration    The maximum amount of items to be spent by the order.
+   * @param caller        The address of the contract fulfiller.
+   * @param fulfiller        The address of the contract fulfiller.
+   * @param minimumReceived  The minimum the fulfiller must receive.
+   * @param maximumSpent     The most a fulfiller will spend
    * @param context          The context of the order.
-   * @param orderHashes      The context of the order.
-   * @param contractNonce    The context of the order.
-   * @return ratifyOrderMagicValue The magic value returned by the ratify.
+   * @return offer     The items spent by the order.
+   * @return consideration  The items received by the order.
    */
-  function ratifyOrder(
-    SpentItem[] calldata offer,
-    ReceivedItem[] calldata consideration,
-    bytes calldata context, // encoded based on the schemaID
-    bytes32[] calldata orderHashes,
-    uint256 contractNonce
-  ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
-    //get the spent token and amount from the spent item
-
-    Action action = _getAction(context);
-
-    if (action == Action.LOCK) {
-      _executeLock(consideration, context);
-    } else if (action == Action.UNLOCK) {
-      _executeUnlock(consideration, context);
-    } else {
-      revert InvalidAction();
-    }
-
-    return ContractOffererInterface.ratifyOrder.selector;
-  }
-
-  function _getAction(
-    bytes calldata context
-  ) internal pure returns (Action action) {
-    assembly {
-      action := calldataload(context.offset)
-    }
-  }
-
-  //do more work here
-  //  function forgive(Loan calldata loan) public {
-  //    uint256 loanId = uint256(keccak256(abi.encode(loan)));
-  //    if (msg.sender != ownerOf(loanId)) {
-  //      revert InvalidSender();
-  //    }
-  //
-  //    _burn(loanId);
-  //
-  //    ERC721(loan.token).transferFrom(address(this), msg.sender, loan.identifier);
-  //  }
-
-  function supportsInterface(
-    bytes4 interfaceId
+  function previewOrder(
+    address caller,
+    address fulfiller,
+    SpentItem[] calldata minimumReceived,
+    SpentItem[] calldata maximumSpent,
+    bytes calldata context // encoded based on the schemaID
   )
     public
     view
-    virtual
-    override(ERC721, ContractOffererInterface)
-    returns (bool)
+    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
-    return
-      interfaceId == type(ContractOffererInterface).interfaceId ||
-      interfaceId == type(ERC721).interfaceId ||
-      super.supportsInterface(interfaceId);
-  }
-
-  // INTERNAL FUNCTIONS
-  //  function _executeLoanMatch(bytes calldata context) internal {
-  //    //    if (consideration.length != 1) {
-  //    //      revert InvalidContext(ContextErrors.LENGTH_MISMATCH);
-  //    //    }
-  //    (Loan memory ask, LoanManager.NewLoanRequest memory nlr) = abi.decode(
-  //      context,
-  //      (Loan, LoanManager.NewLoanRequest)
-  //    );
-  //    if (ownerOf(uint256(keccak256(abi.encode(ask)))) == address(0)) {
-  //      revert InvalidContext(ContextErrors.INVALID_LOAN);
-  //    }
-  //    Loan memory loan = Loan({
-  //      validator: validator,
-  //      trigger: address(0),
-  //      pricing: address(0),
-  //      pricing: address(0),
-  //      collateral: SpentItem({
-  //        itemType: ask.itemType,
-  //        token: ask.token,
-  //        identifier: ask.identifier,
-  //        amount: ask.amount
-  //      }),
-  //      debt: nlr.ask,
-  //      start: block.timestamp,
-  //      nonce: ++loanCount,
-  //      details: nlr.details
-  //    });
-  //
-  //    //    uint256 beforeBalance = ERC20(nlr.ask.token).balanceOf(
-  //    //      nlr.ask.recipient
-  //    //    );
-  //  }
-
-  function _executeLock(
-    ReceivedItem[] calldata consideration,
-    bytes calldata context
-  ) internal {
-    (, LoanManager.NewLoanRequest[] memory nlrs) = abi.decode(
-      context,
-      (uint8, LoanManager.NewLoanRequest[])
-    );
-    if (nlrs.length != consideration.length) {
-      revert InvalidContext(ContextErrors.LENGTH_MISMATCH);
-    }
-    uint256 i = 0;
-    uint96 count = loanCount;
-    for (; i < nlrs.length; ) {
-      Loan memory loan;
-      loan.originator = nlrs[i].originator;
-      loan.hook = nlrs[i].hook;
-      loan.handler = nlrs[i].handler;
-      loan.pricing = nlrs[i].pricing;
-      loan.hookData = nlrs[i].hookData;
-      loan.handlerData = nlrs[i].handlerData;
-      loan.pricingData = nlrs[i].pricingData;
-      loan.start = block.timestamp;
-      loan.nonce = ++count;
-      _setCollateral(loan, consideration[i]);
-      loan.debt = nlrs[i].debt;
-
-      Originator.Response memory response = Originator(loan.originator)
-        .validate(loan, nlrs[i].details, nlrs[i].signature);
-      if (CI.ownerOf(response.conduit) != loan.originator) {
-        revert InvalidContext(ContextErrors.INVALID_CONDUIT);
+    LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+    offer = loan.collateral;
+    ReceivedItem memory feeConsideration = Originator(loan.originator)
+      .getFeeConsideration(loan);
+    if (SettlementHook(loan.hook).isActive(loan)) {
+      if (fulfiller != loan.borrower) {
+        revert InvalidSender();
       }
-      if (
-        ConduitInterface.execute.selector !=
-        ConduitInterface(response.conduit).execute(
-          _packageTransfers(loan, response.lender)
-        )
-      ) {
-        revert InvalidContext(ContextErrors.BAD_ORIGINATION);
-      }
+      //TODO: add in fee enforcement?
+      consideration = Pricing(loan.pricing).getPaymentConsideration(loan);
 
-      bytes memory encodedLoan = abi.encode(loan);
-      uint256 loanId = uint256(keccak256(encodedLoan));
-      _safeMint(response.lender, loanId, encodedLoan);
-      emit Lock(loanId, loan);
-      unchecked {
-        ++i;
-      }
-    }
-    loanCount = count;
-  }
-
-  function _setCollateral(
-    Loan memory loan,
-    ReceivedItem memory collateral
-  ) internal pure {
-    loan.collateral.itemType = collateral.itemType;
-    loan.collateral.token = collateral.token;
-    loan.collateral.identifier = collateral.identifier;
-    loan.collateral.amount = collateral.amount;
-  }
-
-  function _executeUnlock(
-    ReceivedItem[] calldata consideration,
-    bytes calldata context
-  ) internal {
-    //make this cheaper, by just encoding the
-    (, Loan memory loan) = abi.decode(context, (uint8, Loan));
-    uint256 loanId = uint256(keccak256(abi.encode(loan)));
-    if (
-      SettlementHandler.execute.selector !=
-      SettlementHandler(loan.handler).execute(loan)
-    ) {
-      revert InvalidContext(ContextErrors.INVALID_RESOLVER);
-    }
-    emit Unlock(loanId);
-    _burn(loanId);
-  }
-
-  function _packageTransfers(
-    LoanManager.Loan memory loan,
-    address lender
-  ) internal view returns (ConduitTransfer[] memory transfers) {
-    ConduitItemType itemType;
-    ReceivedItem memory debt = loan.debt;
-
-    //forge-fmt skip-next-line
-    assembly {
-      itemType := mload(debt)
-      switch itemType
-      case 1 {
-
-      }
-      case 2 {
-
-      }
-      case 3 {
-
-      }
-      default {
-        revert(0, 0)
-      } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
-    }
-
-    uint256 amount;
-    if (feeRecipient != address(0) && itemType == ConduitItemType.ERC20) {
-      transfers = new ConduitTransfer[](2);
-
-      uint256 feeValue = debt.amount.mulWad(fee);
-      amount = debt.amount - feeValue;
-
-      transfers[1] = ConduitTransfer({
-        itemType: itemType,
-        from: lender,
-        token: debt.token,
-        identifier: debt.identifier,
-        amount: feeValue,
-        to: feeRecipient
-      });
+      //      consideration = new ReceivedItem[](paymentConsideration.length);
+      //      consideration[0] = feeConsideration;
     } else {
-      transfers = new ConduitTransfer[](1);
-      amount = debt.amount;
-    }
+      address payable lender = payable(
+        LM.ownerOf(uint256(keccak256(abi.encode(loan))))
+      );
 
-    transfers[0] = ConduitTransfer({
-      itemType: itemType,
-      from: lender,
-      token: debt.token,
-      identifier: debt.identifier,
-      amount: amount,
-      to: debt.recipient
-    });
+      address restricted;
+      (consideration, restricted) = SettlementHandler(loan.handler)
+        .getSettlement(loan, minimumReceived);
+
+      if (restricted != address(0) && fulfiller != restricted) {
+        revert InvalidSender();
+      }
+    }
+  }
+
+  function getSeaportMetadata()
+    external
+    pure
+    returns (string memory, Schema[] memory schemas)
+  {
+    schemas = new Schema[](1);
+    schemas[0] = Schema(8, "");
+    return ("Loans", schemas);
+  }
+
+  // PUBLIC FUNCTIONS
+  function onERC721Received(
+    address operator,
+    address from,
+    uint256 tokenId,
+    bytes calldata data
+  ) public pure virtual returns (bytes4) {
+    return TokenReceiverInterface.onERC721Received.selector;
+  }
+
+  function onERC1155Received(
+    address,
+    address,
+    uint256,
+    uint256,
+    bytes calldata
+  ) external pure virtual returns (bytes4) {
+    return TokenReceiverInterface.onERC1155Received.selector;
+  }
+
+  function onERC1155BatchReceived(
+    address,
+    address,
+    uint256[] calldata,
+    uint256[] calldata,
+    bytes calldata
+  ) external pure virtual returns (bytes4) {
+    return TokenReceiverInterface.onERC1155BatchReceived.selector;
   }
 }

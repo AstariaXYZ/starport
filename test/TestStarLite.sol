@@ -79,12 +79,7 @@ contract TestStarLite is BaseOrderTest {
     strategist = makeAndAllocateAccount("strategist");
 
     LM = new LoanManager(ConsiderationInterface(address(consideration)));
-    UO = new UniqueOriginator(
-      LM,
-      ConduitControllerInterface(address(conduitController)),
-      strategist.addr,
-      1e16
-    );
+    UO = new UniqueOriginator(LM, strategist.addr, 1e16);
 
     conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
 
@@ -94,7 +89,7 @@ contract TestStarLite is BaseOrderTest {
       address(lender.addr)
     );
     conduitController.updateChannel(lenderConduit, address(UO), true);
-    erc20s[0].approve(address(UO.conduit()), 100000);
+    erc20s[0].approve(address(lenderConduit), 100000);
     vm.stopPrank();
   }
 
@@ -127,60 +122,41 @@ contract TestStarLite is BaseOrderTest {
     {
       vm.startPrank(borrower.addr);
       nft.mint(borrower.addr, 1);
-      //      nft.setApprovalForAll(address(consideration), true);
       vm.stopPrank();
     }
-
-    //        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
-    //            validator: address(UO),
-    //            conduit: address(conduit),
-    //            collateral: address(nft),
-    //            debtToken: address(debtToken),
-    //            identifier: 1,
-    //            maxAmount: 100,
-    //            rate: 1,
-    //            loanDuration: 1000,
-    //            deadline: block.timestamp + 100,
-    //            settlement: UniqueOriginator.SettlementData({startingPrice: uint(500 ether), endingPrice: 100 wei, window: 7 days})
-    //        });
-
-    //struct Details {
-    //    address validator;
-    //    address trigger; // isLoanHealthy
-    //    address resolver; // liquidationMethod
-    //    address pricing; // getOwed
-    //    uint256 deadline;
-    //    SpentItem collateral;
-    //    ReceivedItem debt;
-    //    bytes pricingData;
-    //    bytes resolverData;
-    //  }
 
     UniqueOriginator.Details memory loanDetails;
 
     {
       FixedTermPricing pricing = new FixedTermPricing(LM);
-      DutchAuctionHandler handler = new DutchAuctionHandler();
+      DutchAuctionHandler handler = new DutchAuctionHandler(LM);
       FixedTermHook hook = new FixedTermHook();
+      SpentItem[] memory collateral = new SpentItem[](1);
+      collateral[0] = SpentItem({
+        token: address(nft),
+        amount: 1,
+        identifier: 0,
+        itemType: ItemType.ERC721
+      });
+
+      SpentItem[] memory debt = new SpentItem[](1);
+      debt[0] = SpentItem({
+        itemType: ItemType.ERC20,
+        token: address(erc20s[0]),
+        amount: 100,
+        identifier: 0
+      });
+
       loanDetails = UniqueOriginator.Details({
         originator: address(UO),
+        conduit: address(lenderConduit),
+        lender: address(lender.addr),
         hook: address(hook),
         handler: address(handler),
         pricing: address(pricing),
         deadline: block.timestamp + 100,
-        collateral: SpentItem({
-          token: address(nft),
-          amount: 1,
-          identifier: 0,
-          itemType: ItemType.ERC721
-        }),
-        debt: ReceivedItem({
-          recipient: payable(lender.addr),
-          token: address(erc20s[0]),
-          amount: 100,
-          identifier: 0,
-          itemType: ItemType.ERC20
-        }),
+        collateral: collateral,
+        debt: debt,
         pricingData: abi.encode(
           FixedTermPricing.Details({
             rate: uint256((uint256(1e16) / 365) * 1 days),
@@ -208,19 +184,18 @@ contract TestStarLite is BaseOrderTest {
     );
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, hash);
 
-    SpentItem memory emptySpent;
+    SpentItem[] memory debt = new SpentItem[](1);
+    debt[0] = SpentItem({
+      token: address(debtToken),
+      amount: 100,
+      identifier: 0,
+      itemType: ItemType.ERC20
+    });
     activeLoan = _executeNLR(
       LoanManager.NewLoanRequest({
+        borrower: payable(borrower.addr),
         details: abi.encode(loanDetails),
-        //        loan: LoanManager.Loan({
-        //          collateral: emptySpent, // gets set during the lock
-        debt: ReceivedItem({
-          recipient: payable(borrower.addr),
-          token: address(debtToken),
-          amount: 100,
-          identifier: 0,
-          itemType: ItemType.ERC20
-        }),
+        debt: debt,
         originator: loanDetails.originator,
         hook: loanDetails.hook,
         handler: loanDetails.handler,
@@ -244,20 +219,18 @@ contract TestStarLite is BaseOrderTest {
             loanDuration: 10 days
           })
         ),
-        //          start: uint256(0), // gets set during the lock
-        //          nonce: uint256(0) // gets set during the lock
-        //        }),
         signature: Originator.Signature({v: v, r: r, s: s})
       })
     );
   }
 
-  function _buildLMContractOrder(
+  function _buildContractOrder(
+    address offerer,
     OfferItem[] memory offer,
     ConsiderationItem[] memory consider
   ) internal view returns (OrderParameters memory op) {
     op = OrderParameters({
-      offerer: address(LM),
+      offerer: offerer,
       zone: address(0),
       offer: offer,
       consideration: consider,
@@ -272,38 +245,56 @@ contract TestStarLite is BaseOrderTest {
   }
 
   function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-    uint256 owing = Pricing(activeLoan.pricing).getOwed(activeLoan);
-    ConsiderationItem[] memory consider = new ConsiderationItem[](1);
-    ReceivedItem memory loanPayment = Pricing(activeLoan.pricing)
+    uint256[] memory owing = Pricing(activeLoan.pricing).getOwed(activeLoan);
+    ReceivedItem[] memory loanPayment = Pricing(activeLoan.pricing)
       .getPaymentConsideration(activeLoan);
-    consider[0] = ConsiderationItem({
-      itemType: loanPayment.itemType,
-      token: address(loanPayment.token),
-      identifierOrCriteria: loanPayment.identifier,
-      startAmount: 5 ether,
-      endAmount: 5 ether,
-      recipient: loanPayment.recipient
-    });
-    OfferItem[] memory repayOffering = new OfferItem[](1);
-    repayOffering[0] = OfferItem({
-      itemType: activeLoan.collateral.itemType,
-      token: address(activeLoan.collateral.token),
-      identifierOrCriteria: activeLoan.collateral.identifier,
-      endAmount: activeLoan.collateral.itemType != ItemType.ERC721
-        ? activeLoan.collateral.amount
-        : 1,
-      startAmount: activeLoan.collateral.itemType != ItemType.ERC721
-        ? activeLoan.collateral.amount
-        : 1
-    });
-    OrderParameters memory op = _buildLMContractOrder(repayOffering, consider);
+    uint i = 0;
+    ConsiderationItem[] memory consider = new ConsiderationItem[](
+      loanPayment.length
+    );
+    for (; i < loanPayment.length; ) {
+      consider[i].token = loanPayment[i].token;
+      consider[i].itemType = loanPayment[i].itemType;
+      consider[i].identifierOrCriteria = loanPayment[i].identifier;
+      consider[i].startAmount = 5 ether;
+      consider[i].endAmount = 5 ether;
+      consider[i].recipient = loanPayment[i].recipient;
+      unchecked {
+        ++i;
+      }
+    }
+    OfferItem[] memory repayOffering = new OfferItem[](
+      activeLoan.collateral.length
+    );
+    i = 0;
+    for (; i < activeLoan.collateral.length; ) {
+      repayOffering[i] = OfferItem({
+        itemType: activeLoan.collateral[i].itemType,
+        token: address(activeLoan.collateral[i].token),
+        identifierOrCriteria: activeLoan.collateral[i].identifier,
+        endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721
+          ? activeLoan.collateral[i].amount
+          : 1,
+        startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721
+          ? activeLoan.collateral[i].amount
+          : 1
+      });
+      unchecked {
+        ++i;
+      }
+    }
+    OrderParameters memory op = _buildContractOrder(
+      address(LM.custodian()),
+      repayOffering,
+      consider
+    );
 
     AdvancedOrder memory x = AdvancedOrder({
       parameters: op,
       numerator: 1,
       denominator: 1,
       signature: "0x",
-      extraData: abi.encode(uint8(LoanManager.Action.UNLOCK), activeLoan)
+      extraData: abi.encode(activeLoan)
     });
 
     uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
@@ -319,7 +310,6 @@ contract TestStarLite is BaseOrderTest {
 
     uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
 
-    //    assertEq(balanceAfter - balanceBefore, 100);
     vm.stopPrank();
   }
 
@@ -333,24 +323,20 @@ contract TestStarLite is BaseOrderTest {
       identifierOrCriteria: 1,
       startAmount: 1,
       endAmount: 1,
-      recipient: payable(address(LM))
+      recipient: payable(LM.custodian())
     });
-    OrderParameters memory op = _buildLMContractOrder(
+    OrderParameters memory op = _buildContractOrder(
+      address(LM),
       new OfferItem[](0),
       consider
     );
-
-    LoanManager.NewLoanRequest[] memory nlrs = new LoanManager.NewLoanRequest[](
-      1
-    );
-    nlrs[0] = nlr;
 
     AdvancedOrder memory x = AdvancedOrder({
       parameters: op,
       numerator: 1,
       denominator: 1,
       signature: "0x",
-      extraData: abi.encode(uint8(LoanManager.Action.LOCK), nlrs)
+      extraData: abi.encode(nlr)
     });
 
     uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);

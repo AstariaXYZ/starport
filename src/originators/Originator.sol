@@ -44,8 +44,14 @@ abstract contract Originator {
   }
 
   LoanManager public immutable LM;
-  ConduitControllerInterface public immutable CI;
-  ConduitInterface public immutable conduit;
+
+  struct ExecuteParams {
+    LoanManager.Loan loan;
+    bytes encodedLoan;
+    uint256 loanId;
+    bytes nlrDetails;
+    Signature signature;
+  }
 
   // Define the EIP712 domain and typehash constants for generating signatures
   bytes32 constant EIP_DOMAIN =
@@ -65,16 +71,10 @@ abstract contract Originator {
   // Nonce mapping for replay protection
   mapping(address => uint256) private _counter;
 
-  constructor(
-    LoanManager LM_,
-    ConduitControllerInterface CI_,
-    address strategist_,
-    uint256 fee_
-  ) {
+  constructor(LoanManager LM_, address strategist_, uint256 fee_) {
     strategist = strategist_;
     strategistFee = fee_;
     LM = LM_;
-    CI = CI_;
 
     _DOMAIN_SEPARATOR = keccak256(
       abi.encode(
@@ -84,18 +84,53 @@ abstract contract Originator {
         address(this)
       )
     );
+  }
 
-    bytes32 conduitKey = bytes32(uint256(uint160(address(this))) << 96);
-    conduit = ConduitInterface(CI.createConduit(conduitKey, address(this)));
-    CI.updateChannel(address(conduit), address(LM), true);
+  function _packageTransfers(
+    LoanManager.Loan memory loan,
+    address lender
+  ) internal view returns (ConduitTransfer[] memory transfers) {
+    uint256 i = 0;
+    transfers = new ConduitTransfer[](loan.debt.length);
+    for (; i < loan.debt.length; ) {
+      ConduitItemType itemType;
+      SpentItem memory debt = loan.debt[i];
+
+      //forge-fmt skip-next-line
+      assembly {
+        itemType := mload(debt)
+        switch itemType
+        case 1 {
+
+        }
+        case 2 {
+
+        }
+        case 3 {
+
+        }
+        default {
+          revert(0, 0)
+        } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
+      }
+      transfers[i] = ConduitTransfer({
+        itemType: itemType,
+        from: lender,
+        token: loan.debt[i].token,
+        identifier: loan.debt[i].identifier,
+        amount: loan.debt[i].amount,
+        to: loan.borrower
+      });
+      unchecked {
+        ++i;
+      }
+    }
   }
 
   // Abstract function to execute the loan, to be overridden in child contracts
-  function validate(
-    LoanManager.Loan calldata,
-    bytes calldata,
-    Signature calldata
-  ) external view virtual returns (Response memory);
+  function execute(
+    ExecuteParams calldata
+  ) external virtual returns (bytes4 selector);
 
   // Encode the data with the account's nonce for generating a signature
   function encodeWithAccountCounter(

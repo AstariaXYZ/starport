@@ -8,6 +8,12 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 abstract contract SettlementHandler {
+  LoanManager LM;
+
+  constructor(LoanManager LM_) {
+    LM = LM_;
+  }
+
   function execute(
     LoanManager.Loan calldata loan
   ) external virtual returns (bytes4) {
@@ -16,9 +22,7 @@ abstract contract SettlementHandler {
 
   function getSettlement(
     LoanManager.Loan memory loan,
-    SpentItem[] calldata maximumSpent,
-    uint256 owing,
-    address payable lmOwner
+    SpentItem[] calldata maximumSpent
   )
     external
     view
