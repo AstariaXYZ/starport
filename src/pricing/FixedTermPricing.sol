@@ -31,7 +31,7 @@ contract FixedTermPricing is Pricing {
   function getOwed(
     LoanManager.Loan calldata loan
   ) public view override returns (uint256[] memory) {
-    Details memory details = abi.decode(loan.pricingData, (Details));
+    Details memory details = abi.decode(loan.terms.pricingData, (Details));
     return _getOwed(loan, details, block.timestamp);
   }
 

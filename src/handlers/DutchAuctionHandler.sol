@@ -42,7 +42,7 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
     override
     returns (ReceivedItem[] memory consideration, address restricted)
   {
-    Details memory details = abi.decode(loan.handlerData, (Details));
+    Details memory details = abi.decode(loan.terms.handlerData, (Details));
     uint256 settlementPrice;
 
     settlementPrice = _locateCurrentAmount({
@@ -63,7 +63,7 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
     uint256 considerationLength = 1;
     uint256 payment = minimumReceived[0].amount;
 
-    uint256[] memory owing = Pricing(loan.pricing).getOwed(loan);
+    uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
 
     if (fee > 0) {
       considerationLength = 2;

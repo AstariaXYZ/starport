@@ -1,11 +1,11 @@
 pragma solidity =0.8.17;
+import {LoanManager} from "src/LoanManager.sol";
 
 import {
   ItemType,
   ReceivedItem,
   SpentItem
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {LoanManager} from "src/LoanManager.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -21,6 +21,10 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 abstract contract Originator {
+  struct Response {
+    LoanManager.Loan loan;
+    address issuer;
+  }
   error InvalidCaller();
   error InvalidDeadline();
   error InvalidOriginator();
@@ -38,17 +42,14 @@ abstract contract Originator {
     bytes32 s;
   }
 
-  struct Response {
-    address lender;
-    address conduit;
-  }
-
   LoanManager public immutable LM;
 
   struct ExecuteParams {
-    LoanManager.Loan loan;
-    bytes encodedLoan;
-    uint256 loanId;
+    //    LoanManager.Loan loan;
+    //    uint256 loanId;
+    address borrower;
+    SpentItem[] collateral;
+    SpentItem[] debt;
     bytes nlrDetails;
     Signature signature;
   }
@@ -59,7 +60,9 @@ abstract contract Originator {
       "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
     );
   bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-    keccak256("OriginatorDetails(uint256 nonce,bytes32 hash)");
+    keccak256(
+      "OriginatorDetails(uint256 originator,uint256 nonce,bytes32 hash)"
+    );
   bytes32 constant VERSION = keccak256("0");
 
   bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -88,7 +91,7 @@ abstract contract Originator {
 
   function _packageTransfers(
     LoanManager.Loan memory loan,
-    address lender
+    address issuer
   ) internal view returns (ConduitTransfer[] memory transfers) {
     uint256 i = 0;
     transfers = new ConduitTransfer[](loan.debt.length);
@@ -115,7 +118,7 @@ abstract contract Originator {
       }
       transfers[i] = ConduitTransfer({
         itemType: itemType,
-        from: lender,
+        from: issuer,
         token: loan.debt[i].token,
         identifier: loan.debt[i].identifier,
         amount: loan.debt[i].amount,
@@ -130,18 +133,19 @@ abstract contract Originator {
   // Abstract function to execute the loan, to be overridden in child contracts
   function execute(
     ExecuteParams calldata
-  ) external virtual returns (bytes4 selector);
+  ) external virtual returns (Response memory);
 
   // Encode the data with the account's nonce for generating a signature
   function encodeWithAccountCounter(
     address account,
-    bytes calldata context
+    bytes32 contextHash
   ) public view virtual returns (bytes memory) {
     bytes32 hash = keccak256(
       abi.encode(
         ORIGINATOR_DETAILS_TYPEHASH,
+        address(this),
         _counter[account],
-        keccak256(context)
+        contextHash
       )
     );
 

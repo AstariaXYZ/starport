@@ -57,8 +57,8 @@ contract EnglishAuctionHandler is SettlementHandler {
   function execute(
     LoanManager.Loan calldata loan
   ) external virtual override returns (bytes4) {
-    Details memory details = abi.decode(loan.handlerData, (Details));
-    uint256[] memory owing = Pricing(loan.pricing).getOwed(loan);
+    Details memory details = abi.decode(loan.terms.handlerData, (Details));
+    uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
 
     if (owing[0] < details.reservePrice) {
       owing[0] = details.reservePrice;
@@ -136,7 +136,7 @@ contract EnglishAuctionHandler is SettlementHandler {
 
   function liquidate(LoanManager.Loan calldata loan) external {
     OrderParameters memory op = OrderParameters({
-      offerer: address(LM),
+      offerer: address(LM.custodian()),
       zone: address(0),
       offer: new OfferItem[](0),
       consideration: new ConsiderationItem[](0),
@@ -154,7 +154,7 @@ contract EnglishAuctionHandler is SettlementHandler {
       numerator: 1,
       denominator: 1,
       signature: "0x",
-      extraData: abi.encode(uint8(LoanManager.Action.UNLOCK), loan)
+      extraData: abi.encode(loan)
     });
 
     consideration.fulfillAdvancedOrder({

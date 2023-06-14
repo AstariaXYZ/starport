@@ -61,50 +61,50 @@ contract FeeRecipient {
 contract LoanManager is ERC721, ContractOffererInterface {
   using FixedPointMathLib for uint256;
 
+  //  uint96 public count;
   address public immutable custodian;
   address public feeRecipient;
   ConsiderationInterface public immutable seaport;
-  ConduitControllerInterface public immutable CI;
   uint256 public fee;
   uint256 private constant ONE_WORD = 0x20;
 
-  enum Action {
-    ASK,
-    MATCH,
-    LOCK,
-    UNLOCK
+  enum FieldFlags {
+    INITIALIZED,
+    INACTIVE
   }
 
-  struct Loan {
-    address borrower;
-    address originator;
+  //  enum Action {
+  //    ASK,
+  //    MATCH,
+  //    LOCK
+  //  }
+  struct Terms {
     address hook;
     address pricing;
     address handler;
-    uint256 start;
-    uint256 nonce;
     bytes pricingData;
     bytes handlerData;
     bytes hookData;
+  }
+  struct Loan {
+    uint256 start;
+    address borrower;
+    address originator;
     SpentItem[] collateral;
     SpentItem[] debt;
+    Terms terms;
   }
 
   struct NewLoanRequest {
     address borrower;
     address originator;
-    address hook;
-    address pricing;
-    address handler;
-    bytes pricingData;
-    bytes handlerData;
-    bytes hookData;
-    SpentItem[] debt;
     Originator.Signature signature;
+    SpentItem[] debt;
     bytes details;
+    bytes32 hash;
   }
 
-  event Lock(uint256 indexed loanId, Loan loan);
+  event Open(uint256 loanId, LoanManager.Loan loan);
   event SeaportCompatibleContractDeployed();
 
   error InvalidSender();
@@ -132,9 +132,8 @@ contract LoanManager is ERC721, ContractOffererInterface {
   constructor(ConsiderationInterface consideration) {
     seaport = consideration;
     custodian = address(new Custodian(this, address(consideration)));
-    (, , address conduitController) = consideration.information();
-    CI = ConduitControllerInterface(conduitController);
     emit SeaportCompatibleContractDeployed();
+    //    count = 1;
   }
 
   function name() public pure override returns (string memory) {
@@ -163,7 +162,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     if (msg.sender != address(custodian)) {
       revert InvalidSender();
     }
-    _burn(tokenId);
+    _transfer(ownerOf(tokenId), address(1), tokenId);
   }
 
   /**
@@ -188,6 +187,21 @@ contract LoanManager is ERC721, ContractOffererInterface {
     view
     returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
+    //only used for off chain computation of the complete offer
+    if (caller != address(seaport)) {
+      LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+      bytes memory loanTemplateEncoded = abi.encode(loan);
+      //offer this up in the generateOrder flow
+
+      bytes32 loanHash = keccak256(loanTemplateEncoded);
+      offer = new SpentItem[](1);
+      offer[0] = SpentItem({
+        itemType: ItemType.ERC721,
+        token: address(this),
+        identifier: uint256(loanHash),
+        amount: 1
+      });
+    }
     consideration = new ReceivedItem[](maximumSpent.length);
     for (uint256 i = 0; i < maximumSpent.length; ) {
       consideration[i] = ReceivedItem({
@@ -238,13 +252,64 @@ contract LoanManager is ERC721, ContractOffererInterface {
     onlySeaport
     returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
-    (offer, consideration) = previewOrder(
+    (, consideration) = previewOrder(
       msg.sender,
       fulfiller,
       minimumReceived,
       maximumSpent,
       context
     );
+    LoanManager.NewLoanRequest memory nlr = abi.decode(
+      context,
+      (LoanManager.NewLoanRequest)
+    );
+
+    address borrower = nlr.borrower;
+    Originator.Response memory response = Originator(nlr.originator).execute(
+      Originator.ExecuteParams({
+        //        loanId: loanId,
+        borrower: borrower,
+        collateral: minimumReceived,
+        debt: nlr.debt,
+        nlrDetails: nlr.details,
+        signature: nlr.signature
+      })
+    );
+    Loan memory loan = response.loan;
+    bytes memory loanTemplateEncoded = abi.encode(loan);
+    //offer this up in the generateOrder flow
+    bytes32 loanHash = keccak256(loanTemplateEncoded);
+    if (loanHash != nlr.hash) {
+      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+    }
+    if (fulfiller != borrower) {
+      offer = new SpentItem[](1);
+      offer[0] = SpentItem({
+        itemType: ItemType.ERC721,
+        token: address(this),
+        identifier: uint256(loanHash),
+        amount: 1
+      });
+    }
+
+    loan.start = block.timestamp; //write to the extra data
+    bytes memory encodedLoan = abi.encode(loan);
+
+    uint256 loanId = uint256(keccak256(encodedLoan));
+
+    _safeMint(response.issuer, loanId, encodedLoan);
+    emit Open(loanId, loan);
+  }
+
+  function transferFrom(
+    address from,
+    address to,
+    uint256 tokenId
+  ) public payable override {
+    if (from == address(this)) {
+      return;
+    }
+    super.transferFrom(from, to, tokenId);
   }
 
   /**
@@ -266,69 +331,68 @@ contract LoanManager is ERC721, ContractOffererInterface {
   ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
     //get the spent token and amount from the spent item
 
-    LoanManager.NewLoanRequest memory nlr = abi.decode(
-      context,
-      (LoanManager.NewLoanRequest)
-    );
-    Loan memory loan;
-    loan.borrower = nlr.borrower;
-    loan.originator = nlr.originator;
-    loan.hook = nlr.hook;
-    loan.handler = nlr.handler;
-    loan.pricing = nlr.pricing;
-    loan.hookData = nlr.hookData;
-    loan.handlerData = nlr.handlerData;
-    loan.pricingData = nlr.pricingData;
-    loan.start = block.timestamp;
-    loan.nonce = contractNonce;
-    _setCollateral(loan, consideration);
-    loan.debt = nlr.debt;
+    //    LoanManager.NewLoanRequest memory nlr = abi.decode(
+    //      context,
+    //      (LoanManager.NewLoanRequest)
+    //    );
+    //    //    Loan memory loan = nlr.loan;
+    //    //    loan.borrower = nlr.borrower;
+    //    //    loan.originator = nlr.originator;
+    //    //    loan.terms = nlr.terms;
+    //    //
+    //    //    _setCollateral(loan, consideration);
+    //
+    //    Originator.Response memory response = Originator(nlr.originator).execute(
+    //      Originator.ExecuteParams({
+    //        //        loanId: loanId,
+    //        borrower: nlr.borrower,
+    //        collateral: _setCollateral(consideration),
+    //        debt: nlr.debt,
+    //        nlrDetails: nlr.details,
+    //        signature: nlr.signature
+    //      })
+    //    );
+    //    bytes memory loanTemplateEncoded = abi.encode(response.loan);
+    //    //offer this up in the generateOrder flow
+    //    //
+    //    Loan memory loan = response.loan;
+    //    bytes32 loanHash = keccak256(loanTemplateEncoded);
+    //    if (loanHash != nlr.hash) {
+    //      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+    //    }
+    //    //    loan.borrower = nlr.borrower;
+    //    //    loan.start = block.timestamp;//write to the extra data
+    //    loan.nonce = contractNonce;
+    //    bytes memory encodedLoan = abi.encode(loan);
+    //
+    //    uint256 loanId = uint256(loanHash);
+    //
+    //    _safeMint(response.issuer, loanId, encodedLoan);
+    //    emit Open(loanId, loan);
 
-    bytes memory encodedLoan = abi.encode(loan);
-
-    uint256 loanId = uint256(keccak256(encodedLoan));
-    _setExtraData(loanId, uint8(1)); //enable minting
-    if (
-      Originator.execute.selector !=
-      Originator(loan.originator).execute(
-        Originator.ExecuteParams({
-          loanId: loanId,
-          loan: loan,
-          encodedLoan: encodedLoan,
-          nlrDetails: nlr.details,
-          signature: nlr.signature
-        })
-      )
-    ) {
-      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
-    }
-    if (!_exists(loanId)) {
-      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
-    }
-    _setExtraData(loanId, uint8(0));
-    emit Lock(loanId, loan);
-
-    return ContractOffererInterface.ratifyOrder.selector;
+    ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
   }
 
-  function _canMint(uint256 tokenId) internal view returns (bool) {
-    return _getExtraData(tokenId) == 1;
+  function _isLoanStarted(uint256 tokenId) internal view returns (bool) {
+    return _getExtraData(tokenId) > uint8(FieldFlags.INACTIVE);
   }
 
-  function mint(address to, uint256 tokenId, bytes calldata data) external {
-    if (!_canMint(tokenId)) {
-      revert InvalidContext(ContextErrors.INVALID_STATE);
-    }
-    _safeMint(to, tokenId, data);
-  }
+  //  function mint(LoanManager.Loan calldata loan) external {
+  //    bytes memory encodedLoan = abi.encode(loan);
+  //    uint256 loanId = uint256(keccak256(encodedLoan));
+  //    if (!_isLoanStarted(loanId)) {
+  //      revert InvalidContext(ContextErrors.INVALID_STATE);
+  //    }
+  //    _safeMint(loan.issuer, loanId, encodedLoan);
+  //  }
 
-  function _getAction(
-    bytes calldata context
-  ) internal pure returns (Action action) {
-    assembly {
-      action := calldataload(context.offset)
-    }
-  }
+  //  function _getAction(
+  //    bytes calldata context
+  //  ) internal pure returns (Action action) {
+  //    assembly {
+  //      action := calldataload(context.offset)
+  //    }
+  //  }
 
   function supportsInterface(
     bytes4 interfaceId
@@ -380,15 +444,17 @@ contract LoanManager is ERC721, ContractOffererInterface {
   //  }
 
   function _setCollateral(
-    Loan memory loan,
-    ReceivedItem[] memory collateral
-  ) internal pure {
-    loan.collateral = new SpentItem[](collateral.length);
-    for (uint256 i = 0; i < collateral.length; i++) {
-      loan.collateral[i].itemType = collateral[i].itemType;
-      loan.collateral[i].token = collateral[i].token;
-      loan.collateral[i].identifier = collateral[i].identifier;
-      loan.collateral[i].amount = collateral[i].amount;
+    ReceivedItem[] memory consideration
+  ) internal pure returns (SpentItem[] memory collateral) {
+    //spent item
+    collateral = new SpentItem[](consideration.length);
+    for (uint256 i = 0; i < consideration.length; i++) {
+      collateral[i] = SpentItem({
+        itemType: consideration[i].itemType,
+        token: consideration[i].token,
+        identifier: collateral[i].identifier,
+        amount: consideration[i].amount
+      });
     }
   }
 }
@@ -396,7 +462,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
 contract Custodian is ContractOffererInterface, TokenReceiverInterface {
   LoanManager public immutable LM;
   address public immutable seaport;
-  event Unlock(uint256 indexed loanId);
+  event Close(uint256 indexed loanId);
 
   constructor(LoanManager LM_, address seaport_) {
     seaport = seaport_;
@@ -460,11 +526,11 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     uint256 loanId = uint256(keccak256(abi.encode(loan)));
     if (
       SettlementHandler.execute.selector !=
-      SettlementHandler(loan.handler).execute(loan)
+      SettlementHandler(loan.terms.handler).execute(loan)
     ) {
       revert InvalidContext(ContextErrors.INVALID_RESOLVER);
     }
-    emit Unlock(loanId);
+    emit Close(loanId);
     LM.burn(loanId);
 
     return ContractOffererInterface.ratifyOrder.selector;
@@ -548,22 +614,18 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     offer = loan.collateral;
     ReceivedItem memory feeConsideration = Originator(loan.originator)
       .getFeeConsideration(loan);
-    if (SettlementHook(loan.hook).isActive(loan)) {
+    if (SettlementHook(loan.terms.hook).isActive(loan)) {
       if (fulfiller != loan.borrower) {
         revert InvalidSender();
       }
       //TODO: add in fee enforcement?
-      consideration = Pricing(loan.pricing).getPaymentConsideration(loan);
+      consideration = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
       //      consideration = new ReceivedItem[](paymentConsideration.length);
       //      consideration[0] = feeConsideration;
     } else {
-      address payable lender = payable(
-        LM.ownerOf(uint256(keccak256(abi.encode(loan))))
-      );
-
       address restricted;
-      (consideration, restricted) = SettlementHandler(loan.handler)
+      (consideration, restricted) = SettlementHandler(loan.terms.handler)
         .getSettlement(loan, minimumReceived);
 
       if (restricted != address(0) && fulfiller != restricted) {

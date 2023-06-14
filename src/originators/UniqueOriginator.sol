@@ -6,6 +6,7 @@ import "src/originators/Originator.sol";
 
 contract UniqueOriginator is Originator {
   error InvalidLoan();
+  error InvalidTerms();
   error InvalidDebtLength();
   error ConduitTransferError();
 
@@ -16,122 +17,132 @@ contract UniqueOriginator is Originator {
   ) Originator(LM_, strategist_, fee_) {}
 
   struct Details {
-    address originator;
     address conduit;
-    address lender;
-    address hook; // isLoanHealthy
-    address pricing; // getOwed
-    address handler; // liquidationMethod
+    address issuer;
     uint256 deadline;
-    bytes pricingData;
-    bytes handlerData;
-    bytes hookData;
+    LoanManager.Terms terms;
     SpentItem[] collateral;
-    SpentItem[] debt;
+    SpentItem debt;
   }
 
   function execute(
     ExecuteParams calldata params
-  ) external override returns (bytes4 selector) {
-    Details memory details = abi.decode(params.nlrDetails, (Details));
-    LoanManager.Loan calldata loan = params.loan;
+  ) external override returns (Response memory response) {
+    bytes32 contextHash = keccak256(params.nlrDetails);
 
-    if (address(this) != details.originator) {
-      revert InvalidOriginator();
-    }
+    _validateSignature(
+      keccak256(encodeWithAccountCounter(strategist, contextHash)),
+      params.signature
+    );
+    Details memory details = abi.decode(params.nlrDetails, (Details));
+    //    LoanManager.Loan calldata loan = params.loan;
+    LoanManager.Loan memory loan;
+    loan.borrower = params.borrower;
+    loan.terms = details.terms;
+    loan.originator = address(this);
+    loan.collateral = details.collateral;
+    loan.debt = new SpentItem[](1);
+    loan.debt[0] = details.debt;
+
+    response.loan = loan;
+    response.issuer = details.issuer;
 
     if (block.timestamp > details.deadline) {
       revert InvalidDeadline();
     }
 
-    if (loan.debt.length > details.debt.length) {
+    if (params.debt.length > 1) {
       revert InvalidDebtLength();
     }
 
-    bool[] memory found = new bool[](loan.collateral.length);
-    uint256 matchCount = 0;
-    uint256 length = loan.collateral.length;
-    uint256 detailsLength = details.collateral.length;
-    uint i = 0;
-    uint j = 0;
-    for (; i < length; i++) {
-      for (; j < detailsLength; j++) {
-        if (
-          loan.debt[i].itemType == details.collateral[j].itemType &&
-          loan.debt[i].token == details.collateral[j].token &&
-          loan.debt[i].identifier != 0 &&
-          loan.debt[i].identifier == details.collateral[j].identifier &&
-          loan.debt[i].amount < details.collateral[j].amount &&
-          !found[i]
-        ) {
-          found[i] = true;
-          matchCount++;
-        }
-        if (matchCount == loan.collateral.length) {
-          break;
-        }
-      }
-    }
-
-    found = new bool[](loan.debt.length);
-    matchCount = 0;
-    length = loan.debt.length;
-    detailsLength = details.debt.length;
-    i = 0;
-    j = 0;
-    for (; i < length; i++) {
-      for (; j < detailsLength; j++) {
-        if (
-          loan.debt[i].itemType == details.debt[j].itemType &&
-          loan.debt[i].token == details.debt[j].token &&
-          loan.debt[i].identifier != 0 &&
-          loan.debt[i].identifier == details.debt[j].identifier &&
-          loan.debt[i].amount < details.debt[j].amount &&
-          !found[i]
-        ) {
-          found[i] = true;
-          matchCount++;
-        }
-        if (matchCount == loan.debt.length) {
-          break;
-        }
-      }
-    }
-
-    if (
-      loan.hook != details.hook ||
-      loan.handler != details.handler ||
-      loan.pricing != details.pricing ||
-      keccak256(loan.pricingData) != keccak256(details.pricingData) ||
-      keccak256(loan.handlerData) != keccak256(details.handlerData) ||
-      keccak256(loan.hookData) != keccak256(details.hookData)
-    ) {
-      revert InvalidLoan();
-    }
-
-    _validateSignature(
-      keccak256(encodeWithAccountCounter(strategist, params.nlrDetails)),
-      params.signature
-    );
-    //    bytes memory encodedLoan = abi.encode(loan);
+    //    bool[] memory found = new bool[](loan.collateral.length);
+    //    uint256 matchCount = 0;
+    //    uint256 length = loan.collateral.length;
+    //    uint256 detailsLength = details.collateral.length;
+    //    uint i = 0;
+    //    uint j = 0;
+    //    for (; i < length; i++) {
+    //      if (matchCount == loan.collateral.length) {
+    //        break;
+    //      }
+    //      for (; j < detailsLength; j++) {
+    //        if (
+    //          !found[i] && matchCount != loan.collateral[i].length && details.collateral[j].identifier != 0 && loan.collateral[i].identifier != 0 &&
+    //        loan.collateral[i].itemType == details.collateral[j].itemType &&
+    //        loan.collateral[i].token == details.collateral[j].token &&
+    //        loan.collateral[i].identifier == details.collateral[j].identifier &&
+    //        loan.collateral[i].amount < details.collateral[j].amount &&
+    //
+    //        ) {
+    //          found[i] = true;
+    //          matchCount++;
+    //          if (matchCount == loan.collateral.length) {
+    //            break;
+    //          }
+    //        }
+    //      }
+    //    }
+    //    if (matchCount != loan.collateral.length) {
+    //      revert InvalidCollateral();
+    //    }
+    //
+    //    found = new bool[](loan.debt.length);
+    //    matchCount = 0;
+    //    length = loan.debt.length;
+    //    detailsLength = details.debt.length;
+    //    i = 0;
+    //    j = 0;
+    //    //    for (; i < length; i++) {
+    //    //      for (; j < detailsLength; j++) {
+    //    //        if (
+    //    //          loan.debt[i].itemType == details.debt[j].itemType &&
+    //    //          loan.debt[i].token == details.debt[j].token &&
+    //    //          loan.debt[i].identifier != 0 &&
+    //    //          loan.debt[i].identifier == details.debt[j].identifier &&
+    //    //          loan.debt[i].amount < details.debt[j].amount &&
+    //    //          !found[i]
+    //    //        ) {
+    //    //          found[i] = true;
+    //    //          matchCount++;
+    //    //        }
+    //    //        if (matchCount == loan.debt.length) {
+    //    //          break;
+    //    //        }
+    //    //      }
+    //    //    }
+    //
+    //    if (
+    //      //      keccak256(abi.encode(loan.collateral)) !=
+    //      //      keccak256(abi.encode(details.collateral)) ||
+    //      keccak256(abi.encode(params.terms)) != keccak256(abi.encode(details.terms))
+    //    ) {
+    //      revert InvalidTerms();
+    //    }
 
     if (
       ConduitInterface.execute.selector !=
       ConduitInterface(details.conduit).execute(
-        _packageTransfers(loan, details.lender)
+        _packageTransfers(loan, details.issuer)
       )
     ) {
       revert ConduitTransferError();
     }
+    //    emit Origination(params.loanId, details.issuer, params.nlrDetails);
+    //the recipient is the issuer since we reuse the struct
+    //    LoanManager(msg.sender).mint(loan, details.issuer);
+    //    selector = Originator.execute.selector;
+    //    issuer = details.issuer;
+  }
 
-    LoanManager(msg.sender).mint(
-      details.lender,
-      params.loanId,
-      params.encodedLoan
-    );
+  event Origination(
+    uint256 indexed loanId,
+    address indexed issuer,
+    bytes nlrDetails
+  );
 
-    //the recipient is the lender since we reuse the struct
-    return Originator.execute.selector;
+  enum State {
+    INITIALIZED,
+    CLOSED
   }
 
   function getFeeConsideration(

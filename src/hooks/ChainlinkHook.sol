@@ -16,8 +16,8 @@ contract ChainlinkHook is SettlementHook {
     LoanManager.Loan calldata loan
   ) external view override returns (bool) {
     //get the
-    uint256[] memory owing = Pricing(loan.pricing).getOwed(loan);
-    Details memory details = abi.decode(loan.hookData, (Details));
+    uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
+    Details memory details = abi.decode(loan.terms.hookData, (Details));
     int256 nftFloorPrice = _getLatestPrice(details);
     uint256 floor = uint256(nftFloorPrice) * (10 ** (18 - 8));
     //compare whats owing to the ltv trigger for liquidation
