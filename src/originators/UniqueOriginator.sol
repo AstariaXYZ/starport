@@ -39,7 +39,6 @@ contract UniqueOriginator is Originator {
     LoanManager.Loan memory loan;
     loan.borrower = params.borrower;
     loan.terms = details.terms;
-    loan.originator = address(this);
     loan.collateral = details.collateral;
     loan.debt = new SpentItem[](1);
     loan.debt[0] = details.debt;

@@ -23,7 +23,7 @@ abstract contract Pricing {
 
   function _generateRepayLenderConsideration(
     LoanManager.Loan calldata loan
-  ) internal view returns (ReceivedItem[] memory consideration) {
+  ) internal view virtual returns (ReceivedItem[] memory consideration) {
     consideration = new ReceivedItem[](loan.debt.length);
     uint256[] memory owing = getOwed(loan);
     address payable lender = payable(

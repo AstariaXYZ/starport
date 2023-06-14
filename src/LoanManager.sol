@@ -252,6 +252,10 @@ contract LoanManager is ERC721, ContractOffererInterface {
     onlySeaport
     returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
   {
+    LoanManager.NewLoanRequest memory nlr = abi.decode(
+      context,
+      (LoanManager.NewLoanRequest)
+    );
     (, consideration) = previewOrder(
       msg.sender,
       fulfiller,
@@ -259,29 +263,53 @@ contract LoanManager is ERC721, ContractOffererInterface {
       maximumSpent,
       context
     );
-    LoanManager.NewLoanRequest memory nlr = abi.decode(
-      context,
-      (LoanManager.NewLoanRequest)
-    );
 
-    address borrower = nlr.borrower;
-    Originator.Response memory response = Originator(nlr.originator).execute(
-      Originator.ExecuteParams({
-        //        loanId: loanId,
-        borrower: borrower,
-        collateral: minimumReceived,
-        debt: nlr.debt,
-        nlrDetails: nlr.details,
-        signature: nlr.signature
-      })
-    );
-    Loan memory loan = response.loan;
-    bytes memory loanTemplateEncoded = abi.encode(loan);
-    //offer this up in the generateOrder flow
-    bytes32 loanHash = keccak256(loanTemplateEncoded);
-    if (loanHash != nlr.hash) {
-      revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+    Originator.Response memory response;
+    {
+      uint256[] memory balancesBefore = _getBalance(nlr.borrower, nlr.debt);
+      response = Originator(nlr.originator).execute(
+        Originator.ExecuteParams({
+          borrower: nlr.borrower,
+          collateral: minimumReceived,
+          debt: nlr.debt,
+          nlrDetails: nlr.details,
+          signature: nlr.signature
+        })
+      );
+      _cmpBeforeAfter(
+        balancesBefore,
+        _getBalance(nlr.borrower, nlr.debt),
+        nlr.debt
+      );
     }
+
+    {
+      bytes32 loanHash = keccak256(abi.encode(response.loan));
+      if (loanHash != nlr.hash) {
+        revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+      }
+      offer = _setOfferIfNotBorrowerFulfiller(
+        loanHash,
+        nlr.borrower,
+        fulfiller
+      );
+    }
+
+    response.loan.originator = nlr.originator;
+    response.loan.start = block.timestamp; //use time stamp for a bit of extra entropy (borrower/collateral/debt/terms/time)
+    bytes memory encodedLoan = abi.encode(response.loan);
+
+    uint256 loanId = uint256(keccak256(encodedLoan));
+
+    _safeMint(response.issuer, loanId, encodedLoan);
+    emit Open(loanId, response.loan);
+  }
+
+  function _setOfferIfNotBorrowerFulfiller(
+    bytes32 loanHash,
+    address borrower,
+    address fulfiller
+  ) internal view returns (SpentItem[] memory offer) {
     if (fulfiller != borrower) {
       offer = new SpentItem[](1);
       offer[0] = SpentItem({
@@ -291,14 +319,58 @@ contract LoanManager is ERC721, ContractOffererInterface {
         amount: 1
       });
     }
+  }
 
-    loan.start = block.timestamp; //write to the extra data
-    bytes memory encodedLoan = abi.encode(loan);
+  function _cmpBeforeAfter(
+    uint256[] memory balancesBefore,
+    uint256[] memory balancesAfter,
+    SpentItem[] memory expectedDeltaIncrease
+  ) internal view {
+    uint i = 0;
+    for (; i < balancesBefore.length; ) {
+      uint256 expected = balancesBefore[i] + expectedDeltaIncrease[i].amount;
+      if (balancesAfter[i] != expected) {
+        revert InvalidContext(ContextErrors.BAD_ORIGINATION);
+      }
 
-    uint256 loanId = uint256(keccak256(encodedLoan));
+      unchecked {
+        ++i;
+      }
+    }
+  }
 
-    _safeMint(response.issuer, loanId, encodedLoan);
-    emit Open(loanId, loan);
+  function _getBalance(
+    address target,
+    ItemType itemType,
+    address token,
+    uint256 identifier
+  ) internal view returns (uint256) {
+    if (itemType == ItemType.ERC721) {
+      return ERC721(token).ownerOf(identifier) == address(target) ? 1 : 0;
+    } else if (itemType == ItemType.ERC1155) {
+      return ERC1155(token).balanceOf(target, uint256(identifier));
+    } else {
+      return ERC20(token).balanceOf(target);
+    }
+  }
+
+  function _getBalance(
+    address target,
+    SpentItem[] memory before
+  ) internal view returns (uint256[] memory balances) {
+    balances = new uint256[](before.length);
+    uint256 i = 0;
+    for (; i < before.length; ) {
+      balances[i] = _getBalance(
+        target,
+        before[i].itemType,
+        before[i].token,
+        before[i].identifier
+      );
+      unchecked {
+        ++i;
+      }
+    }
   }
 
   function transferFrom(

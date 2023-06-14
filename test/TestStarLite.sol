@@ -437,10 +437,14 @@ contract TestStarLite is BaseOrderTest {
       recipient: address(this)
     });
     Vm.Log[] memory logs = vm.getRecordedLogs();
-    (, loan) = abi.decode(
+    bytes memory rawLoan;
+    uint256 loanId;
+    (loanId, rawLoan) = abi.decode(
       logs[logs.length - 3].data,
-      (uint256, LoanManager.Loan)
+      (uint256, bytes)
     );
+
+    LoanManager.Loan memory _loan = abi.decode(rawLoan, (LoanManager.Loan));
 
     uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
 
