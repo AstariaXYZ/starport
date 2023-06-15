@@ -234,7 +234,7 @@ contract TestStarLite is BaseOrderTest {
 
     LoanManager.Loan memory loanRequest = LoanManager.Loan({
       borrower: address(borrower.addr),
-      originator: address(UO),
+      originator: address(0),
       terms: terms,
       debt: debt,
       collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
@@ -437,14 +437,11 @@ contract TestStarLite is BaseOrderTest {
       recipient: address(this)
     });
     Vm.Log[] memory logs = vm.getRecordedLogs();
-    bytes memory rawLoan;
     uint256 loanId;
-    (loanId, rawLoan) = abi.decode(
+    (loanId, loan) = abi.decode(
       logs[logs.length - 3].data,
-      (uint256, bytes)
+      (uint256, LoanManager.Loan)
     );
-
-    LoanManager.Loan memory _loan = abi.decode(rawLoan, (LoanManager.Loan));
 
     uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
 
