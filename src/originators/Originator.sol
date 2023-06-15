@@ -18,12 +18,20 @@ import {
 } from "seaport-types/src/interfaces/ConduitInterface.sol";
 
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
+import {Constants} from "src/Constants.sol";
+import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
-abstract contract Originator {
+abstract contract Originator is Constants {
   struct Response {
-    LoanManager.Loan loan;
+    LoanManager.Terms terms;
     address issuer;
+  }
+  struct Request {
+    address borrower;
+    SpentItem[] debt;
+    bytes details;
+    bytes signature;
   }
   error InvalidCaller();
   error InvalidDeadline();
@@ -34,25 +42,8 @@ abstract contract Originator {
   error InvalidDebtToken();
   error InvalidRate();
   error InvalidSigner();
-  // Signature structure which consists of v, r, and s for ECDSA
-
-  struct Signature {
-    uint8 v;
-    bytes32 r;
-    bytes32 s;
-  }
 
   LoanManager public immutable LM;
-
-  struct ExecuteParams {
-    //    LoanManager.Loan loan;
-    //    uint256 loanId;
-    address borrower;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    bytes nlrDetails;
-    Signature signature;
-  }
 
   // Define the EIP712 domain and typehash constants for generating signatures
   bytes32 constant EIP_DOMAIN =
@@ -60,9 +51,7 @@ abstract contract Originator {
       "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
     );
   bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-    keccak256(
-      "OriginatorDetails(uint256 originator,uint256 nonce,bytes32 hash)"
-    );
+    keccak256("OriginatorDetails(uint256 nonce,bytes32 hash)");
   bytes32 constant VERSION = keccak256("0");
 
   bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -90,14 +79,15 @@ abstract contract Originator {
   }
 
   function _packageTransfers(
-    LoanManager.Loan memory loan,
+    SpentItem[] memory loan,
+    address borrower,
     address issuer
   ) internal view returns (ConduitTransfer[] memory transfers) {
     uint256 i = 0;
-    transfers = new ConduitTransfer[](loan.debt.length);
-    for (; i < loan.debt.length; ) {
+    transfers = new ConduitTransfer[](loan.length);
+    for (; i < loan.length; ) {
       ConduitItemType itemType;
-      SpentItem memory debt = loan.debt[i];
+      SpentItem memory debt = loan[i];
 
       //forge-fmt skip-next-line
       assembly {
@@ -119,10 +109,10 @@ abstract contract Originator {
       transfers[i] = ConduitTransfer({
         itemType: itemType,
         from: issuer,
-        token: loan.debt[i].token,
-        identifier: loan.debt[i].identifier,
-        amount: loan.debt[i].amount,
-        to: loan.borrower
+        token: loan[i].token,
+        identifier: loan[i].identifier,
+        amount: loan[i].amount,
+        to: borrower
       });
       unchecked {
         ++i;
@@ -130,10 +120,12 @@ abstract contract Originator {
     }
   }
 
+  function build(
+    Request calldata
+  ) external view virtual returns (Response memory);
+
   // Abstract function to execute the loan, to be overridden in child contracts
-  function execute(
-    ExecuteParams calldata
-  ) external virtual returns (Response memory);
+  function execute(Request calldata) external virtual returns (Response memory);
 
   // Encode the data with the account's nonce for generating a signature
   function encodeWithAccountCounter(
@@ -141,12 +133,7 @@ abstract contract Originator {
     bytes32 contextHash
   ) public view virtual returns (bytes memory) {
     bytes32 hash = keccak256(
-      abi.encode(
-        ORIGINATOR_DETAILS_TYPEHASH,
-        address(this),
-        _counter[account],
-        contextHash
-      )
+      abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter[account], contextHash)
     );
 
     return
@@ -174,11 +161,9 @@ abstract contract Originator {
 
   function _validateSignature(
     bytes32 hash,
-    Signature memory signature
+    bytes calldata signature
   ) internal view virtual {
-    if (
-      ECDSA.recover(hash, signature.v, signature.r, signature.s) != strategist
-    ) {
+    if (!SignatureCheckerLib.isValidSignatureNow(strategist, hash, signature)) {
       revert InvalidSigner();
     }
   }

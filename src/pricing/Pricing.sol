@@ -29,7 +29,8 @@ abstract contract Pricing {
     address payable lender = payable(
       LM.ownerOf(uint256(keccak256(abi.encode(loan))))
     );
-    for (uint256 i = 0; i < loan.debt.length; ) {
+    uint256 i = 0;
+    for (; i < loan.debt.length; ) {
       consideration[i] = ReceivedItem({
         itemType: loan.debt[i].itemType,
         identifier: loan.debt[i].identifier,
