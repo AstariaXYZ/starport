@@ -1,6 +1,8 @@
+pragma solidity 0.8.17;
+
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-library StarLiteInternal {
+library StarLiteLib {
     function toReceivedItems(SpentItem[] calldata spentItems, address recipient)
         internal
         pure

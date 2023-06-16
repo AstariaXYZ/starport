@@ -1,4 +1,4 @@
-TestStarLite:testNewLoan() (gas: 2141875)
-TestStarLite:testRepayLoan() (gas: 2323559)
+TestStarLite:testNewLoan() (gas: 2357372)
+TestStarLite:testRepayLoan() (gas: 2539943)
 TestStarLiteUtils:testEncodeReceivedWithRecipient() (gas: 17955)
 TestStarLiteUtils:testSpentToReceived() (gas: 17796)

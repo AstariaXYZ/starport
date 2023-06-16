@@ -12,7 +12,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
 import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
-import {StarLiteInternal} from "src/StarLiteInternal.sol";
+import {StarLiteLib} from "src/lib/StarLiteLib.sol";
 
 contract TestStarLiteUtils is Test {
     TestContract testContract;
@@ -77,8 +77,8 @@ contract TestStarLiteUtils is Test {
 }
 
 contract TestContract {
-    using {StarLiteInternal.toReceivedItems} for SpentItem[];
-    using {StarLiteInternal.encodeWithRecipient} for ReceivedItem[];
+    using {StarLiteLib.toReceivedItems} for SpentItem[];
+    using {StarLiteLib.encodeWithRecipient} for ReceivedItem[];
 
     function encodeReceivedItemsWithRecipientSexc(ReceivedItem[] calldata receivedItems, address recipient)
         external

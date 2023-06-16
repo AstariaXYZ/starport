@@ -7,33 +7,29 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {LoanManager} from "src/LoanManager.sol";
 
 contract ChainlinkHook is SettlementHook {
-  struct Details {
-    address feed;
-    uint256 ltvRatio;
-  }
+    struct Details {
+        address feed;
+        uint256 ltvRatio;
+    }
 
-  function isActive(
-    LoanManager.Loan calldata loan
-  ) external view override returns (bool) {
-    //get the
-    uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
-    Details memory details = abi.decode(loan.terms.hookData, (Details));
-    int256 nftFloorPrice = _getLatestPrice(details);
-    uint256 floor = uint256(nftFloorPrice) * (10 ** (18 - 8));
-    //compare whats owing to the ltv trigger for liquidation
+    function isActive(LoanManager.Loan calldata loan) external view override returns (bool) {
+        //get the
+        uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
+        Details memory details = abi.decode(loan.terms.hookData, (Details));
+        int256 nftFloorPrice = _getLatestPrice(details);
+        uint256 floor = uint256(nftFloorPrice) * (10 ** (18 - 8));
+        //compare whats owing to the ltv trigger for liquidation
 
-    return (floor > owing[0] && owing[0] / floor > details.ltvRatio);
-  }
+        return (floor > owing[0] && owing[0] / floor > details.ltvRatio);
+    }
 
-  /**
-   * Returns the latest price
-   */
-  function _getLatestPrice(
-    Details memory details
-  ) public view returns (int256) {
-    // prettier-ignore
+    /**
+     * Returns the latest price
+     */
+    function _getLatestPrice(Details memory details) public view returns (int256) {
+        // prettier-ignore
 
-    (
+        (
             /*uint80 roundID*/
             ,
             int256 nftFloorPrice,
@@ -43,6 +39,6 @@ contract ChainlinkHook is SettlementHook {
             ,
             /*uint80 answeredInRound*/
         ) = AggregatorV3Interface(details.feed).latestRoundData();
-    return nftFloorPrice;
-  }
+        return nftFloorPrice;
+    }
 }
