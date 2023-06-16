@@ -8,11 +8,10 @@ import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitCo
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
-import {Constants} from "src/Constants.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
-abstract contract Originator is Constants {
+abstract contract Originator {
     struct Response {
         LoanManager.Terms terms;
         address issuer;
@@ -20,7 +19,9 @@ abstract contract Originator is Constants {
     }
 
     struct Request {
-        address borrower;
+        address custodian;
+        address receiver;
+        SpentItem[] collateral;
         SpentItem[] debt;
         bytes details;
         bytes signature;

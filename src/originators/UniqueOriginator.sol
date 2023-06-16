@@ -14,12 +14,13 @@ contract UniqueOriginator is Originator {
     constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_) {}
 
     struct Details {
+        address custodian;
         address conduit;
         address issuer;
         uint256 deadline;
         LoanManager.Terms terms;
         SpentItem[] collateral;
-        SpentItem debt;
+        SpentItem[] debt;
     }
 
     function build(Request calldata params) public view override returns (Response memory response) {
@@ -27,10 +28,9 @@ contract UniqueOriginator is Originator {
         response = _build(params, details);
     }
 
-    function _build(Request calldata params, Details memory details) internal pure returns (Response memory response) {
-        SpentItem[] memory debt = new SpentItem[](1);
-        debt[0] = details.debt;
-        response = Response({terms: details.terms, mint: true, issuer: details.issuer});
+    function _build(Request calldata params, Details memory details) internal view returns (Response memory response) {
+        bool needsMint = details.issuer.code.length > 0;
+        response = Response({terms: details.terms, mint: needsMint, issuer: details.issuer});
     }
 
     function execute(Request calldata params) external override returns (Response memory response) {
@@ -43,18 +43,32 @@ contract UniqueOriginator is Originator {
             revert InvalidDeadline();
         }
 
+        _validateAsk(params, details);
         if (params.debt.length > 1) {
             revert InvalidDebtLength();
         }
 
         if (
-            ConduitInterface(details.conduit).execute(_packageTransfers(params.debt, params.borrower, details.issuer))
+            ConduitInterface(details.conduit).execute(_packageTransfers(params.debt, params.receiver, details.issuer))
                 != ConduitInterface.execute.selector
         ) {
             revert ConduitTransferError();
         }
 
         response = _build(params, details);
+    }
+
+    function _validateAsk(Request calldata request, Details memory details) internal {
+        //    if (request.borrower == address(0)) {
+        //      revert InvalidBorrower();
+        //    }
+        //    if (request.custodian != details.custodian) {
+        //      revert InvalidCustodian();
+        //    }
+        //    if (request.details.length > 0) {
+        //      revert InvalidDetails();
+        //    }
+        //    if (keccak256(request.collateral))
     }
 
     event Origination(uint256 indexed loanId, address indexed issuer, bytes nlrDetails);

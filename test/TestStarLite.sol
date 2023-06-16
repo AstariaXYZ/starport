@@ -40,6 +40,7 @@ import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
+import {Custodian} from "src/Custodian.sol";
 
 contract TestStarLite is BaseOrderTest {
     Account borrower;
@@ -50,6 +51,7 @@ contract TestStarLite is BaseOrderTest {
     address lenderConduit;
     address seaportAddr;
     LoanManager LM;
+    Custodian custodian;
     UniqueOriginator UO;
 
     function _deployAndConfigureConsideration() public {
@@ -83,6 +85,7 @@ contract TestStarLite is BaseOrderTest {
         strategist = makeAndAllocateAccount("strategist");
 
         LM = new LoanManager();
+        custodian = new Custodian(LM, address(consideration));
         UO = new UniqueOriginator(LM, strategist.addr, 1e16);
 
         vm.label(address(erc721s[0]), "Collateral NFT");
@@ -97,13 +100,13 @@ contract TestStarLite is BaseOrderTest {
             erc20s[1].mint(borrower.addr, 10000);
             vm.stopPrank();
         }
-        conduitKeyOne = bytes32(uint256(uint160(address(this))) << 96);
+        conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
 
-        //    vm.startPrank(lender.addr);
-        lenderConduit = conduitController.createConduit(conduitKeyOne, address(this));
+        vm.startPrank(lender.addr);
+        lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
         conduitController.updateChannel(lenderConduit, address(UO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
-        //    vm.stopPrank();
+        vm.stopPrank();
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
@@ -148,7 +151,7 @@ contract TestStarLite is BaseOrderTest {
                     endAmount: 1,
                     identifierOrCriteria: 1,
                     itemType: ItemType.ERC721,
-                    recipient: payable(LM.custodian())
+                    recipient: payable(address(custodian))
                 })
             );
 
@@ -159,7 +162,7 @@ contract TestStarLite is BaseOrderTest {
                     endAmount: 100,
                     identifierOrCriteria: 0,
                     itemType: ItemType.ERC20,
-                    recipient: payable(LM.custodian())
+                    recipient: payable(address(custodian))
                 })
             );
             //      debt = new SpentItem[](1);
@@ -180,26 +183,14 @@ contract TestStarLite is BaseOrderTest {
                     )
             });
 
-            //      loanDetails1 = UniqueOriginator.Details({
-            //        conduit: address(lenderConduit),
-            //        issuer: address(this),
-            //        deadline: block.timestamp + 100,
-            //        terms: terms,
-            //        collateral: ConsiderationItemLib.toSpentItemArray(collateral20),
-            //        debt: SpentItem({
-            //          itemType: ItemType.ERC20,
-            //          token: address(erc20s[0]),
-            //          amount: 100,
-            //          identifier: 0
-            //        })
-            //      });
             UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
                 conduit: address(lenderConduit),
-                issuer: address(this),
+                custodian: address(custodian),
+                issuer: lender.addr,
                 deadline: block.timestamp + 100,
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
-                debt: debt[0]
+                debt: debt
             });
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(
                 strategist.key,
@@ -208,6 +199,7 @@ contract TestStarLite is BaseOrderTest {
 
             bool isTrusted = true;
             LoanManager.Loan memory loan = LoanManager.Loan({
+                custodian: address(custodian),
                 issuer: address(0),
                 borrower: borrower.addr,
                 originator: isTrusted ? address(UO) : address(0),
@@ -220,12 +212,11 @@ contract TestStarLite is BaseOrderTest {
                 loan,
                 LoanManager.Obligation({
                     isTrusted: isTrusted,
-                    ask: Originator.Request({
-                        borrower: borrower.addr,
-                        debt: debt,
-                        details: abi.encode(loanDetails),
-                        signature: abi.encodePacked(r, s, v)
-                    }),
+                    custodian: address(custodian),
+                    borrower: borrower.addr,
+                    debt: debt,
+                    details: abi.encode(loanDetails),
+                    signature: abi.encodePacked(r, s, v),
                     hash: keccak256(abi.encode(loan)),
                     originator: address(UO)
                 }),
@@ -288,7 +279,7 @@ contract TestStarLite is BaseOrderTest {
                 ++i;
             }
         }
-        OrderParameters memory op = _buildContractOrder(address(LM.custodian()), repayOffering, consider);
+        OrderParameters memory op = _buildContractOrder(address(custodian), repayOffering, consider);
 
         AdvancedOrder memory x = AdvancedOrder({
             parameters: op,
@@ -391,7 +382,7 @@ contract TestStarLite is BaseOrderTest {
         LoanManager.Obligation memory nlr,
         ConsiderationItem[] memory collateral
     ) internal returns (LoanManager.Loan memory loan) {
-        OfferItem[] memory offer = new OfferItem[](nlr.ask.debt.length + 1);
+        OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
         offer[0] = OfferItem({
             itemType: ItemType.ERC721,
             token: address(LM),

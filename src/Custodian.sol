@@ -63,12 +63,11 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
         LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        uint256 loanId = uint256(keccak256(abi.encode(loan)));
         if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
             revert InvalidHandler();
         }
 
-        LM.settle(loanId);
+        LM.settle(loan);
 
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
@@ -139,7 +138,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
             if (fulfiller != loan.borrower) {
                 revert InvalidSender();
             }
-            //TODO: add in fee enforcement?
             ReceivedItem[] memory paymentConsideration = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
             consideration = new ReceivedItem[](

@@ -21,9 +21,8 @@ import "forge-std/console.sol";
 import {Custodian} from "src/Custodian.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {Constants} from "src/Constants.sol";
 
-contract LoanManager is ERC721, ContractOffererInterface, Constants {
+contract LoanManager is ERC721, ContractOffererInterface {
     using FixedPointMathLib for uint256;
     using {StarLiteLib.toReceivedItems} for SpentItem[];
 
@@ -50,6 +49,7 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
 
     struct Loan {
         uint256 start;
+        address custodian;
         address borrower;
         address issuer;
         address originator;
@@ -59,10 +59,14 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
     }
 
     struct Obligation {
+        bool isTrusted;
         bytes32 hash;
         address originator;
-        bool isTrusted;
-        Originator.Request ask;
+        address custodian;
+        address borrower;
+        SpentItem[] debt;
+        bytes details;
+        bytes signature;
     }
 
     event Close(uint256 loanId);
@@ -131,13 +135,15 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
 
     //break the revert of the ownerOf method, so we can ensure anyone calling it in the settlement pipeline wont halt
     function ownerOf(uint256 loanId) public view override returns (address) {
-        return _ownerOf(loanId);
+        //not hasn't been issued but exists if we own it
+        return _issued(loanId) && !_exists(loanId) ? address(this) : _ownerOf(loanId);
     }
 
-    function settle(uint256 tokenId) external {
-        if (msg.sender != address(custodian)) {
+    function settle(Loan calldata loan) external {
+        if (msg.sender != loan.custodian) {
             revert InvalidSender();
         }
+        uint256 tokenId = uint256(keccak256(abi.encode(loan)));
         if (!_issued(tokenId)) {
             revert InvalidLoan(tokenId);
         }
@@ -165,7 +171,8 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        consideration = maximumSpent.toReceivedItems(custodian);
+        LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
+        consideration = maximumSpent.toReceivedItems(obligation.custodian);
     }
 
     /**
@@ -180,56 +187,52 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         return ("Loans", schemas);
     }
 
-    function _emptyTerms() internal pure returns (Terms memory) {
-        return Terms({
-            hook: address(0),
-            pricing: address(0),
-            handler: address(0),
-            pricingData: "",
-            handlerData: "",
-            hookData: ""
-        });
-    }
-
     function _fillObligationAndVerify(
         address fulfiller,
         LoanManager.Obligation memory obligation,
         SpentItem[] calldata maximumSpentFromBorrower
     ) internal returns (SpentItem[] memory offer) {
-        address borrower = obligation.ask.borrower;
-        bool isTrustedExecution = fulfiller == borrower && obligation.isTrusted;
-
-        if (!isTrustedExecution) {
-            obligation.ask.borrower = address(this);
-        }
+        address receiver = obligation.borrower;
+        bool isTrustedExecution = fulfiller == receiver && obligation.isTrusted;
+        receiver = isTrustedExecution ? obligation.borrower : address(this);
 
         //make template
-
-        Originator.Response memory response = Originator(obligation.originator).execute(obligation.ask);
+        // struct Request {
+        //    address custodian;
+        //    address borrower;
+        //    SpentItem[] collateral;
+        //    bytes details;
+        //    bytes signature;
+        //  }
+        Originator.Response memory response = Originator(obligation.originator).execute(
+            Originator.Request({
+                custodian: obligation.custodian,
+                receiver: receiver,
+                collateral: maximumSpentFromBorrower,
+                debt: obligation.debt,
+                details: obligation.details,
+                signature: obligation.signature
+            })
+        );
         Loan memory loan = Loan({
             start: uint256(0),
             issuer: address(0),
-            borrower: borrower,
+            custodian: obligation.custodian,
+            borrower: obligation.borrower,
             originator: !isTrustedExecution ? address(0) : obligation.originator,
             collateral: maximumSpentFromBorrower,
-            debt: obligation.ask.debt,
+            debt: obligation.debt,
             terms: response.terms
         });
         // we settle via seaport channels if a match is happening
         if (!isTrustedExecution) {
-            //      loan.terms = response.terms;
-            //      _cmpBeforeAfter(
-            //        balancesBefore,
-            //        _getBalance(borrower, obligation.ask.debt),
-            //        obligation.ask.debt
-            //      );
             bytes32 loanHash = keccak256(abi.encode(loan));
             if (loanHash != obligation.hash) {
                 revert InvalidOrigination();
             }
 
             offer = _setOffer(loan.debt, loanHash);
-            _setDebtApprovals(obligation.ask.debt);
+            _setDebtApprovals(loan.debt);
         }
 
         loan.start = block.timestamp;
@@ -244,6 +247,9 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         uint256 loanId = uint256(keccak256(encodedLoan));
 
         _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
+        if (mint) {
+            _safeMint(loan.issuer, loanId, encodedLoan);
+        }
         emit Open(loanId, loan);
     }
 
@@ -271,8 +277,8 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (, consideration) = previewOrder(msg.sender, fulfiller, minimumReceived, maximumSpent, context);
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
+        consideration = maximumSpent.toReceivedItems(obligation.custodian);
 
         offer = _fillObligationAndVerify(fulfiller, obligation, maximumSpent);
     }
@@ -300,47 +306,6 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
 
         for (; i < debt.length;) {
             offer[i + 1] = debt[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _cmpBeforeAfter(
-        uint256[] memory balancesBefore,
-        uint256[] memory balancesAfter,
-        SpentItem[] memory expectedDeltaIncrease
-    ) internal pure {
-        uint256 i = 0;
-        for (; i < balancesBefore.length;) {
-            if (balancesAfter[i] != balancesBefore[i] + expectedDeltaIncrease[i].amount) {
-                revert InvalidContext(ContextErrors.INVALID_PAYMENT);
-            }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _getBalance(address target, ItemType itemType, address token, uint256 identifier)
-        internal
-        view
-        returns (uint256)
-    {
-        if (itemType == ItemType.ERC721) {
-            return ERC721(token).ownerOf(identifier) == address(target) ? 1 : 0;
-        } else if (itemType == ItemType.ERC1155) {
-            return ERC1155(token).balanceOf(target, uint256(identifier));
-        } else {
-            return ERC20(token).balanceOf(target);
-        }
-    }
-
-    function _getBalance(address target, SpentItem[] memory before) internal view returns (uint256[] memory balances) {
-        balances = new uint256[](before.length);
-        uint256 i = 0;
-        for (; i < before.length;) {
-            balances[i] = _getBalance(target, before[i].itemType, before[i].token, before[i].identifier);
             unchecked {
                 ++i;
             }
