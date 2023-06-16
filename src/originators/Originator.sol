@@ -13,32 +13,35 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 abstract contract Originator is Constants {
-  struct Response {
-    LoanManager.Terms terms;
-    address issuer;
-    bool mint;
-  }
-  struct Request {
-    address borrower;
-    SpentItem[] debt;
-    bytes details;
-    bytes signature;
-  }
-  error InvalidCaller();
-  error InvalidDeadline();
-  error InvalidOriginator();
-  error InvalidCollateral();
-  error InvalidBorrowAmount();
-  error InvalidAmount();
-  error InvalidDebtToken();
-  error InvalidRate();
-  error InvalidSigner();
+    struct Response {
+        LoanManager.Terms terms;
+        address issuer;
+        bool mint;
+    }
+
+    struct Request {
+        address borrower;
+        SpentItem[] debt;
+        bytes details;
+        bytes signature;
+    }
+
+    error InvalidCaller();
+    error InvalidDeadline();
+    error InvalidOriginator();
+    error InvalidCollateral();
+    error InvalidBorrowAmount();
+    error InvalidAmount();
+    error InvalidDebtToken();
+    error InvalidRate();
+    error InvalidSigner();
 
     LoanManager public immutable LM;
 
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH = keccak256("OriginatorDetails(uint256 nonce,bytes32 hash)");
+    bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
+        keccak256("OriginatorDetails(address originator,uint256 nonce,bytes32 hash)");
     bytes32 constant VERSION = keccak256("0");
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -46,15 +49,12 @@ abstract contract Originator is Constants {
     // Strategist address and fee
     address public strategist;
     uint256 public strategistFee;
-
-    // Nonce mapping for replay protection
-    mapping(address => uint256) private _counter;
+    uint256 private _counter;
 
     constructor(LoanManager LM_, address strategist_, uint256 fee_) {
         strategist = strategist_;
         strategistFee = fee_;
         LM = LM_;
-
         _DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 EIP_DOMAIN,
@@ -111,7 +111,7 @@ abstract contract Originator is Constants {
         virtual
         returns (bytes memory)
     {
-        bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter[account], contextHash));
+        bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, address(this), _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
     }
@@ -121,13 +121,16 @@ abstract contract Originator is Constants {
     }
 
     // Get the nonce of an account
-    function getCounter(address account) public view virtual returns (uint256) {
-        return _counter[account];
+    function getCounter() public view virtual returns (uint256) {
+        return _counter;
     }
 
     // Function to increment the nonce of the sender
     function incrementCounter() external {
-        _counter[msg.sender]++;
+        if (msg.sender != strategist) {
+            revert InvalidCaller();
+        }
+        ++_counter;
     }
 
     // Function to generate the domain separator for signatures

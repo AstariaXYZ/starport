@@ -27,18 +27,11 @@ contract UniqueOriginator is Originator {
         response = _build(params, details);
     }
 
-  function _build(
-    Request calldata params,
-    Details memory details
-  ) internal pure returns (Response memory response) {
-    SpentItem[] memory debt = new SpentItem[](1);
-    debt[0] = details.debt;
-    response = Response({
-      terms: details.terms,
-      mint: false,
-      issuer: details.issuer
-    });
-  }
+    function _build(Request calldata params, Details memory details) internal pure returns (Response memory response) {
+        SpentItem[] memory debt = new SpentItem[](1);
+        debt[0] = details.debt;
+        response = Response({terms: details.terms, mint: true, issuer: details.issuer});
+    }
 
     function execute(Request calldata params) external override returns (Response memory response) {
         bytes32 contextHash = keccak256(params.details);

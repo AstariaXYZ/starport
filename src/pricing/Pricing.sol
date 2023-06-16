@@ -21,24 +21,27 @@ abstract contract Pricing {
 
     function getOwed(LoanManager.Loan calldata loan) public view virtual returns (uint256[] memory);
 
-  function _generateRepayLenderConsideration(
-    LoanManager.Loan calldata loan
-  ) internal view virtual returns (ReceivedItem[] memory consideration) {
-    consideration = new ReceivedItem[](loan.debt.length);
-    uint256[] memory owing = getOwed(loan);
-    address payable issuer = LM.getIssuer(loan);
-    uint256 i = 0;
-    for (; i < loan.debt.length; ) {
-      consideration[i] = ReceivedItem({
-        itemType: loan.debt[i].itemType,
-        identifier: loan.debt[i].identifier,
-        amount: owing.length == consideration.length ? owing[i] : owing[0],
-        token: loan.debt[i].token,
-        recipient: issuer
-      });
-      unchecked {
-        ++i;
-      }
+    function _generateRepayLenderConsideration(LoanManager.Loan calldata loan)
+        internal
+        view
+        virtual
+        returns (ReceivedItem[] memory consideration)
+    {
+        consideration = new ReceivedItem[](loan.debt.length);
+        uint256[] memory owing = getOwed(loan);
+        address payable issuer = LM.getIssuer(loan);
+        uint256 i = 0;
+        for (; i < loan.debt.length;) {
+            consideration[i] = ReceivedItem({
+                itemType: loan.debt[i].itemType,
+                identifier: loan.debt[i].identifier,
+                amount: owing.length == consideration.length ? owing[i] : owing[0],
+                token: loan.debt[i].token,
+                recipient: issuer
+            });
+            unchecked {
+                ++i;
+            }
+        }
     }
-  }
 }
