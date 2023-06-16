@@ -38,23 +38,23 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         INACTIVE
     }
 
-    struct Terms {
-        address hook;
-        address pricing;
-        address handler;
-        bytes pricingData;
-        bytes handlerData;
-        bytes hookData;
-    }
-
-    struct Loan {
-        uint256 start;
-        address borrower;
-        address originator;
-        SpentItem[] collateral;
-        SpentItem[] debt;
-        Terms terms;
-    }
+  struct Terms {
+    address hook;
+    address pricing;
+    address handler;
+    bytes pricingData;
+    bytes handlerData;
+    bytes hookData;
+  }
+  struct Loan {
+    uint256 start;
+    address borrower;
+    address issuer;
+    address originator;
+    SpentItem[] collateral;
+    SpentItem[] debt;
+    Terms terms;
+  }
 
     struct Obligation {
         bytes32 hash;
@@ -115,13 +115,27 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
         return string(abi.encodePacked("https://astaria.xyz/loans?id=", tokenId));
     }
 
-    function settle(uint256 tokenId) external {
-        if (msg.sender != address(custodian)) {
-            revert InvalidSender();
-        }
-        emit Close(tokenId);
-        _transfer(_ownerOf(tokenId), address(1), tokenId);
+  function getIssuer(
+    Loan calldata loan
+  ) external view returns (address payable) {
+    uint256 loanId = uint256(keccak256(abi.encode(loan)));
+    return !_exists(loanId) ? payable(loan.issuer) : payable(_ownerOf(loanId));
+  }
+
+  //break the revert of the ownerOf method, so we can ensure anyone calling it in the settlement pipeline wont halt
+  function ownerOf(uint256 loanId) public view override returns (address) {
+    return _ownerOf(loanId);
+  }
+
+  function settle(uint256 tokenId) external {
+    if (msg.sender != address(custodian)) {
+      revert InvalidSender();
     }
+    emit Close(tokenId);
+    !_exists(tokenId)
+      ? _mint(address(1), tokenId)
+      : _transfer(_ownerOf(tokenId), address(1), tokenId);
+  }
 
     /**
      * @dev previews the order for this contract offerer.
@@ -181,45 +195,48 @@ contract LoanManager is ERC721, ContractOffererInterface, Constants {
 
         //make template
 
-        Originator.Response memory response = Originator(obligation.originator).execute(obligation.ask);
-        Loan memory loan = Loan({
-            start: uint256(0),
-            borrower: borrower,
-            originator: !isTrustedExecution ? address(0) : obligation.originator,
-            collateral: maximumSpentFromBorrower,
-            debt: obligation.ask.debt,
-            terms: response.terms
-        });
-        // we settle via seaport channels if a match is happening
-        if (!isTrustedExecution) {
-            //      loan.terms = response.terms;
-            //      _cmpBeforeAfter(
-            //        balancesBefore,
-            //        _getBalance(borrower, obligation.ask.debt),
-            //        obligation.ask.debt
-            //      );
-            bytes32 loanHash = keccak256(abi.encode(loan));
-            if (loanHash != obligation.hash) {
-                revert InvalidOrigination();
-            }
+    Originator.Response memory response = Originator(obligation.originator)
+      .execute(obligation.ask);
+    Loan memory loan = Loan({
+      start: uint256(0),
+      issuer: address(0),
+      borrower: borrower,
+      originator: !isTrustedExecution ? address(0) : obligation.originator,
+      collateral: maximumSpentFromBorrower,
+      debt: obligation.ask.debt,
+      terms: response.terms
+    });
+    // we settle via seaport channels if a match is happening
+    if (!isTrustedExecution) {
+      //      loan.terms = response.terms;
+      //      _cmpBeforeAfter(
+      //        balancesBefore,
+      //        _getBalance(borrower, obligation.ask.debt),
+      //        obligation.ask.debt
+      //      );
+      bytes32 loanHash = keccak256(abi.encode(loan));
+      if (loanHash != obligation.hash) {
+        revert InvalidOrigination();
+      }
 
             offer = _setOffer(loan.debt, loanHash);
             _setDebtApprovals(obligation.ask.debt);
         }
 
-        loan.start = block.timestamp;
-        loan.originator = obligation.originator;
-        _issueLoanManager(loan, response.issuer);
-    }
+    loan.start = block.timestamp;
+    loan.originator = obligation.originator;
+    loan.issuer = response.issuer;
+    _issueLoanManager(loan, response.mint);
+  }
 
-    function _issueLoanManager(Loan memory loan, address issuer) internal {
-        bytes memory encodedLoan = abi.encode(loan);
+  function _issueLoanManager(Loan memory loan, bool mint) internal {
+    bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = uint256(keccak256(encodedLoan));
 
-        _safeMint(issuer, loanId, encodedLoan);
-        emit Open(loanId, loan);
-    }
+    if (mint) _safeMint(loan.issuer, loanId, encodedLoan);
+    emit Open(loanId, loan);
+  }
 
     /**
      * @dev Generates the order for this contract offerer.

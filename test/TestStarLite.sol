@@ -206,32 +206,34 @@ contract TestStarLite is BaseOrderTest {
                 keccak256(UO.encodeWithAccountCounter(strategist.addr, keccak256(abi.encode(loanDetails))))
             );
 
-            bool isTrusted = true;
-            LoanManager.Loan memory loan = LoanManager.Loan({
-                borrower: borrower.addr,
-                originator: isTrusted ? address(UO) : address(0),
-                terms: terms,
-                debt: debt,
-                collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
-                start: uint256(0)
-            });
-            return _executeNLR(
-                loan,
-                LoanManager.Obligation({
-                    isTrusted: isTrusted,
-                    ask: Originator.Request({
-                        borrower: borrower.addr,
-                        debt: debt,
-                        details: abi.encode(loanDetails),
-                        signature: abi.encodePacked(r, s, v)
-                    }),
-                    hash: keccak256(abi.encode(loan)),
-                    originator: address(UO)
-                }),
-                collateral721
-            );
-        }
+      bool isTrusted = true;
+      LoanManager.Loan memory loan = LoanManager.Loan({
+        issuer: address(0),
+        borrower: borrower.addr,
+        originator: isTrusted ? address(UO) : address(0),
+        terms: terms,
+        debt: debt,
+        collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
+        start: uint(0)
+      });
+      return
+        _executeNLR(
+          loan,
+          LoanManager.Obligation({
+            isTrusted: isTrusted,
+            ask: Originator.Request({
+              borrower: borrower.addr,
+              debt: debt,
+              details: abi.encode(loanDetails),
+              signature: abi.encodePacked(r, s, v)
+            }),
+            hash: keccak256(abi.encode(loan)),
+            originator: address(UO)
+          }),
+          collateral721
+        );
     }
+  }
 
     function _buildContractOrder(address offerer, OfferItem[] memory offer, ConsiderationItem[] memory consider)
         internal

@@ -13,27 +13,26 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 abstract contract Originator is Constants {
-    struct Response {
-        LoanManager.Terms terms;
-        address issuer;
-    }
-
-    struct Request {
-        address borrower;
-        SpentItem[] debt;
-        bytes details;
-        bytes signature;
-    }
-
-    error InvalidCaller();
-    error InvalidDeadline();
-    error InvalidOriginator();
-    error InvalidCollateral();
-    error InvalidBorrowAmount();
-    error InvalidAmount();
-    error InvalidDebtToken();
-    error InvalidRate();
-    error InvalidSigner();
+  struct Response {
+    LoanManager.Terms terms;
+    address issuer;
+    bool mint;
+  }
+  struct Request {
+    address borrower;
+    SpentItem[] debt;
+    bytes details;
+    bytes signature;
+  }
+  error InvalidCaller();
+  error InvalidDeadline();
+  error InvalidOriginator();
+  error InvalidCollateral();
+  error InvalidBorrowAmount();
+  error InvalidAmount();
+  error InvalidDebtToken();
+  error InvalidRate();
+  error InvalidSigner();
 
     LoanManager public immutable LM;
 
