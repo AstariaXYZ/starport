@@ -27,8 +27,8 @@ contract LoanManager is ERC721, ContractOffererInterface {
     using {StarLiteLib.toReceivedItems} for SpentItem[];
 
     //  address public feeRecipient;
-    bytes32 public immutable KNOWN_CUSTODIAN_CODE_HASH;
     address public constant seaport = address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+    address public immutable defaultCustodian;
     //  uint256 public fee;
     //  uint256 private constant ONE_WORD = 0x20;
 
@@ -99,9 +99,11 @@ contract LoanManager is ERC721, ContractOffererInterface {
     }
 
     constructor() {
-        KNOWN_CUSTODIAN_CODE_HASH = keccak256(type(Custodian).creationCode);
+        defaultCustodian = address(new Custodian(this, seaport));
         emit SeaportCompatibleContractDeployed();
     }
+
+    event log(bytes32);
 
     function name() public pure override returns (string memory) {
         return "Astaria Loan Manager";
@@ -161,16 +163,9 @@ contract LoanManager is ERC721, ContractOffererInterface {
         assembly {
             custodian := calldataload(add(data.offset, 0x20)) // 0x20 offset for the first address 'custodian'
         }
-
-        bytes32 codeHash;
-
-        assembly {
-            codeHash := extcodehash(custodian)
-        }
-
         // Comparing the retrieved code hash with a known hash (placeholder here)
 
-        if (codeHash != KNOWN_CUSTODIAN_CODE_HASH) {
+        if (custodian != defaultCustodian) {
             bytes4 functionSelector = bytes4(keccak256("custody(bytes)"));
             bytes memory callData = abi.encodeWithSelector(functionSelector, data);
 

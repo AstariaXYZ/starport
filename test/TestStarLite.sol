@@ -126,6 +126,7 @@ contract TestStarLite is BaseOrderTest {
         bytes memory pricingData =
             abi.encode(FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days}));
 
+        address custody = LM.defaultCustodian();
         bytes memory handlerData = abi.encode(
             DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
         );
@@ -142,14 +143,14 @@ contract TestStarLite is BaseOrderTest {
 
         UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
             conduit: address(lenderConduit),
-            custodian: address(custodian),
+            custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             terms: terms,
             collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
             debt: debt
         });
-        bool isTrusted = false;
+        bool isTrusted = true;
 
         collateral721.push(
             ConsiderationItem({
@@ -158,7 +159,7 @@ contract TestStarLite is BaseOrderTest {
                 endAmount: 1,
                 identifierOrCriteria: 1,
                 itemType: ItemType.ERC721,
-                recipient: payable(address(custodian))
+                recipient: payable(address(custody))
             })
         );
 
@@ -169,12 +170,12 @@ contract TestStarLite is BaseOrderTest {
                 endAmount: 100,
                 identifierOrCriteria: 0,
                 itemType: ItemType.ERC20,
-                recipient: payable(address(custodian))
+                recipient: payable(address(custody))
             })
         );
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
         LoanManager.Loan memory activeLoan = newLoan(
-            NewLoanData(isTrusted, abi.encode(loanDetails)),
+            NewLoanData(custody, isTrusted, abi.encode(loanDetails)),
             ExternalCall(address(pricing), pricingData),
             ExternalCall(address(handler), handlerData),
             ExternalCall(address(hook), hookData)
@@ -191,8 +192,9 @@ contract TestStarLite is BaseOrderTest {
         bytes memory pricingData =
             abi.encode(FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days}));
 
-        bytes memory handlerData =
-            abi.encode(EnglishAuctionHandler.Details({reservePrice: uint256(1 ether), window: 7 days}));
+        uint256[] memory reserve = new uint256[](1);
+        reserve[0] = 1 ether;
+        bytes memory handlerData = abi.encode(EnglishAuctionHandler.Details({reservePrice: reserve, window: 7 days}));
         bytes memory hookData = abi.encode(FixedTermHook.Details({loanDuration: 10 days}));
 
         LoanManager.Terms memory terms = LoanManager.Terms({
@@ -229,7 +231,7 @@ contract TestStarLite is BaseOrderTest {
         bool isTrusted = false;
 
         LoanManager.Loan memory activeLoan = newLoan(
-            NewLoanData(isTrusted, abi.encode(loanDetails)),
+            NewLoanData(address(custodian), isTrusted, abi.encode(loanDetails)),
             ExternalCall(address(pricing), pricingData),
             ExternalCall(address(handler), handlerData),
             ExternalCall(address(hook), hookData)
@@ -253,6 +255,7 @@ contract TestStarLite is BaseOrderTest {
     }
 
     struct NewLoanData {
+        address custodian;
         bool isTrusted;
         bytes details;
     }
@@ -270,7 +273,7 @@ contract TestStarLite is BaseOrderTest {
             );
 
             LoanManager.Loan memory loan = LoanManager.Loan({
-                custodian: address(custodian),
+                custodian: address(loanData.custodian),
                 issuer: address(0),
                 borrower: borrower.addr,
                 originator: isTrusted ? address(UO) : address(0),
@@ -283,7 +286,7 @@ contract TestStarLite is BaseOrderTest {
                 loan,
                 LoanManager.Obligation({
                     isTrusted: isTrusted,
-                    custodian: address(custodian),
+                    custodian: address(loanData.custodian),
                     borrower: borrower.addr,
                     debt: debt,
                     details: loanData.details,

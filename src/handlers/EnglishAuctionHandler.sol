@@ -28,7 +28,7 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 contract EnglishAuctionHandler is SettlementHandler {
     struct Details {
-        uint256 reservePrice;
+        uint256[] reservePrice; // per debt item
         uint256 window;
     }
 
@@ -39,6 +39,12 @@ contract EnglishAuctionHandler is SettlementHandler {
 
     constructor(LoanManager LM_, ConsiderationInterface consideration_) SettlementHandler(LM_) {
         consideration = consideration_;
+    }
+
+    //use when building offers to ensure the data works with the handler
+    function validate(LoanManager.Loan calldata loan) external view override returns (bool) {
+        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+        return details.reservePrice.length == loan.debt.length;
     }
 
     function execute(LoanManager.Loan calldata loan) external virtual override returns (bytes4 selector) {
@@ -80,11 +86,6 @@ contract EnglishAuctionHandler is SettlementHandler {
         });
 
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
-        uint256[] memory owing = Pricing(loan.terms.pricing).getOwed(loan);
-
-        if (owing[0] < details.reservePrice) {
-            owing[0] = details.reservePrice;
-        }
         //check the loan debt type and set the order type based on that
 
         OfferItem[] memory offerItems = new OfferItem[](loan.collateral.length);
@@ -110,7 +111,7 @@ contract EnglishAuctionHandler is SettlementHandler {
                 itemType: loan.debt[i].itemType,
                 token: loan.debt[i].token,
                 identifierOrCriteria: loan.debt[i].identifier,
-                startAmount: loan.debt[i].amount,
+                startAmount: details.reservePrice[i],
                 endAmount: loan.debt[i].amount,
                 recipient: payable(LM.ownerOf(uint256(keccak256(abi.encode(loan)))))
             });

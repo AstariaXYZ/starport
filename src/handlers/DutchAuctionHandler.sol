@@ -98,4 +98,9 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
             recipient: payable(LM.ownerOf(uint256(keccak256(abi.encode(loan)))))
         });
     }
+
+    function validate(LoanManager.Loan calldata loan) external view override returns (bool) {
+        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+        return details.startingPrice > details.endingPrice;
+    }
 }

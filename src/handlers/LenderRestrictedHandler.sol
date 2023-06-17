@@ -14,4 +14,8 @@ contract LenderRestrictedHandler is SettlementHandler {
     {
         return (new ReceivedItem[](0), LM.ownerOf(uint256(keccak256(abi.encode(loan)))));
     }
+
+    function validate(LoanManager.Loan calldata loan) external view override returns (bool) {
+        return true;
+    }
 }

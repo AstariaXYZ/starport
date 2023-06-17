@@ -15,6 +15,8 @@ abstract contract SettlementHandler {
         return SettlementHandler.execute.selector;
     }
 
+    function validate(LoanManager.Loan calldata loan) external view virtual returns (bool);
+
     function getSettlement(LoanManager.Loan memory loan, SpentItem[] calldata maximumSpent)
         external
         view
