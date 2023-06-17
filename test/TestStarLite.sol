@@ -28,6 +28,7 @@ import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
 import {FixedTermPricing} from "src/pricing/FixedTermPricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
+import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
 import {Merkle} from "seaport/lib/murky/src/Merkle.sol";
 //contract TestNFT is MockERC721 {
 //  constructor() MockERC721("TestNFT", "TNFT") {}
@@ -119,91 +120,161 @@ contract TestStarLite is BaseOrderTest {
     }
 
     function testNewLoan() public {
-        newLoan();
+        FixedTermPricing pricing = new FixedTermPricing(LM);
+        DutchAuctionHandler handler = new DutchAuctionHandler(LM);
+        FixedTermHook hook = new FixedTermHook();
+        bytes memory pricingData =
+            abi.encode(FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days}));
+
+        bytes memory handlerData = abi.encode(
+            DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
+        );
+        bytes memory hookData = abi.encode(FixedTermHook.Details({loanDuration: 10 days}));
+
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: pricingData,
+            handlerData: handlerData,
+            hookData: hookData
+        });
+
+        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custodian),
+            issuer: lender.addr,
+            deadline: block.timestamp + 100,
+            terms: terms,
+            collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
+            debt: debt
+        });
+        bool isTrusted = false;
+
+        collateral721.push(
+            ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            })
+        );
+
+        collateral20.push(
+            ConsiderationItem({
+                token: address(erc20s[1]), //collateral token
+                startAmount: 100,
+                endAmount: 100,
+                identifierOrCriteria: 0,
+                itemType: ItemType.ERC20,
+                recipient: payable(address(custodian))
+            })
+        );
+        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+        LoanManager.Loan memory activeLoan = newLoan(
+            NewLoanData(isTrusted, abi.encode(loanDetails)),
+            ExternalCall(address(pricing), pricingData),
+            ExternalCall(address(handler), handlerData),
+            ExternalCall(address(hook), hookData)
+        );
     }
 
     function testRepayLoan() public {
-        LoanManager.Loan memory activeLoan = newLoan();
+        FixedTermPricing pricing = new FixedTermPricing(LM);
+        EnglishAuctionHandler handler = new EnglishAuctionHandler(
+      LM,
+      consideration
+    );
+        FixedTermHook hook = new FixedTermHook();
+        bytes memory pricingData =
+            abi.encode(FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days}));
+
+        bytes memory handlerData =
+            abi.encode(EnglishAuctionHandler.Details({reservePrice: uint256(1 ether), window: 7 days}));
+        bytes memory hookData = abi.encode(FixedTermHook.Details({loanDuration: 10 days}));
+
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: pricingData,
+            handlerData: handlerData,
+            hookData: hookData
+        });
+
+        collateral721.push(
+            ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            })
+        );
+
+        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+
+        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custodian),
+            issuer: lender.addr,
+            deadline: block.timestamp + 100,
+            terms: terms,
+            collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
+            debt: debt
+        });
+        bool isTrusted = false;
+
+        LoanManager.Loan memory activeLoan = newLoan(
+            NewLoanData(isTrusted, abi.encode(loanDetails)),
+            ExternalCall(address(pricing), pricingData),
+            ExternalCall(address(handler), handlerData),
+            ExternalCall(address(hook), hookData)
+        );
         vm.startPrank(borrower.addr);
         erc20s[0].approve(address(consideration), 100000);
         vm.stopPrank();
         _executeRepayLoan(activeLoan);
     }
 
+    //  UniqueOriginator.Details[] loanDetails;
+    //  UniqueOriginator.Details loanDetails1;
+    //  UniqueOriginator.Details loanDetails2;
     ConsiderationItem[] collateral721;
     ConsiderationItem[] collateral20;
     SpentItem[] debt;
 
-    function newLoan() internal returns (LoanManager.Loan memory) {
-        UniqueOriginator.Details memory loanDetails;
-        //    UniqueOriginator.Details memory loanDetails1;
-        //    UniqueOriginator.Details memory loanDetails2;
+    struct ExternalCall {
+        address target;
+        bytes data;
+    }
 
+    struct NewLoanData {
+        bool isTrusted;
+        bytes details;
+    }
+
+    function newLoan(
+        NewLoanData memory loanData,
+        ExternalCall memory pricing,
+        ExternalCall memory handler,
+        ExternalCall memory hook
+    ) internal returns (LoanManager.Loan memory) {
+        bool isTrusted = loanData.isTrusted;
         {
-            FixedTermPricing pricing = new FixedTermPricing(LM);
-            DutchAuctionHandler handler = new DutchAuctionHandler(LM);
-            FixedTermHook hook = new FixedTermHook();
-
-            collateral721.push(
-                ConsiderationItem({
-                    token: address(erc721s[0]),
-                    startAmount: 1,
-                    endAmount: 1,
-                    identifierOrCriteria: 1,
-                    itemType: ItemType.ERC721,
-                    recipient: payable(address(custodian))
-                })
-            );
-
-            collateral20.push(
-                ConsiderationItem({
-                    token: address(erc20s[1]), //collateral token
-                    startAmount: 100,
-                    endAmount: 100,
-                    identifierOrCriteria: 0,
-                    itemType: ItemType.ERC20,
-                    recipient: payable(address(custodian))
-                })
-            );
-            //      debt = new SpentItem[](1);
-            debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-            LoanManager.Terms memory terms = LoanManager.Terms({
-                hook: address(hook),
-                handler: address(handler),
-                pricing: address(pricing),
-                pricingData: abi.encode(
-                    FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days})
-                    ),
-                handlerData: abi.encode(
-                    DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
-                    ),
-                hookData: abi.encode(
-                    FixedTermPricing.Details({rate: uint256((uint256(1e16) / 365) * 1 days), loanDuration: 10 days})
-                    )
-            });
-
-            UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
-                conduit: address(lenderConduit),
-                custodian: address(custodian),
-                issuer: lender.addr,
-                deadline: block.timestamp + 100,
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
-                debt: debt
-            });
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-                strategist.key,
-                keccak256(UO.encodeWithAccountCounter(strategist.addr, keccak256(abi.encode(loanDetails))))
+                strategist.key, keccak256(UO.encodeWithAccountCounter(strategist.addr, keccak256(loanData.details)))
             );
 
-            bool isTrusted = true;
             LoanManager.Loan memory loan = LoanManager.Loan({
                 custodian: address(custodian),
                 issuer: address(0),
                 borrower: borrower.addr,
                 originator: isTrusted ? address(UO) : address(0),
-                terms: terms,
+                terms: UO.terms(loanData.details),
                 debt: debt,
                 collateral: ConsiderationItemLib.toSpentItemArray(collateral721),
                 start: uint256(0)
@@ -215,7 +286,7 @@ contract TestStarLite is BaseOrderTest {
                     custodian: address(custodian),
                     borrower: borrower.addr,
                     debt: debt,
-                    details: abi.encode(loanDetails),
+                    details: loanData.details,
                     signature: abi.encodePacked(r, s, v),
                     hash: keccak256(abi.encode(loan)),
                     originator: address(UO)
@@ -246,7 +317,6 @@ contract TestStarLite is BaseOrderTest {
     }
 
     function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-        uint256[] memory owing = Pricing(activeLoan.terms.pricing).getOwed(activeLoan);
         ReceivedItem[] memory loanPayment = Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
         uint256 i = 0;
         ConsiderationItem[] memory consider = new ConsiderationItem[](

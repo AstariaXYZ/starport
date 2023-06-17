@@ -72,6 +72,12 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
+    function custody(bytes calldata context) external virtual {
+        //    if (msg.sender != address(LM)) {
+        //      revert InvalidSender();
+        //    }
+    }
+
     /**
      * @dev Generates the order for this contract offerer.
      *

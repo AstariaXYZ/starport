@@ -23,9 +23,8 @@ contract UniqueOriginator is Originator {
         SpentItem[] debt;
     }
 
-    function build(Request calldata params) public view override returns (Response memory response) {
-        Details memory details = abi.decode(params.details, (Details));
-        response = _build(params, details);
+    function terms(bytes calldata details) public view override returns (LoanManager.Terms memory) {
+        return abi.decode(details, (Details)).terms;
     }
 
     function _build(Request calldata params, Details memory details) internal view returns (Response memory response) {

@@ -56,7 +56,7 @@ contract EnglishAuctionHandler is SettlementHandler {
 
     function liquidate(LoanManager.Loan calldata loan) external {
         OrderParameters memory op = OrderParameters({
-            offerer: address(LM.custodian()),
+            offerer: address(loan.custodian),
             zone: address(0),
             offer: new OfferItem[](0),
             consideration: new ConsiderationItem[](0),

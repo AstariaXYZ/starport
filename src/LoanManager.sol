@@ -26,8 +26,8 @@ contract LoanManager is ERC721, ContractOffererInterface {
     using FixedPointMathLib for uint256;
     using {StarLiteLib.toReceivedItems} for SpentItem[];
 
-    address public immutable custodian;
     //  address public feeRecipient;
+    bytes32 public immutable KNOWN_CUSTODIAN_CODE_HASH;
     address public constant seaport = address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     //  uint256 public fee;
     //  uint256 private constant ONE_WORD = 0x20;
@@ -59,12 +59,12 @@ contract LoanManager is ERC721, ContractOffererInterface {
     }
 
     struct Obligation {
-        bool isTrusted;
-        bytes32 hash;
-        address originator;
         address custodian;
+        address originator;
         address borrower;
+        bool isTrusted;
         SpentItem[] debt;
+        bytes32 hash;
         bytes details;
         bytes signature;
     }
@@ -76,6 +76,8 @@ contract LoanManager is ERC721, ContractOffererInterface {
     error InvalidSender();
     error InvalidAction();
     error InvalidLoan(uint256);
+    error InvalidMaximumSpentEmpty();
+    error InvalidDebtEmpty();
     error InvalidAmount();
     error InvalidDuration();
     error InvalidSignature();
@@ -97,7 +99,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     }
 
     constructor() {
-        custodian = address(new Custodian(this, seaport));
+        KNOWN_CUSTODIAN_CODE_HASH = keccak256(type(Custodian).creationCode);
         emit SeaportCompatibleContractDeployed();
     }
 
@@ -153,6 +155,34 @@ contract LoanManager is ERC721, ContractOffererInterface {
         emit Close(tokenId);
     }
 
+    function _callCustody(bytes calldata data) internal returns (bool success) {
+        address custodian;
+
+        assembly {
+            custodian := calldataload(add(data.offset, 0x20)) // 0x20 offset for the first address 'custodian'
+        }
+
+        bytes32 codeHash;
+
+        assembly {
+            codeHash := extcodehash(custodian)
+        }
+
+        // Comparing the retrieved code hash with a known hash (placeholder here)
+
+        if (codeHash != KNOWN_CUSTODIAN_CODE_HASH) {
+            bytes4 functionSelector = bytes4(keccak256("custody(bytes)"));
+            bytes memory callData = abi.encodeWithSelector(functionSelector, data);
+
+            assembly {
+                success := call(gas(), custodian, 0, add(callData, 0x20), mload(callData), 0, 0)
+            }
+            if (!success) {
+                revert InvalidAction();
+            }
+        }
+    }
+
     /**
      * @dev previews the order for this contract offerer.
      *
@@ -195,15 +225,6 @@ contract LoanManager is ERC721, ContractOffererInterface {
         address receiver = obligation.borrower;
         bool isTrustedExecution = fulfiller == receiver && obligation.isTrusted;
         receiver = isTrustedExecution ? obligation.borrower : address(this);
-
-        //make template
-        // struct Request {
-        //    address custodian;
-        //    address borrower;
-        //    SpentItem[] collateral;
-        //    bytes details;
-        //    bytes signature;
-        //  }
         Originator.Response memory response = Originator(obligation.originator).execute(
             Originator.Request({
                 custodian: obligation.custodian,
@@ -232,7 +253,6 @@ contract LoanManager is ERC721, ContractOffererInterface {
             }
 
             offer = _setOffer(loan.debt, loanHash);
-            _setDebtApprovals(loan.debt);
         }
 
         loan.start = block.timestamp;
@@ -280,21 +300,22 @@ contract LoanManager is ERC721, ContractOffererInterface {
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
         consideration = maximumSpent.toReceivedItems(obligation.custodian);
 
+        if (obligation.debt.length == 0) {
+            revert InvalidDebtEmpty();
+        }
+
+        if (maximumSpent.length == 0) {
+            revert InvalidMaximumSpentEmpty();
+        }
         offer = _fillObligationAndVerify(fulfiller, obligation, maximumSpent);
     }
 
-    function _setDebtApprovals(SpentItem[] memory debt) internal {
-        uint256 i = 0;
-        for (; i < debt.length;) {
-            //approve consideration based on item type
-            if (debt[i].itemType != ItemType.ERC20) {
-                ERC721(debt[i].token).setApprovalForAll(seaport, true);
-            } else {
-                ERC20(debt[i].token).approve(seaport, debt[i].amount);
-            }
-            unchecked {
-                ++i;
-            }
+    function _setDebtApprovals(SpentItem memory debt) internal {
+        //approve consideration based on item type
+        if (debt.itemType != ItemType.ERC20) {
+            ERC721(debt.token).setApprovalForAll(seaport, true);
+        } else {
+            ERC20(debt.token).approve(seaport, debt.amount);
         }
     }
 
@@ -306,6 +327,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
 
         for (; i < debt.length;) {
             offer[i + 1] = debt[i];
+            _setDebtApprovals(debt[i]);
             unchecked {
                 ++i;
             }
@@ -333,6 +355,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
         bytes32[] calldata orderHashes,
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
+        _callCustody(context);
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 

@@ -68,7 +68,7 @@ abstract contract Originator {
 
     function _packageTransfers(SpentItem[] memory loan, address borrower, address issuer)
         internal
-        view
+        pure
         returns (ConduitTransfer[] memory transfers)
     {
         uint256 i = 0;
@@ -100,7 +100,7 @@ abstract contract Originator {
         }
     }
 
-    function build(Request calldata) external view virtual returns (Response memory);
+    function terms(bytes calldata) external view virtual returns (LoanManager.Terms memory);
 
     // Abstract function to execute the loan, to be overridden in child contracts
     function execute(Request calldata) external virtual returns (Response memory);
