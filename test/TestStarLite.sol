@@ -551,7 +551,7 @@ contract TestStarLite is BaseOrderTest {
         LoanManager.Loan memory loanAsk,
         LoanManager.Obligation memory nlr,
         ConsiderationItem[] memory collateral // collateral (nft) and weth (purchase price is incoming weth plus debt)
-    ) internal {
+    ) internal returns (LoanManager.Loan memory loan) {
         //use murky to create a tree that is good
 
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
@@ -575,8 +575,6 @@ contract TestStarLite is BaseOrderTest {
                 ++i;
             }
         }
-        //    bytes32 borrowerAskHash = consideration.getOrderHash(op);
-        //    bytes memory signature = signOrder(consideration, borrower.key, orderHash);
 
         OfferItem[] memory zOffer = new OfferItem[](1);
         zOffer[0] = OfferItem({
@@ -622,32 +620,6 @@ contract TestStarLite is BaseOrderTest {
         });
         orders[2] = z;
 
-        emit loga(orders[0]);
-        emit loga(orders[1]);
-        emit loga(orders[2]);
-        //#  x is offering erc721 1
-        // x is wanting 150 erc20
-        // y is offering a loan for 100 erc20
-        //# y is wanting erc721 1 as collateral
-        // z is offering 50 erc20
-        // z wants 1 loan template
-
-        //struct Fulfillment {
-        //    FulfillmentComponent[] offerComponents;
-        //    FulfillmentComponent[] considerationComponents;
-        //}
-        //
-        ///**
-        // * @dev Each fulfillment component contains one index referencing a specific
-        // *      order and another referencing a specific offer or consideration item.
-        // */
-        //struct FulfillmentComponent {
-        //    uint256 orderIndex;
-        //    uint256 itemIndex;
-        //}
-
-        //using the above create an array that will fulfill the orders
-
         // x is offering erc721 1 to satisfy y consideration
         Fulfillment[] memory fill = new Fulfillment[](4);
         fill[0] = Fulfillment({
@@ -662,7 +634,6 @@ contract TestStarLite is BaseOrderTest {
             considerationComponents: new FulfillmentComponent[](1)
         });
 
-        //collateral sent to custodian
         fill[1].offerComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
         fill[1].considerationComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
 
@@ -671,7 +642,6 @@ contract TestStarLite is BaseOrderTest {
             considerationComponents: new FulfillmentComponent[](1)
         });
 
-        //collateral sent to custodian
         fill[2].offerComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
         fill[2].considerationComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
         fill[3] = Fulfillment({
@@ -679,79 +649,21 @@ contract TestStarLite is BaseOrderTest {
             considerationComponents: new FulfillmentComponent[](1)
         });
 
-        //collateral sent to custodian
         fill[3].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
         fill[3].considerationComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
-        //    fill[0].considerationComponents[1] = FulfillmentComponent({
-        //      orderIndex: 2,
-        //      itemIndex: 0
-        //    });
-        //
-        //    // 0, 0 => 1, 0
-        //    // 1, 0 => 2, 0
-        //    // 1, 1 => 0, 0
-        //    // 2, 0 => 0, 0
-        //
-        //    //send debt to seller and loan template to borrower
-        //    fill[1] = Fulfillment({
-        //      offerComponents: new FulfillmentComponent[](2),
-        //      considerationComponents: new FulfillmentComponent[](2)
-        //    });
-        //    fill[1].offerComponents[0] = FulfillmentComponent({
-        //      orderIndex: 1,
-        //      itemIndex: 0
-        //    });
-        //    fill[1].considerationComponents[0] = FulfillmentComponent({
-        //      orderIndex: 2,
-        //      itemIndex: 0
-        //    });
-        //
-        //    fill[1].offerComponents[1] = FulfillmentComponent({
-        //      orderIndex: 1,
-        //      itemIndex: 0
-        //    });
-        //    fill[1].considerationComponents[1] = FulfillmentComponent({
-        //      orderIndex: 0,
-        //      itemIndex: 0
-        //    });
-        //
-        //    fill[2] = Fulfillment({
-        //      offerComponents: new FulfillmentComponent[](1),
-        //      considerationComponents: new FulfillmentComponent[](1)
-        //    });
-        //    fill[2].offerComponents[0] = FulfillmentComponent({
-        //      orderIndex: 2,
-        //      itemIndex: 1
-        //    });
-        //    fill[2].considerationComponents[0] = FulfillmentComponent({
-        //      orderIndex: 0,
-        //      itemIndex: 0
-        //    });
 
-        //    uint256 balanceBefore = erc721s[1].balanceOf(borrower.addr);
-        //    vm.recordLogs();
+        uint256 balanceBefore = erc20s[0].balanceOf(seller.addr);
+        vm.recordLogs();
         vm.startPrank(borrower.addr);
 
-        //AdvancedOrder[] calldata orders,
-        //        CriteriaResolver[] calldata criteriaResolvers,
-        //        Fulfillment[] calldata fulfillments,
-        //        address recipient
-        //    consideration.matchAdvancedOrders({
-        //      orders: orders,
-        //      criteriaResolvers: new CriteriaResolver[](0),
-        //      fufillments: fill,
-        //      recipient: address(borrower.addr)
-        //    });
-
         consideration.matchAdvancedOrders(orders, new CriteriaResolver[](0), fill, address(borrower.addr));
-        //    Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        //    uint256 balanceAfter = erc721s[1].balanceOf(borrower.addr);
+        (, loan) = abi.decode(vm.getRecordedLogs()[debt.length + 1].data, (uint256, LoanManager.Loan));
 
+        assertEq(erc721s[1].ownerOf(1), address(loanAsk.custodian));
+        assertEq(erc20s[0].balanceOf(seller.addr), balanceBefore + x.parameters.consideration[0].startAmount);
         vm.stopPrank();
     }
-
-    event loga(AdvancedOrder);
 
     function _executeNLR(
         LoanManager.Loan memory ask,
