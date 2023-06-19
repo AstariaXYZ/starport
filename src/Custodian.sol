@@ -63,19 +63,28 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
         LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
-            revert InvalidHandler();
-        }
-
-        LM.settle(loan);
-
+        //ensure loan is valid against what we have to deliver to seaport
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
+        // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
+        // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
+        if (!LM.active(loan)) {
+            // on repayment handler for originator here?
+            // they can do post state follow up, but have no rentrancy capabilities here as we havent left seaport
+        } else {
+            if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
+                revert InvalidHandler();
+            }
+            LM.settle(loan);
+        }
     }
 
-    function custody(bytes calldata context) external virtual {
-        //    if (msg.sender != address(LM)) {
-        //      revert InvalidSender();
-        //    }
+    function custody(
+        ReceivedItem[] calldata consideration,
+        bytes32[] calldata orderHashes,
+        uint256 contractNonce,
+        bytes calldata context
+    ) external virtual returns (bytes4 selector) {
+        selector = Custodian.custody.selector;
     }
 
     /**
@@ -93,48 +102,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (offer, consideration) = previewOrder(msg.sender, fulfiller, minimumReceived, maximumSpent, context);
-
-        if (offer.length > 0) {
-            _setOfferApprovals(offer);
-        }
-    }
-
-    function _setOfferApprovals(SpentItem[] memory offer) internal {
-        for (uint256 i = 0; i < offer.length; i++) {
-            //approve consideration based on item type
-            if (offer[i].itemType == ItemType.ERC1155) {
-                ERC1155(offer[i].token).setApprovalForAll(address(seaport), true);
-            } else if (offer[i].itemType == ItemType.ERC721) {
-                ERC721(offer[i].token).setApprovalForAll(address(seaport), true);
-            } else if (offer[i].itemType == ItemType.ERC20) {
-                uint256 allowance = ERC20(offer[i].token).allowance(address(this), address(seaport));
-                if (allowance != 0) {
-                    ERC20(offer[i].token).approve(address(seaport), 0);
-                }
-                ERC20(offer[i].token).approve(address(seaport), offer[i].amount);
-            }
-        }
-    }
-
-    /**
-     * @dev previews the order for this contract offerer.
-     *
-     * @param caller        The address of the contract fulfiller.
-     * @param fulfiller        The address of the contract fulfiller.
-     * @param minimumReceived  The minimum the fulfiller must receive.
-     * @param maximumSpent     The most a fulfiller will spend
-     * @param context          The context of the order.
-     * @return offer     The items spent by the order.
-     * @return consideration  The items received by the order.
-     */
-    function previewOrder(
-        address caller,
-        address fulfiller,
-        SpentItem[] calldata minimumReceived,
-        SpentItem[] calldata maximumSpent,
-        bytes calldata context // encoded based on the schemaID
-    ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
         offer = loan.collateral;
         ReceivedItem memory feeConsideration = Originator(loan.originator).getFeeConsideration(loan);
@@ -164,6 +131,8 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
                     ++i;
                 }
             }
+
+            LM.settle(loan);
         } else {
             address restricted;
             //add in originator fee
@@ -173,6 +142,54 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
                 revert InvalidSender();
             }
         }
+
+        if (offer.length > 0) {
+            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+            _setOfferApprovals(offer, seaport);
+        }
+    }
+
+    function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
+        internal
+        virtual
+    {}
+
+    function _setOfferApprovals(SpentItem[] memory offer, address target) internal {
+        for (uint256 i = 0; i < offer.length; i++) {
+            //approve consideration based on item type
+            if (offer[i].itemType == ItemType.ERC1155) {
+                ERC1155(offer[i].token).setApprovalForAll(target, true);
+            } else if (offer[i].itemType == ItemType.ERC721) {
+                ERC721(offer[i].token).setApprovalForAll(target, true);
+            } else if (offer[i].itemType == ItemType.ERC20) {
+                uint256 allowance = ERC20(offer[i].token).allowance(address(this), target);
+                if (allowance != 0) {
+                    ERC20(offer[i].token).approve(target, 0);
+                }
+                ERC20(offer[i].token).approve(target, offer[i].amount);
+            }
+        }
+    }
+
+    /**
+     * @dev previews the order for this contract offerer.
+     *
+     * @param caller        The address of the contract fulfiller.
+     * @param fulfiller        The address of the contract fulfiller.
+     * @param minimumReceived  The minimum the fulfiller must receive.
+     * @param maximumSpent     The most a fulfiller will spend
+     * @param context          The context of the order.
+     * @return offer     The items spent by the order.
+     * @return consideration  The items received by the order.
+     */
+    function previewOrder(
+        address caller,
+        address fulfiller,
+        SpentItem[] calldata minimumReceived,
+        SpentItem[] calldata maximumSpent,
+        bytes calldata context // encoded based on the schemaID
+    ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        //TODO: move this into generate order and then do a view only version that doesnt call settle
     }
 
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {

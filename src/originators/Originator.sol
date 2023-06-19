@@ -77,7 +77,6 @@ abstract contract Originator {
             ConduitItemType itemType;
             SpentItem memory debt = loan[i];
 
-            //forge-fmt skip-next-line
             assembly {
                 itemType := mload(debt)
                 switch itemType

@@ -29,6 +29,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     //  address public feeRecipient;
     address public constant seaport = address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     address public immutable defaultCustodian;
+    bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
     //  uint256 public fee;
     //  uint256 private constant ONE_WORD = 0x20;
 
@@ -99,7 +100,14 @@ contract LoanManager is ERC721, ContractOffererInterface {
     }
 
     constructor() {
-        defaultCustodian = address(new Custodian(this, seaport));
+        address custodian = address(new Custodian(this, seaport));
+
+        bytes32 defaultCustodianCodeHash;
+        assembly {
+            defaultCustodianCodeHash := extcodehash(custodian)
+        }
+        defaultCustodian = custodian;
+        DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         emit SeaportCompatibleContractDeployed();
     }
 
@@ -119,6 +127,10 @@ contract LoanManager is ERC721, ContractOffererInterface {
             revert InvalidSender();
         }
         _;
+    }
+
+    function active(Loan calldata loan) public view returns (bool) {
+        return _getExtraData(uint256(keccak256(abi.encode(loan)))) == uint8(FieldFlags.ACTIVE);
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -154,25 +166,33 @@ contract LoanManager is ERC721, ContractOffererInterface {
         if (_exists(tokenId)) {
             _burn(tokenId);
         }
+        _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
         emit Close(tokenId);
     }
 
-    function _callCustody(bytes calldata data) internal returns (bool success) {
+    //
+    function _callCustody(
+        ReceivedItem[] calldata consideration,
+        bytes32[] calldata orderHashes,
+        uint256 contractNonce,
+        bytes calldata context
+    ) internal returns (bytes4 selector) {
         address custodian;
 
         assembly {
-            custodian := calldataload(add(data.offset, 0x20)) // 0x20 offset for the first address 'custodian'
+            custodian := calldataload(add(context.offset, 0x20)) // 0x20 offset for the first address 'custodian'
         }
         // Comparing the retrieved code hash with a known hash (placeholder here)
 
-        if (custodian != defaultCustodian) {
-            bytes4 functionSelector = bytes4(keccak256("custody(bytes)"));
-            bytes memory callData = abi.encodeWithSelector(functionSelector, data);
-
-            assembly {
-                success := call(gas(), custodian, 0, add(callData, 0x20), mload(callData), 0, 0)
-            }
-            if (!success) {
+        bytes32 codeHash;
+        assembly {
+            codeHash := extcodehash(custodian)
+        }
+        if (codeHash != DEFAULT_CUSTODIAN_CODE_HASH) {
+            if (
+                Custodian(custodian).custody(consideration, orderHashes, contractNonce, context)
+                    != Custodian.custody.selector
+            ) {
                 revert InvalidAction();
             }
         }
@@ -319,7 +339,6 @@ contract LoanManager is ERC721, ContractOffererInterface {
         offer[0] =
             SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(loanHash), amount: 1});
         uint256 i = 0;
-
         for (; i < debt.length;) {
             offer[i + 1] = debt[i];
             _setDebtApprovals(debt[i]);
@@ -350,7 +369,13 @@ contract LoanManager is ERC721, ContractOffererInterface {
         bytes32[] calldata orderHashes,
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
-        _callCustody(context);
+        //function custody(
+        //    ReceivedItem[] calldata consideration,
+        //    bytes32[] calldata orderHashes,
+        //    uint256 contractNonce,
+        //    bytes calldata context
+        //  ) external override returns (bytes4 selector)
+        _callCustody(consideration, orderHashes, contractNonce, context);
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
