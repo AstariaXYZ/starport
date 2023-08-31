@@ -69,21 +69,25 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
   ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
     LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
     //ensure loan is valid against what we have to deliver to seaport
-    ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
+
     // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
     // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
-    if (!LM.active(loan)) {
-      // on repayment handler for originator here?
-      // they can do post state follow up, but have no rentrancy capabilities here as we havent left seaport
-    } else {
+    // in this case we are not a repayment we have burnt the loan in the generate order for a repayment
+    if (LM.active(loan)) {
       if (
         SettlementHandler(loan.terms.handler).execute(loan) !=
         SettlementHandler.execute.selector
       ) {
         revert InvalidHandler();
       }
-      LM.settle(loan);
+
+      if (loan.issuer.code.length > 0) {
+        //callback on the issuer
+        //if supportsInterface() then do this
+      }
+      _settleLoan(loan);
     }
+    ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
   }
 
   function custody(
@@ -116,49 +120,72 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
   {
     LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
     offer = loan.collateral;
-    ReceivedItem[] memory feeConsideration = Originator(loan.originator)
-      .getFeeConsideration(loan);
-    bool originatorFeeOn = feeConsideration.length > 0;
 
     if (SettlementHook(loan.terms.hook).isActive(loan)) {
-      if (fulfiller != loan.borrower) {
+      if (fulfiller != _getBorrower(loan)) {
         revert InvalidSender();
       }
-      ReceivedItem[] memory paymentConsideration = Pricing(loan.terms.pricing)
-        .getPaymentConsideration(loan);
 
-      consideration = new ReceivedItem[](
-        originatorFeeOn
-          ? paymentConsideration.length + feeConsideration.length
-          : paymentConsideration.length
-      );
-      uint256 offset;
+      (
+        ReceivedItem[] memory paymentConsiderations,
+        ReceivedItem[] memory carryFeeConsideration
+      ) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+
+      //      uint256 carryOverZeroCount;
+      //      uint256 payOverZeroCount;
       uint256 i = 0;
 
-      if (originatorFeeOn) {
-        for (; i < feeConsideration.length; ) {
-          consideration[i] = feeConsideration[i];
-          unchecked {
-            ++i;
-          }
-        }
-        offset = feeConsideration.length;
-        i = 0;
-      }
+      //      for (; i < paymentConsiderations.length; ) {
+      //        if (paymentConsiderations[i].amount > 0) {
+      //          payOverZeroCount++;
+      //        }
+      //        unchecked {
+      //          ++i;
+      //        }
+      //      }
+      //
+      //      i = 0;
+      //      for (; i < carryFeeConsideration.length; ) {
+      //        if (carryFeeConsideration[i].amount > 0) {
+      //          carryOverZeroCount++;
+      //        }
+      //        unchecked {
+      //          ++i;
+      //        }
+      //      }
 
-      for (; i < paymentConsideration.length; ) {
-        consideration[i + offset] = paymentConsideration[i];
+      consideration = new ReceivedItem[](
+        paymentConsiderations.length + carryFeeConsideration.length
+      );
+
+      i = 0;
+      for (; i < paymentConsiderations.length; ) {
+        consideration[i] = paymentConsiderations[i];
         unchecked {
           ++i;
         }
       }
+      uint256 j = 0;
+      i = paymentConsiderations.length;
+      //loop fee considerations and add them to the consideration array
+      for (; j < carryFeeConsideration.length; ) {
+        if (carryFeeConsideration[j].amount > 0) {
+          consideration[i + j] = carryFeeConsideration[j];
+        }
+        unchecked {
+          ++j;
+        }
+      }
 
-      LM.settle(loan);
+      //if a callback is needed for the issuer do it here
+      _settleLoan(loan);
     } else {
       address restricted;
       //add in originator fee
+      _beforeSettlementHandlerHook(loan);
       (consideration, restricted) = SettlementHandler(loan.terms.handler)
         .getSettlement(loan);
+      _afterSettlementHandlerHook(loan);
 
       if (restricted != address(0) && fulfiller != restricted) {
         revert InvalidSender();
@@ -175,6 +202,22 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     address fulfiller,
     SpentItem[] calldata maximumSpent,
     bytes calldata context
+  ) internal virtual {}
+
+  function _beforeSettlementHandlerHook(
+    LoanManager.Loan memory loan
+  ) internal virtual {}
+
+  function _afterSettlementHandlerHook(
+    LoanManager.Loan memory loan
+  ) internal virtual {}
+
+  function _beforeSettleLoanHook(
+    LoanManager.Loan memory loan
+  ) internal virtual {}
+
+  function _afterSettleLoanHook(
+    LoanManager.Loan memory loan
   ) internal virtual {}
 
   function _setOfferApprovals(
@@ -263,5 +306,17 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     bytes calldata
   ) external pure virtual returns (bytes4) {
     return TokenReceiverInterface.onERC1155BatchReceived.selector;
+  }
+
+  function _getBorrower(
+    LoanManager.Loan memory loan
+  ) internal view virtual returns (address) {
+    return loan.borrower;
+  }
+
+  function _settleLoan(LoanManager.Loan memory loan) internal virtual {
+    _beforeSettleLoanHook(loan);
+    LM.settle(loan);
+    _afterSettleLoanHook(loan);
   }
 }

@@ -3,13 +3,22 @@ pragma solidity =0.8.17;
 import {LoanManager} from "src/LoanManager.sol";
 
 import "src/originators/Originator.sol";
+import {MerkleProofLib} from "solady/src/utils/MerkleProofLib.sol";
+import "forge-std/console.sol";
 
-contract UniqueOriginator is Originator {
+contract MerkleOriginator is Originator {
+  error InvalidMerkleProof();
+
   constructor(
     LoanManager LM_,
     address strategist_,
     uint256 fee_
   ) Originator(LM_, strategist_, fee_) {}
+
+  struct MerkleProof {
+    bytes32 root;
+    bytes32[] proof;
+  }
 
   struct Details {
     address custodian;
@@ -19,6 +28,7 @@ contract UniqueOriginator is Originator {
     LoanManager.Terms terms;
     SpentItem[] collateral;
     SpentItem[] debt;
+    bytes validator;
   }
 
   function terms(
@@ -39,16 +49,45 @@ contract UniqueOriginator is Originator {
     });
   }
 
+  function _validateMerkleProof(
+    MerkleProof memory incomingMerkleProof,
+    bytes32 leafHash
+  ) internal view virtual {
+    if (
+      !MerkleProofLib.verify(
+        incomingMerkleProof.proof,
+        incomingMerkleProof.root,
+        leafHash
+      )
+    ) {
+      revert InvalidMerkleProof();
+    }
+  }
+
   function execute(
     Request calldata params
   ) external override returns (Response memory response) {
-    bytes32 contextHash = keccak256(params.details);
+    Details memory details = abi.decode(params.details, (Details));
+    MerkleProof memory proof = abi.decode(details.validator, (MerkleProof));
 
+    bytes32 leafHash = keccak256(
+      abi.encode(
+        details.custodian,
+        details.conduit,
+        details.issuer,
+        details.deadline,
+        details.terms,
+        details.collateral,
+        details.debt
+      )
+    );
+
+    _validateMerkleProof(proof, leafHash);
+    console.logBytes32(proof.root);
     _validateSignature(
-      keccak256(encodeWithAccountCounter(strategist, contextHash)),
+      keccak256(encodeWithAccountCounter(strategist, proof.root)),
       params.signature
     );
-    Details memory details = abi.decode(params.details, (Details));
 
     if (block.timestamp > details.deadline) {
       revert InvalidDeadline();

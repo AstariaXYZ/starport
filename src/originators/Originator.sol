@@ -23,6 +23,10 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 abstract contract Originator {
+  enum State {
+    INITIALIZED,
+    CLOSED
+  }
   struct Response {
     LoanManager.Terms terms;
     address issuer;
@@ -38,7 +42,15 @@ abstract contract Originator {
     bytes signature;
   }
 
+  event Origination(
+    uint256 indexed loanId,
+    address indexed issuer,
+    bytes nlrDetails
+  );
+
+  event CounterUpdated();
   error InvalidCaller();
+  error InvalidCustodian();
   error InvalidDeadline();
   error InvalidOriginator();
   error InvalidCollateral();
@@ -47,6 +59,11 @@ abstract contract Originator {
   error InvalidDebtToken();
   error InvalidRate();
   error InvalidSigner();
+  error InvalidLoan();
+  error InvalidTerms();
+  error InvalidDebtLength();
+  error InvalidDebtAmount();
+  error ConduitTransferError();
 
   LoanManager public immutable LM;
 
@@ -162,7 +179,8 @@ abstract contract Originator {
     if (msg.sender != strategist) {
       revert InvalidCaller();
     }
-    ++_counter;
+    _counter += uint256(blockhash(block.number - 1) << 0x80);
+    emit CounterUpdated();
   }
 
   // Function to generate the domain separator for signatures

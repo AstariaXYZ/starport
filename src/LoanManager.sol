@@ -16,8 +16,8 @@ import {
   ContractOffererInterface
 } from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {
-  TokenReceiverInterface
-} from "src/interfaces/TokenReceiverInterface.sol";
+  ConsiderationInterface
+} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Originator} from "src/originators/Originator.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
@@ -27,7 +27,16 @@ import {Pricing} from "src/pricing/Pricing.sol";
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 import "forge-std/console.sol";
-
+import {
+  ConduitTransfer,
+  ConduitItemType
+} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {
+  ConduitControllerInterface
+} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
+import {
+  ConduitInterface
+} from "seaport-types/src/interfaces/ConduitInterface.sol";
 import {Custodian} from "src/Custodian.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
@@ -36,11 +45,10 @@ contract LoanManager is ERC721, ContractOffererInterface {
   using FixedPointMathLib for uint256;
   using {StarPortLib.toReceivedItems} for SpentItem[];
 
-  //  address public feeRecipient;
-  address public constant seaport =
-    address(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
-  //  address public constant seaport =
-  //    address(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC); // mainnet
+  ConsiderationInterface public constant seaport =
+    ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+  //  ConsiderationInterface public constant seaport =
+  //    ConsiderationInterface(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC); // mainnet
   address public immutable defaultCustodian;
   bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
   //  uint256 public fee;
@@ -53,23 +61,23 @@ contract LoanManager is ERC721, ContractOffererInterface {
   }
 
   struct Terms {
-    address hook;
-    address pricing;
-    address handler;
-    bytes pricingData;
-    bytes handlerData;
-    bytes hookData;
+    address hook; //the address of the hookmodule
+    bytes hookData; //bytes encoded hook data
+    address pricing; //the address o the pricing module
+    bytes pricingData; //bytes encoded pricing data
+    address handler; //the address of the handler module
+    bytes handlerData; //bytes encoded handler data
   }
 
   struct Loan {
-    uint256 start;
-    address custodian;
-    address borrower;
-    address issuer;
-    address originator;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    Terms terms;
+    uint256 start; //start of the loan
+    address custodian; //where the collateral is being held
+    address borrower; //the borrower
+    address issuer; //the capital issuer/lender
+    address originator; //who originated the loan
+    SpentItem[] collateral; //array of collateral
+    SpentItem[] debt; //array of debt
+    Terms terms; //the actionable terms of the loan
   }
 
   struct Obligation {
@@ -79,7 +87,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     bool isTrusted;
     SpentItem[] debt;
     bytes32 hash;
-    bytes details;
+    bytes details; //merkle details here
     bytes signature;
   }
 
@@ -87,6 +95,9 @@ contract LoanManager is ERC721, ContractOffererInterface {
   event Open(uint256 loanId, LoanManager.Loan loan);
   event SeaportCompatibleContractDeployed();
 
+  error ConduitTransferError();
+  error InvalidConduit();
+  error InvalidRefinance();
   error InvalidSender();
   error InvalidAction();
   error InvalidLoan(uint256);
@@ -113,7 +124,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
   }
 
   constructor() {
-    address custodian = address(new Custodian(this, seaport));
+    address custodian = address(new Custodian(this, address(seaport)));
 
     bytes32 defaultCustodianCodeHash;
     assembly {
@@ -136,7 +147,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
 
   // MODIFIERS
   modifier onlySeaport() {
-    if (msg.sender != seaport) {
+    if (msg.sender != address(seaport)) {
       revert InvalidSender();
     }
     _;
@@ -175,10 +186,14 @@ contract LoanManager is ERC721, ContractOffererInterface {
       _issued(loanId) && !_exists(loanId) ? address(this) : _ownerOf(loanId);
   }
 
-  function settle(Loan calldata loan) external {
+  function settle(Loan memory loan) external {
     if (msg.sender != loan.custodian) {
       revert InvalidSender();
     }
+    _settle(loan);
+  }
+
+  function _settle(Loan memory loan) internal {
     uint256 tokenId = uint256(keccak256(abi.encode(loan)));
     if (!_issued(tokenId)) {
       revert InvalidLoan(tokenId);
@@ -190,7 +205,6 @@ contract LoanManager is ERC721, ContractOffererInterface {
     emit Close(tokenId);
   }
 
-  //
   function _callCustody(
     ReceivedItem[] calldata consideration,
     bytes32[] calldata orderHashes,
@@ -273,6 +287,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
     SpentItem[] calldata maximumSpentFromBorrower
   ) internal returns (SpentItem[] memory offer) {
     address receiver = obligation.borrower;
+    //TODO: add a condiational that if obligation.originator is address(0) we must be untrusted
     bool isTrustedExecution = fulfiller == receiver && obligation.isTrusted;
     receiver = isTrustedExecution ? obligation.borrower : address(this);
     Originator.Response memory response = Originator(obligation.originator)
@@ -371,9 +386,9 @@ contract LoanManager is ERC721, ContractOffererInterface {
   function _setDebtApprovals(SpentItem memory debt) internal {
     //approve consideration based on item type
     if (debt.itemType != ItemType.ERC20) {
-      ERC721(debt.token).setApprovalForAll(seaport, true);
+      ERC721(debt.token).setApprovalForAll(address(seaport), true);
     } else {
-      ERC20(debt.token).approve(seaport, debt.amount);
+      ERC20(debt.token).approve(address(seaport), debt.amount);
     }
   }
 
@@ -446,5 +461,113 @@ contract LoanManager is ERC721, ContractOffererInterface {
       interfaceId == type(ContractOffererInterface).interfaceId ||
       interfaceId == type(ERC721).interfaceId ||
       super.supportsInterface(interfaceId);
+  }
+
+  //TODO: needs tests
+  function refinance(
+    LoanManager.Loan memory loan,
+    bytes memory newPricingData,
+    address conduit
+  ) external {
+    (, , address conduitController) = seaport.information();
+    if (
+      ConduitControllerInterface(conduitController).ownerOf(conduit) !=
+      msg.sender
+    ) {
+      revert InvalidConduit();
+    }
+    (
+      ReceivedItem[] memory considerationPayment,
+      ReceivedItem[] memory carryPayment
+    ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
+
+    if (
+      loan.debt.length != considerationPayment.length &&
+      carryPayment.length <= considerationPayment.length
+    ) {
+      revert InvalidRefinance();
+    }
+
+    ReceivedItem[] memory refinanceConsideration = new ReceivedItem[](
+      considerationPayment.length + carryPayment.length
+    );
+
+    //todo: give to greg to optimize
+    uint256 i = 0;
+    for (; i < considerationPayment.length; ) {
+      refinanceConsideration[i] = considerationPayment[i];
+      unchecked {
+        ++i;
+      }
+    }
+    uint256 j = 0;
+    for (; j < carryPayment.length; ) {
+      refinanceConsideration[i] = carryPayment[j];
+      unchecked {
+        ++i;
+        j++;
+      }
+    }
+    _settle(loan);
+    i = 0;
+    for (; i < loan.debt.length; ) {
+      loan.debt[i].amount = considerationPayment[i].amount;
+      unchecked {
+        ++i;
+      }
+    }
+    if (
+      ConduitInterface(conduit).execute(
+        _packageTransfers(refinanceConsideration, msg.sender)
+      ) != ConduitInterface.execute.selector
+    ) {
+      revert ConduitTransferError();
+    }
+
+    loan.terms.pricingData = newPricingData;
+    loan.originator = msg.sender;
+    loan.issuer = msg.sender;
+    loan.start = block.timestamp;
+    _issueLoanManager(loan, msg.sender.code.length > 0);
+  }
+
+  function _packageTransfers(
+    ReceivedItem[] memory refinanceConsideration,
+    address refinancer
+  ) internal pure returns (ConduitTransfer[] memory transfers) {
+    uint256 i = 0;
+    transfers = new ConduitTransfer[](refinanceConsideration.length);
+    for (; i < refinanceConsideration.length; ) {
+      ConduitItemType itemType;
+      ReceivedItem memory debt = refinanceConsideration[i];
+
+      assembly {
+        itemType := mload(debt)
+        switch itemType
+        case 1 {
+
+        }
+        case 2 {
+
+        }
+        case 3 {
+
+        }
+        default {
+          revert(0, 0)
+        } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
+      }
+      transfers[i] = ConduitTransfer({
+        itemType: itemType,
+        from: refinancer,
+        token: refinanceConsideration[i].token,
+        identifier: refinanceConsideration[i].identifier,
+        amount: refinanceConsideration[i].amount,
+        to: refinanceConsideration[i].recipient
+      });
+      unchecked {
+        ++i;
+      }
+    }
   }
 }

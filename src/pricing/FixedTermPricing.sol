@@ -14,26 +14,61 @@ contract FixedTermPricing is Pricing {
 
   struct Details {
     uint256 rate;
-    uint256 loanDuration;
+    uint256 carryRate;
   }
 
   function getPaymentConsideration(
-    LoanManager.Loan calldata loan
+    LoanManager.Loan memory loan
   )
-    external
+    public
     view
     virtual
     override
-    returns (ReceivedItem[] memory consideration)
+    returns (
+      ReceivedItem[] memory repayConsideration,
+      ReceivedItem[] memory carryConsideration
+    )
   {
-    consideration = _generateRepayLenderConsideration(loan);
+    repayConsideration = _generateRepayConsideration(loan);
+    carryConsideration = _generateRepayCarryConsideration(loan);
   }
 
   function getOwed(
-    LoanManager.Loan calldata loan
+    LoanManager.Loan memory loan
   ) public view returns (uint256[] memory) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
     return _getOwed(loan, details, block.timestamp);
+  }
+
+  function _getOwedCarry(
+    LoanManager.Loan memory loan,
+    Details memory details,
+    uint256 timestamp
+  ) internal view returns (uint256[] memory carryOwed) {
+    carryOwed = new uint256[](loan.debt.length);
+    uint256 carryOwedAboveZero;
+    uint256 i = 0;
+
+    for (; i < loan.debt.length; ) {
+      uint256 carry = _getInterest(loan, details, timestamp, i).mulWad(
+        details.carryRate
+      );
+      if (carry > 0) {
+        carryOwed[i] = carry;
+        unchecked {
+          ++carryOwedAboveZero;
+        }
+      }
+      unchecked {
+        ++i;
+      }
+    }
+
+    if (carryOwedAboveZero != loan.debt.length) {
+      assembly {
+        mstore(carryOwed, carryOwedAboveZero)
+      }
+    }
   }
 
   function _getOwed(
@@ -46,7 +81,6 @@ contract FixedTermPricing is Pricing {
       updatedDebt[i] =
         loan.debt[i].amount +
         _getInterest(loan, details, timestamp, i);
-      console.log(updatedDebt[i]);
     }
   }
 
@@ -61,26 +95,72 @@ contract FixedTermPricing is Pricing {
     return (delta_t * details.rate).mulWad(loan.debt[index].amount);
   }
 
-  function _generateRepayLenderConsideration(
-    LoanManager.Loan calldata loan
-  ) internal view override returns (ReceivedItem[] memory consideration) {
+  function _generateRepayConsideration(
+    LoanManager.Loan memory loan
+  ) internal view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
     consideration = new ReceivedItem[](loan.debt.length);
     uint256[] memory owing = _getOwed(loan, details, block.timestamp);
     address payable issuer = LM.getIssuer(loan);
+
     uint256 i = 0;
-    for (; i < loan.debt.length; ) {
+    for (; i < consideration.length; ) {
       consideration[i] = ReceivedItem({
         itemType: loan.debt[i].itemType,
         identifier: loan.debt[i].identifier,
         amount: owing.length == consideration.length ? owing[i] : owing[0],
         token: loan.debt[i].token,
-        recipient: issuer
+        recipient: payable(issuer)
       });
       unchecked {
         ++i;
       }
     }
+  }
+
+  function _generateRepayCarryConsideration(
+    LoanManager.Loan memory loan
+  ) internal view returns (ReceivedItem[] memory consideration) {
+    Details memory details = abi.decode(loan.terms.pricingData, (Details));
+
+    uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
+    consideration = new ReceivedItem[](owing.length);
+    uint256 i = 0;
+    for (; i < consideration.length; ) {
+      consideration[i] = ReceivedItem({
+        itemType: loan.debt[i].itemType,
+        identifier: loan.debt[i].identifier,
+        amount: owing.length == consideration.length ? owing[i] : owing[0],
+        token: loan.debt[i].token,
+        recipient: payable(loan.originator)
+      });
+      unchecked {
+        ++i;
+      }
+    }
+  }
+
+  function isValidRefinance(
+    LoanManager.Loan memory loan,
+    bytes memory newPricingData
+  )
+    external
+    view
+    override
+    returns (ReceivedItem[] memory, ReceivedItem[] memory)
+  {
+    Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
+    Details memory newDetails = abi.decode(newPricingData, (Details));
+    bool active = SettlementHook(loan.terms.hook).isActive(loan);
+
+    //todo: figure out the proper flow for here
+    if (
+      (active && newDetails.rate >= oldDetails.rate) ||
+      (!active && newDetails.rate <= oldDetails.rate)
+    ) {
+      revert InvalidRefinance();
+    }
+    return getPaymentConsideration(loan);
   }
 }

@@ -28,7 +28,10 @@ abstract contract SettlementHandler {
     LoanManager.Loan memory loan
   )
     external
-    view
     virtual
-    returns (ReceivedItem[] memory consideration, address restricted);
+    returns (
+      //    view
+      ReceivedItem[] memory consideration,
+      address restricted
+    );
 }

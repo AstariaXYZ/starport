@@ -3,19 +3,26 @@ pragma solidity =0.8.17;
 import {LoanManager} from "src/LoanManager.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import "forge-std/console.sol";
+import "seaport/lib/seaport-sol/src/lib/ReceivedItemLib.sol";
 
 abstract contract Pricing {
   LoanManager LM;
+  error InvalidRefinance();
 
   constructor(LoanManager LM_) {
     LM = LM_;
   }
 
   function getPaymentConsideration(
-    LoanManager.Loan calldata loan
-  ) external view virtual returns (ReceivedItem[] memory consideration);
+    LoanManager.Loan memory loan
+  ) public view virtual returns (ReceivedItem[] memory, ReceivedItem[] memory);
 
-  function _generateRepayLenderConsideration(
-    LoanManager.Loan calldata loan
-  ) internal virtual returns (ReceivedItem[] memory consideration) {}
+  function isValidRefinance(
+    LoanManager.Loan memory loan,
+    bytes memory newPricingData
+  )
+    external
+    view
+    virtual
+    returns (ReceivedItem[] memory, ReceivedItem[] memory);
 }

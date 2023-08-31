@@ -2,7 +2,7 @@ pragma solidity =0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-
+import {CapitalPool} from "src/CapitalPool.sol";
 import {LoanManager} from "src/LoanManager.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {Originator} from "src/originators/Originator.sol";
@@ -40,6 +40,7 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //  ReferenceConsideration as Consideration
 //} from "seaport/reference/ReferenceConsideration.sol";
 import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
+import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
 import {FixedTermPricing} from "src/pricing/FixedTermPricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
@@ -73,8 +74,8 @@ contract StarPortTest is BaseOrderTest {
   bytes defaultPricingData =
     abi.encode(
       FixedTermPricing.Details({
-        rate: (uint256(1e16) * 150) / (365 * 1 days),
-        loanDuration: defaultLoanDuration
+        carryRate: (uint256(1e16) * 10),
+        rate: (uint256(1e16) * 150) / (365 * 1 days)
       })
     );
 
@@ -93,13 +94,20 @@ contract StarPortTest is BaseOrderTest {
   Account lender;
   Account seller;
   Account strategist;
+  Account refinancer;
 
   bytes32 conduitKey;
   address lenderConduit;
+  address refinancerConduit;
   address seaportAddr;
   LoanManager LM;
   Custodian custodian;
   UniqueOriginator UO;
+  MerkleOriginator MO;
+
+  CapitalPool CP;
+
+  bytes32 conduitKeyRefinancer;
 
   function _deployAndConfigureConsideration() public {
     conduitController = new ConduitController();
@@ -115,7 +123,7 @@ contract StarPortTest is BaseOrderTest {
     vm.label(address(this), "testContract");
 
     _deployTestTokenContracts();
-    console.log(address(consideration));
+
     erc20s = [token1, token2, token3];
     erc721s = [test721_1, test721_2, test721_3];
     erc1155s = [test1155_1, test1155_2, test1155_3];
@@ -132,10 +140,13 @@ contract StarPortTest is BaseOrderTest {
     lender = makeAndAllocateAccount("lender");
     strategist = makeAndAllocateAccount("strategist");
     seller = makeAndAllocateAccount("seller");
+    refinancer = makeAndAllocateAccount("refinancer");
 
     LM = new LoanManager();
     custodian = new Custodian(LM, address(consideration));
     UO = new UniqueOriginator(LM, strategist.addr, 1e16);
+    MO = new MerkleOriginator(LM, strategist.addr, 1e16);
+    CP = new CapitalPool(address(erc20s[0]), conduitController, address(MO));
     pricing = new FixedTermPricing(LM);
     handler = new DutchAuctionHandler(LM);
     hook = new FixedTermHook();
@@ -153,11 +164,27 @@ contract StarPortTest is BaseOrderTest {
       vm.stopPrank();
     }
     conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
+    conduitKeyRefinancer = bytes32(
+      uint256(uint160(address(refinancer.addr))) << 96
+    );
 
     vm.startPrank(lender.addr);
+    erc20s[0].approve(address(CP), 10 ether);
+    CP.deposit(10 ether, lender.addr);
     lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
+
     conduitController.updateChannel(lenderConduit, address(UO), true);
+    conduitController.updateChannel(lenderConduit, address(MO), true);
     erc20s[0].approve(address(lenderConduit), 100000);
+    vm.stopPrank();
+    vm.startPrank(refinancer.addr);
+    refinancerConduit = conduitController.createConduit(
+      conduitKeyRefinancer,
+      refinancer.addr
+    );
+    console.log("Refinancer", refinancer.addr);
+    conduitController.updateChannel(refinancerConduit, address(LM), true);
+    erc20s[0].approve(address(refinancerConduit), 100000);
     vm.stopPrank();
   }
 
@@ -194,6 +221,56 @@ contract StarPortTest is BaseOrderTest {
             strategist.addr,
             keccak256(loanData.details)
           )
+        )
+      );
+
+      LoanManager.Loan memory loan = LoanManager.Loan({
+        custodian: address(loanData.custodian),
+        issuer: address(0),
+        borrower: borrower.addr,
+        originator: isTrusted ? address(originator) : address(0),
+        terms: originator.terms(loanData.details),
+        debt: debt,
+        collateral: ConsiderationItemLib.toSpentItemArray(collateral),
+        start: uint256(0)
+      });
+      return
+        _executeNLR(
+          loan,
+          LoanManager.Obligation({
+            isTrusted: isTrusted,
+            custodian: address(loanData.custodian),
+            borrower: borrower.addr,
+            debt: debt,
+            details: loanData.details,
+            signature: abi.encodePacked(r, s, v),
+            hash: keccak256(abi.encode(loan)),
+            originator: address(originator)
+          }),
+          collateral // for building contract offer
+        );
+    }
+  }
+
+  function newLoanWithMerkleProof(
+    NewLoanData memory loanData,
+    Originator originator,
+    ConsiderationItem[] storage collateral
+  ) internal returns (LoanManager.Loan memory) {
+    bool isTrusted = loanData.isTrusted;
+    {
+      MerkleOriginator.Details memory details = abi.decode(
+        loanData.details,
+        (MerkleOriginator.Details)
+      );
+      MerkleOriginator.MerkleProof memory merkleData = abi.decode(
+        details.validator,
+        (MerkleOriginator.MerkleProof)
+      );
+      (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+        strategist.key,
+        keccak256(
+          originator.encodeWithAccountCounter(strategist.addr, merkleData.root)
         )
       );
 
@@ -296,11 +373,13 @@ contract StarPortTest is BaseOrderTest {
   }
 
   function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-    ReceivedItem[] memory loanPayment = Pricing(activeLoan.terms.pricing)
-      .getPaymentConsideration(activeLoan);
+    (
+      ReceivedItem[] memory loanPayment,
+      ReceivedItem[] memory carryPayment
+    ) = Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
     uint256 i = 0;
     ConsiderationItem[] memory consider = new ConsiderationItem[](
-      loanPayment.length
+      loanPayment.length + carryPayment.length
     );
     for (; i < loanPayment.length; ) {
       consider[i].token = loanPayment[i].token;
@@ -314,6 +393,19 @@ contract StarPortTest is BaseOrderTest {
         ++i;
       }
     }
+    for (; i < carryPayment.length; ) {
+      consider[i].token = carryPayment[i].token;
+      consider[i].itemType = carryPayment[i].itemType;
+      consider[i].identifierOrCriteria = carryPayment[i].identifier;
+      consider[i].startAmount = carryPayment[i].amount;
+      //TODO: update this
+      consider[i].endAmount = carryPayment[i].amount;
+      consider[i].recipient = carryPayment[i].recipient;
+      unchecked {
+        ++i;
+      }
+    }
+
     OfferItem[] memory repayOffering = new OfferItem[](
       activeLoan.collateral.length
     );
@@ -575,14 +667,31 @@ contract StarPortTest is BaseOrderTest {
     });
     Vm.Log[] memory logs = vm.getRecordedLogs();
     uint256 loanId;
-    (loanId, loan) = abi.decode(
-      logs[
-        nlr.isTrusted ? debt.length : debt.length == 1
-          ? debt.length + 1
-          : debt.length * 2 + 1
-      ].data,
-      (uint256, LoanManager.Loan)
+    //if trusted and to a pool we have another txn so the first debt.length + 1 needs to be undone
+
+    //    console.logBytes32(logs[logs.length - 4].topics[0]);
+    bytes32 lienOpenTopic = bytes32(
+      0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17
     );
+    for (uint i = 0; i < logs.length; i++) {
+      if (logs[i].topics[0] == lienOpenTopic) {
+        (loanId, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+        break;
+      }
+    }
+
+    //    (loanId, loan) = abi.decode(
+    //      logs[
+    //        nlr.isTrusted ? debt.length : debt.length == 1
+    //          ? debt.length + 1
+    //          : debt.length * 2 + 1
+    //      ].data,
+    //      (uint256, LoanManager.Loan)
+    //    );
+    //TODO:
+    //nlr.isTrusted ? debt.length + 1 : debt.length == 1
+    //          ? debt.length + 1
+    //          : debt.length * 2 + 1
 
     uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
 
