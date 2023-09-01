@@ -1,7 +1,7 @@
 import "./StarPortTest.sol";
 
 contract TestNewLoan is StarPortTest {
-  function testNewLoanERC721CollateralDefaultTerms()
+  function testNewLoanERC721CollateralDefaultTerms2()
     public
     returns (LoanManager.Loan memory)
   {
@@ -46,9 +46,23 @@ contract TestNewLoan is StarPortTest {
     });
     bool isTrusted = true;
 
+    TermEnforcer TE = new TermEnforcer();
+
+    TermEnforcer.Details memory TEDetails = TermEnforcer.Details({
+      pricing: address(pricing),
+      hook: address(hook),
+      handler: address(handler)
+    });
+
+    LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+    caveats[0] = LoanManager.Caveat({
+      enforcer: address(TE),
+      terms: abi.encode(TEDetails)
+    });
+
     return
       newLoan(
-        NewLoanData(address(custody), isTrusted, abi.encode(loanDetails)),
+        NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
         Originator(UO),
         selectedCollateral
       );
@@ -99,7 +113,11 @@ contract TestNewLoan is StarPortTest {
     console.log("Refinancer", refinancer.addr);
     console.log("Harness", address(this));
     LoanManager.Loan memory loan = newLoan(
-      NewLoanData(address(custody), isTrusted, abi.encode(loanDetails)),
+      NewLoanData(
+        address(custody),
+        new LoanManager.Caveat[](0),
+        abi.encode(loanDetails)
+      ),
       Originator(UO),
       selectedCollateral
     );
@@ -184,11 +202,14 @@ contract TestNewLoan is StarPortTest {
     loanDetails.validator = abi.encode(
       MerkleOriginator.MerkleProof({root: leafHash, proof: new bytes32[](0)})
     );
-    bool isTrusted = true;
 
     return
       newLoanWithMerkleProof(
-        NewLoanData(address(custody), isTrusted, abi.encode(loanDetails)),
+        NewLoanData(
+          address(custody),
+          new LoanManager.Caveat[](0),
+          abi.encode(loanDetails)
+        ),
         Originator(MO),
         selectedCollateral
       );
@@ -282,11 +303,23 @@ contract TestNewLoan is StarPortTest {
       collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
       debt: debt
     });
-    bool isTrusted = false;
+    TermEnforcer TE = new TermEnforcer();
+
+    TermEnforcer.Details memory TEDetails = TermEnforcer.Details({
+      pricing: address(pricing),
+      hook: address(hook),
+      handler: address(handler)
+    });
+
+    LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+    caveats[0] = LoanManager.Caveat({
+      enforcer: address(TE),
+      terms: abi.encode(TEDetails)
+    });
 
     buyNowPayLater(
       advThingToSell,
-      NewLoanData(address(custody), isTrusted, abi.encode(loanDetails)),
+      NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
       Originator(UO),
       selectedCollateral
     );
@@ -295,7 +328,7 @@ contract TestNewLoan is StarPortTest {
   function testSettleLoan() public {
     //default is 14 day term
     LoanManager.Loan
-      memory activeLoan = testNewLoanERC721CollateralDefaultTerms();
+      memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
 
     skip(14 days);
 

@@ -5,5 +5,5 @@ import {LoanManager} from "src/LoanManager.sol";
 abstract contract SettlementHook {
   function isActive(
     LoanManager.Loan calldata loan
-  ) external virtual returns (bool);
+  ) external view virtual returns (bool);
 }

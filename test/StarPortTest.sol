@@ -57,6 +57,8 @@ import {Custodian} from "src/Custodian.sol";
 import "../src/custodians/AAVEPoolCustodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 
+import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
+
 interface IWETH9 {
   function deposit() external payable;
 
@@ -203,7 +205,7 @@ contract StarPortTest is BaseOrderTest {
 
   struct NewLoanData {
     address custodian;
-    bool isTrusted;
+    LoanManager.Caveat[] caveats;
     bytes details;
   }
 
@@ -212,7 +214,7 @@ contract StarPortTest is BaseOrderTest {
     Originator originator,
     ConsiderationItem[] storage collateral
   ) internal returns (LoanManager.Loan memory) {
-    bool isTrusted = loanData.isTrusted;
+    bool isTrusted = loanData.caveats.length == 0;
     {
       (uint8 v, bytes32 r, bytes32 s) = vm.sign(
         strategist.key,
@@ -236,15 +238,13 @@ contract StarPortTest is BaseOrderTest {
       });
       return
         _executeNLR(
-          loan,
           LoanManager.Obligation({
-            isTrusted: isTrusted,
             custodian: address(loanData.custodian),
             borrower: borrower.addr,
             debt: debt,
             details: loanData.details,
             signature: abi.encodePacked(r, s, v),
-            hash: keccak256(abi.encode(loan)),
+            caveats: loanData.caveats,
             originator: address(originator)
           }),
           collateral // for building contract offer
@@ -257,7 +257,7 @@ contract StarPortTest is BaseOrderTest {
     Originator originator,
     ConsiderationItem[] storage collateral
   ) internal returns (LoanManager.Loan memory) {
-    bool isTrusted = loanData.isTrusted;
+    bool isTrusted = loanData.caveats.length == 0;
     {
       MerkleOriginator.Details memory details = abi.decode(
         loanData.details,
@@ -286,15 +286,13 @@ contract StarPortTest is BaseOrderTest {
       });
       return
         _executeNLR(
-          loan,
           LoanManager.Obligation({
-            isTrusted: isTrusted,
             custodian: address(loanData.custodian),
             borrower: borrower.addr,
             debt: debt,
             details: loanData.details,
             signature: abi.encodePacked(r, s, v),
-            hash: keccak256(abi.encode(loan)),
+            caveats: loanData.caveats,
             originator: address(originator)
           }),
           collateral // for building contract offer
@@ -329,7 +327,9 @@ contract StarPortTest is BaseOrderTest {
       start: uint256(0)
     });
 
-    bytes32 loanTemplateHash = keccak256(abi.encode(loan));
+    //    bytes32 loanTemplateHash = keccak256(
+    //      abi.encode(new LoanManager.Caveat[](0))
+    //    );
     //sign loan hash with borrower key
     //    (uint8 v, bytes32 r, bytes32 s) = vm.sign(borrower.key, loanTemplateHash);
 
@@ -339,13 +339,12 @@ contract StarPortTest is BaseOrderTest {
       thingToBuy,
       loan,
       LoanManager.Obligation({
-        isTrusted: false,
         custodian: address(loanData.custodian),
         borrower: borrower.addr,
         debt: debt,
         details: loanData.details,
         signature: abi.encodePacked(r, s, v),
-        hash: loanTemplateHash,
+        caveats: loanData.caveats,
         originator: address(originator)
       }),
       collateral // for building contract offer
@@ -468,7 +467,7 @@ contract StarPortTest is BaseOrderTest {
     offer[0] = OfferItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(nlr.hash),
+      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
       startAmount: 1,
       endAmount: 1
     });
@@ -499,7 +498,7 @@ contract StarPortTest is BaseOrderTest {
     zConsider[0] = ConsiderationItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(nlr.hash),
+      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
       startAmount: 1,
       endAmount: 1,
       recipient: payable(address(loanAsk.borrower))
@@ -617,7 +616,7 @@ contract StarPortTest is BaseOrderTest {
   }
 
   function _executeNLR(
-    LoanManager.Loan memory ask,
+    //    LoanManager.Caveat[] memory caveats,
     LoanManager.Obligation memory nlr,
     ConsiderationItem[] memory collateral
   ) internal returns (LoanManager.Loan memory loan) {
@@ -625,7 +624,7 @@ contract StarPortTest is BaseOrderTest {
     offer[0] = OfferItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(keccak256(abi.encode(ask))),
+      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
       startAmount: 1,
       endAmount: 1
     });
@@ -644,7 +643,7 @@ contract StarPortTest is BaseOrderTest {
     }
     OrderParameters memory op = _buildContractOrder(
       address(LM),
-      nlr.isTrusted ? new OfferItem[](0) : offer,
+      nlr.caveats.length == 0 ? new OfferItem[](0) : offer,
       collateral
     );
 
@@ -667,7 +666,6 @@ contract StarPortTest is BaseOrderTest {
     });
     Vm.Log[] memory logs = vm.getRecordedLogs();
     uint256 loanId;
-    //if trusted and to a pool we have another txn so the first debt.length + 1 needs to be undone
 
     //    console.logBytes32(logs[logs.length - 4].topics[0]);
     bytes32 lienOpenTopic = bytes32(
@@ -679,19 +677,6 @@ contract StarPortTest is BaseOrderTest {
         break;
       }
     }
-
-    //    (loanId, loan) = abi.decode(
-    //      logs[
-    //        nlr.isTrusted ? debt.length : debt.length == 1
-    //          ? debt.length + 1
-    //          : debt.length * 2 + 1
-    //      ].data,
-    //      (uint256, LoanManager.Loan)
-    //    );
-    //TODO:
-    //nlr.isTrusted ? debt.length + 1 : debt.length == 1
-    //          ? debt.length + 1
-    //          : debt.length * 2 + 1
 
     uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
 

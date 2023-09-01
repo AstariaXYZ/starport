@@ -40,6 +40,7 @@ import {
 import {Custodian} from "src/Custodian.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
 contract LoanManager is ERC721, ContractOffererInterface {
   using FixedPointMathLib for uint256;
@@ -53,6 +54,10 @@ contract LoanManager is ERC721, ContractOffererInterface {
   bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
   //  uint256 public fee;
   //  uint256 private constant ONE_WORD = 0x20;
+
+  mapping(bytes32 => bool) public usedHashes;
+  mapping(address => mapping(address => uint256))
+    public borrowerCollateralNonces;
 
   enum FieldFlags {
     INITIALIZED,
@@ -80,13 +85,17 @@ contract LoanManager is ERC721, ContractOffererInterface {
     Terms terms; //the actionable terms of the loan
   }
 
+  struct Caveat {
+    address enforcer;
+    bytes terms;
+  }
+
   struct Obligation {
     address custodian;
     address originator;
     address borrower;
-    bool isTrusted;
     SpentItem[] debt;
-    bytes32 hash;
+    Caveat[] caveats;
     bytes details; //merkle details here
     bytes signature;
   }
@@ -288,8 +297,12 @@ contract LoanManager is ERC721, ContractOffererInterface {
   ) internal returns (SpentItem[] memory offer) {
     address receiver = obligation.borrower;
     //TODO: add a condiational that if obligation.originator is address(0) we must be untrusted
-    bool isTrustedExecution = fulfiller == receiver && obligation.isTrusted;
-    receiver = isTrustedExecution ? obligation.borrower : address(this);
+    bool enforceCaveats = fulfiller != receiver ||
+      obligation.caveats.length > 0;
+    if (enforceCaveats) {
+      receiver = address(this);
+    }
+    console.log(obligation.caveats.length);
     Originator.Response memory response = Originator(obligation.originator)
       .execute(
         Originator.Request({
@@ -302,28 +315,38 @@ contract LoanManager is ERC721, ContractOffererInterface {
         })
       );
     Loan memory loan = Loan({
-      start: uint256(0),
-      issuer: address(0),
+      start: block.timestamp,
+      issuer: response.issuer,
       custodian: obligation.custodian,
       borrower: obligation.borrower,
-      originator: !isTrustedExecution ? address(0) : obligation.originator,
+      originator: obligation.originator,
       collateral: maximumSpentFromBorrower,
       debt: obligation.debt,
       terms: response.terms
     });
     // we settle via seaport channels if a match is happening
-    if (!isTrustedExecution) {
-      bytes32 loanHash = keccak256(abi.encode(loan));
-      if (loanHash != obligation.hash) {
-        revert InvalidOrigination();
+    if (enforceCaveats) {
+      //loop caveats
+      bytes32 caveatHash = keccak256(abi.encode(obligation.caveats));
+      //prevent replay on the hash
+      usedHashes[caveatHash] = true;
+      uint256 i = 0;
+      for (; i < obligation.caveats.length; ) {
+        if (
+          !CaveatEnforcer(obligation.caveats[i].enforcer).enforceCaveat(
+            obligation.caveats[i].terms,
+            loan
+          )
+        ) {
+          revert InvalidOrigination();
+        }
+        unchecked {
+          ++i;
+        }
       }
-
-      offer = _setOffer(loan.debt, loanHash);
+      offer = _setOffer(loan.debt, caveatHash);
     }
 
-    loan.start = block.timestamp;
-    loan.originator = obligation.originator;
-    loan.issuer = response.issuer;
     _issueLoanManager(loan, response.mint);
   }
 
@@ -438,12 +461,6 @@ contract LoanManager is ERC721, ContractOffererInterface {
     bytes32[] calldata orderHashes,
     uint256 contractNonce
   ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
-    //function custody(
-    //    ReceivedItem[] calldata consideration,
-    //    bytes32[] calldata orderHashes,
-    //    uint256 contractNonce,
-    //    bytes calldata context
-    //  ) external override returns (bytes4 selector)
     _callCustody(consideration, orderHashes, contractNonce, context);
     ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
   }
