@@ -55,9 +55,20 @@ contract LoanManager is ERC721, ContractOffererInterface {
   //  uint256 public fee;
   //  uint256 private constant ONE_WORD = 0x20;
 
+  // Define the EIP712 domain and typehash constants for generating signatures
+  bytes32 constant EIP_DOMAIN =
+    keccak256(
+      "EIP712Domain(string version,uint256 chainId,address verifyingContract)"
+    );
+  bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
+    keccak256("IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)");
+  bytes32 constant VERSION = keccak256("0");
+
+  bytes32 internal immutable _DOMAIN_SEPARATOR;
+
+  //TODO: we need toadd in type hashes into the hashes
   mapping(bytes32 => bool) public usedHashes;
-  mapping(address => mapping(address => uint256))
-    public borrowerCollateralNonces;
+  mapping(address => uint256) public borrowerNonce; //needs to be invalidated
 
   enum FieldFlags {
     INITIALIZED,
@@ -94,9 +105,10 @@ contract LoanManager is ERC721, ContractOffererInterface {
     address custodian;
     address originator;
     address borrower;
+    bytes32 salt;
     SpentItem[] debt;
     Caveat[] caveats;
-    bytes details; //merkle details here
+    bytes details;
     bytes signature;
   }
 
@@ -141,10 +153,33 @@ contract LoanManager is ERC721, ContractOffererInterface {
     }
     defaultCustodian = custodian;
     DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
+    _DOMAIN_SEPARATOR = keccak256(
+      abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this))
+    );
     emit SeaportCompatibleContractDeployed();
   }
 
-  event log(bytes32);
+  // Encode the data with the account's nonce for generating a signature
+  function encodeWithSaltAndBorrowerCounter(
+    address borrower,
+    bytes32 salt,
+    bytes32 caveatHash
+  ) public view virtual returns (bytes memory) {
+    return
+      abi.encodePacked(
+        bytes1(0x19),
+        bytes1(0x01),
+        _DOMAIN_SEPARATOR,
+        keccak256(
+          abi.encode(
+            INTENT_ORIGINATION_TYPEHASH,
+            salt,
+            borrowerNonce[borrower],
+            caveatHash
+          )
+        )
+      );
+  }
 
   function name() public pure override returns (string memory) {
     return "Astaria Loan Manager";
@@ -296,13 +331,11 @@ contract LoanManager is ERC721, ContractOffererInterface {
     SpentItem[] calldata maximumSpentFromBorrower
   ) internal returns (SpentItem[] memory offer) {
     address receiver = obligation.borrower;
-    //TODO: add a condiational that if obligation.originator is address(0) we must be untrusted
     bool enforceCaveats = fulfiller != receiver ||
       obligation.caveats.length > 0;
     if (enforceCaveats) {
       receiver = address(this);
     }
-    console.log(obligation.caveats.length);
     Originator.Response memory response = Originator(obligation.originator)
       .execute(
         Originator.Request({
@@ -324,10 +357,15 @@ contract LoanManager is ERC721, ContractOffererInterface {
       debt: obligation.debt,
       terms: response.terms
     });
-    // we settle via seaport channels if a match is happening
+    // we settle via seaport channels if caveats are present
     if (enforceCaveats) {
-      //loop caveats
-      bytes32 caveatHash = keccak256(abi.encode(obligation.caveats));
+      bytes32 caveatHash = keccak256(
+        encodeWithSaltAndBorrowerCounter(
+          obligation.borrower,
+          obligation.salt,
+          keccak256(abi.encode(obligation.caveats))
+        )
+      );
       //prevent replay on the hash
       usedHashes[caveatHash] = true;
       uint256 i = 0;
@@ -417,13 +455,13 @@ contract LoanManager is ERC721, ContractOffererInterface {
 
   function _setOffer(
     SpentItem[] memory debt,
-    bytes32 loanHash
+    bytes32 caveatHash
   ) internal returns (SpentItem[] memory offer) {
     offer = new SpentItem[](debt.length + 1);
     offer[0] = SpentItem({
       itemType: ItemType.ERC721,
       token: address(this),
-      identifier: uint256(loanHash),
+      identifier: uint256(caveatHash),
       amount: 1
     });
     uint256 i = 0;

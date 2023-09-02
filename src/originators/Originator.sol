@@ -144,6 +144,10 @@ abstract contract Originator {
     bytes calldata
   ) external view virtual returns (LoanManager.Terms memory);
 
+  //  function isValidRefinance(
+  //    LoanManager.Obligation
+  //  ) external virtual returns (Response memory);
+
   // Abstract function to execute the loan, to be overridden in child contracts
   function execute(Request calldata) external virtual returns (Response memory);
 

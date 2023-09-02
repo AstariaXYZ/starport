@@ -226,6 +226,9 @@ contract TestNewLoan is StarPortTest {
       recipient: payable(seller.addr)
     });
 
+    //order 1, which lets is the selller, they have something that we can borrower againt (ERC721)
+    //order 2 which is the
+
     OfferItem[] memory sellingNFT = new OfferItem[](1);
     sellingNFT[0] = OfferItem({
       identifierOrCriteria: 1,
@@ -303,6 +306,7 @@ contract TestNewLoan is StarPortTest {
       collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
       debt: debt
     });
+
     TermEnforcer TE = new TermEnforcer();
 
     TermEnforcer.Details memory TEDetails = TermEnforcer.Details({

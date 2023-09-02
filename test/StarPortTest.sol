@@ -242,6 +242,7 @@ contract StarPortTest is BaseOrderTest {
             custodian: address(loanData.custodian),
             borrower: borrower.addr,
             debt: debt,
+            salt: bytes32(0),
             details: loanData.details,
             signature: abi.encodePacked(r, s, v),
             caveats: loanData.caveats,
@@ -290,6 +291,7 @@ contract StarPortTest is BaseOrderTest {
             custodian: address(loanData.custodian),
             borrower: borrower.addr,
             debt: debt,
+            salt: bytes32(0),
             details: loanData.details,
             signature: abi.encodePacked(r, s, v),
             caveats: loanData.caveats,
@@ -327,22 +329,14 @@ contract StarPortTest is BaseOrderTest {
       start: uint256(0)
     });
 
-    //    bytes32 loanTemplateHash = keccak256(
-    //      abi.encode(new LoanManager.Caveat[](0))
-    //    );
-    //sign loan hash with borrower key
-    //    (uint8 v, bytes32 r, bytes32 s) = vm.sign(borrower.key, loanTemplateHash);
-
-    // Note: TODO: if the borrower is the fulfiller we dont need to add the loan hash template into the order only when not the filler,
-
     _buyNowPLNLR(
       thingToBuy,
-      loan,
       LoanManager.Obligation({
         custodian: address(loanData.custodian),
         borrower: borrower.addr,
         debt: debt,
         details: loanData.details,
+        salt: bytes32(0),
         signature: abi.encodePacked(r, s, v),
         caveats: loanData.caveats,
         originator: address(originator)
@@ -457,17 +451,24 @@ contract StarPortTest is BaseOrderTest {
 
   function _buyNowPLNLR(
     AdvancedOrder memory x,
-    LoanManager.Loan memory loanAsk,
+    //    LoanManager.Loan memory loanAsk,
     LoanManager.Obligation memory nlr,
     ConsiderationItem[] memory collateral // collateral (nft) and weth (purchase price is incoming weth plus debt)
   ) internal returns (LoanManager.Loan memory loan) {
     //use murky to create a tree that is good
 
+    bytes32 caveatHash = keccak256(
+      LM.encodeWithSaltAndBorrowerCounter(
+        nlr.borrower,
+        nlr.salt,
+        keccak256(abi.encode(nlr.caveats))
+      )
+    );
     OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
     offer[0] = OfferItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
+      identifierOrCriteria: uint256(caveatHash),
       startAmount: 1,
       endAmount: 1
     });
@@ -498,13 +499,13 @@ contract StarPortTest is BaseOrderTest {
     zConsider[0] = ConsiderationItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
+      identifierOrCriteria: uint256(caveatHash),
       startAmount: 1,
       endAmount: 1,
-      recipient: payable(address(loanAsk.borrower))
+      recipient: payable(address(nlr.borrower))
     });
     OrderParameters memory zOP = OrderParameters({
-      offerer: address(loanAsk.borrower),
+      offerer: address(nlr.borrower),
       zone: address(0),
       offer: zOffer,
       consideration: zConsider,
@@ -607,7 +608,7 @@ contract StarPortTest is BaseOrderTest {
       (uint256, LoanManager.Loan)
     );
 
-    assertEq(erc721s[1].ownerOf(1), address(loanAsk.custodian));
+    assertEq(erc721s[1].ownerOf(1), address(nlr.custodian));
     assertEq(
       erc20s[0].balanceOf(seller.addr),
       balanceBefore + x.parameters.consideration[0].startAmount
@@ -616,15 +617,21 @@ contract StarPortTest is BaseOrderTest {
   }
 
   function _executeNLR(
-    //    LoanManager.Caveat[] memory caveats,
     LoanManager.Obligation memory nlr,
     ConsiderationItem[] memory collateral
   ) internal returns (LoanManager.Loan memory loan) {
+    bytes32 caveatHash = keccak256(
+      LM.encodeWithSaltAndBorrowerCounter(
+        nlr.borrower,
+        nlr.salt,
+        keccak256(abi.encode(nlr.caveats))
+      )
+    );
     OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
     offer[0] = OfferItem({
       itemType: ItemType.ERC721,
       token: address(LM),
-      identifierOrCriteria: uint256(keccak256(abi.encode(nlr.caveats))),
+      identifierOrCriteria: uint256(caveatHash),
       startAmount: 1,
       endAmount: 1
     });
