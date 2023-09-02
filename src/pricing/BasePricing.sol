@@ -152,8 +152,8 @@ abstract contract BasePricing is Pricing {
     LoanManager.Loan memory loan,
     bytes memory newPricingData
   )
-    external
-    view
+    public
+    virtual
     override
     returns (ReceivedItem[] memory, ReceivedItem[] memory)
   {

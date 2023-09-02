@@ -6,7 +6,7 @@ import {LoanManager} from "src/LoanManager.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 
 contract SimpleInterestPricing is BasePricing {
-    using FixedPointMathLib for uint256;
+  using FixedPointMathLib for uint256;
 
   constructor(LoanManager LM_) Pricing(LM_) {}
   function getInterest(
