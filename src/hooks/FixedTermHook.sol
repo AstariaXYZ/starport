@@ -12,4 +12,8 @@ contract FixedTermHook is SettlementHook {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
         return loan.start + details.loanDuration > block.timestamp;
     }
+
+    function isRecalled(LoanManager.Loan calldata loan) external view override returns (bool) {
+        return false;
+    }
 }

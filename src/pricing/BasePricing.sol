@@ -7,14 +7,16 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console.sol";
 
-contract FixedTermPricing is Pricing {
-  using FixedPointMathLib for uint256;
+import {SettlementHook} from "src/hooks/SettlementHook.sol";
 
-  constructor(LoanManager LM_) Pricing(LM_) {}
+
+abstract contract BasePricing is Pricing {
+  using FixedPointMathLib for uint256;
 
   struct Details {
     uint256 rate;
     uint256 carryRate;
+    uint256 rateMax;
   }
 
   function getPaymentConsideration(
@@ -91,9 +93,14 @@ contract FixedTermPricing is Pricing {
     uint256 index
   ) internal view returns (uint256) {
     uint256 delta_t = timestamp - loan.start;
-
-    return (delta_t * details.rate).mulWad(loan.debt[index].amount);
+    return getInterest(delta_t, details.rate, loan.debt[index].amount);
   }
+
+  function getInterest(
+    uint256 delta_t,
+    uint256 amount,
+    uint256 rate // expressed as SPR seconds per rate
+  ) public pure virtual returns (uint256);
 
   function _generateRepayConsideration(
     LoanManager.Loan memory loan
@@ -152,12 +159,12 @@ contract FixedTermPricing is Pricing {
   {
     Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
     Details memory newDetails = abi.decode(newPricingData, (Details));
-    bool active = SettlementHook(loan.terms.hook).isActive(loan);
+    bool active = SettlementHook(loan.terms.hook).isRecalled(loan);
 
     //todo: figure out the proper flow for here
     if (
-      (active && newDetails.rate >= oldDetails.rate) ||
-      (!active && newDetails.rate <= oldDetails.rate)
+      (active && newDetails.rate > oldDetails.rateMax) ||
+      (!active && newDetails.rate >= oldDetails.rate)
     ) {
       revert InvalidRefinance();
     }

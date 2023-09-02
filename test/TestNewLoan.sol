@@ -125,9 +125,10 @@ contract TestNewLoan is StarPortTest {
     LM.refinance(
       loan,
       abi.encode(
-        FixedTermPricing.Details({
+        BasePricing.Details({
           rate: (uint256(1e16) * 100) / (365 * 1 days),
-          carryRate: 0
+          carryRate: 0,
+          rateMax: (uint256(1e16) * 1000) / (365 * 1 days)
         })
       ),
       refinancerConduit

@@ -237,8 +237,11 @@ contract LoanManager is ERC721, ContractOffererInterface {
     _settle(loan);
   }
 
+  function getTokenIdFromLoan(Loan memory loan) public pure returns (uint256) {
+    return uint256(keccak256(abi.encode(loan)));
+  }
   function _settle(Loan memory loan) internal {
-    uint256 tokenId = uint256(keccak256(abi.encode(loan)));
+    uint256 tokenId = getTokenIdFromLoan(loan);
     if (!_issued(tokenId)) {
       revert InvalidLoan(tokenId);
     }

@@ -7,7 +7,7 @@ import {
   SettlementHandler
 } from "src/handlers/SettlementHandler.sol";
 
-contract LenderRestrictedHandler is SettlementHandler {
+contract AstariaV1SettlementHandler is SettlementHandler {
   constructor(LoanManager LM_) SettlementHandler(LM_) {}
 
   function getSettlement(
@@ -21,7 +21,7 @@ contract LenderRestrictedHandler is SettlementHandler {
   {
     return (
       new ReceivedItem[](0),
-      LM.ownerOf(uint256(keccak256(abi.encode(loan))))
+      LM.getIssuer(loan)
     );
   }
 

@@ -6,4 +6,8 @@ abstract contract SettlementHook {
   function isActive(
     LoanManager.Loan calldata loan
   ) external view virtual returns (bool);
+
+  function isRecalled(
+    LoanManager.Loan calldata loan
+  ) external virtual view returns (bool);
 }

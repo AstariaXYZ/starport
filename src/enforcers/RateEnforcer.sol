@@ -1,7 +1,7 @@
 pragma solidity =0.8.17;
 
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
-import {FixedTermPricing} from "src/pricing/FixedTermPricing.sol";
+import {BasePricing} from "src/pricing/BasePricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
 
 contract FixedRateEnforcer is CaveatEnforcer {
@@ -17,9 +17,9 @@ contract FixedRateEnforcer is CaveatEnforcer {
     //lower and upper bounds
     Details memory caveatDetails = abi.decode(caveatTerms, (Details));
 
-    FixedTermPricing.Details memory details = abi.decode(
+    BasePricing.Details memory details = abi.decode(
       loan.terms.pricingData,
-      (FixedTermPricing.Details)
+      (BasePricing.Details)
     );
     return (caveatDetails.maxRate > details.rate &&
       caveatDetails.maxCarryRate > details.carryRate);
