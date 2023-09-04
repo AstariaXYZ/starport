@@ -9,7 +9,7 @@ contract TestStorage {
     }
   }
 
-  function hashLoans() public returns (bytes32) {
+  function hashLoans() public view returns (bytes32) {
     return keccak256(abi.encode(loans));
   }
 }

@@ -42,7 +42,9 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
-contract LoanManager is ERC721, ContractOffererInterface {
+import {ConduitHelper} from "src/ConduitHelper.sol";
+
+contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   using FixedPointMathLib for uint256;
   using {StarPortLib.toReceivedItems} for SpentItem[];
 
@@ -535,39 +537,86 @@ contract LoanManager is ERC721, ContractOffererInterface {
       revert InvalidConduit();
     }
     (
+      // used to update the new loan amount
       ReceivedItem[] memory considerationPayment,
-      ReceivedItem[] memory carryPayment
+      // used to pay the carry amount
+      ReceivedItem[] memory carryPayment,
+      // note: considerationPayment - carryPayment = amount to pay lender
+
+      // used to pay the lender from the recall amount
+      ReceivedItem[] memory recallPayment
     ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
 
-    if (
-      loan.debt.length != considerationPayment.length &&
-      carryPayment.length <= considerationPayment.length
-    ) {
-      revert InvalidRefinance();
-    }
+    // if (
+    //   loan.debt.length != considerationPayment.length &&
+    //   carryPayment.length <= considerationPayment.length
+    // ) {
+    //   revert InvalidRefinance();
+    // }
+
+
 
     ReceivedItem[] memory refinanceConsideration = new ReceivedItem[](
-      considerationPayment.length + carryPayment.length
+      considerationPayment.length + carryPayment.length + recallPayment.length
     );
 
+    // 99% of the cases here are array size 1, don't kill me pls
     //todo: give to greg to optimize
-    uint256 i = 0;
-    for (; i < considerationPayment.length; ) {
-      refinanceConsideration[i] = considerationPayment[i];
-      unchecked {
-        ++i;
-      }
-    }
     uint256 j = 0;
-    for (; j < carryPayment.length; ) {
-      refinanceConsideration[i] = carryPayment[j];
-      unchecked {
-        ++i;
-        j++;
+    // if there is a carry to handle, subtract it from the amount owed
+    if(carryPayment.length > 0){
+      if(considerationPayment.length != carryPayment.length) revert InvalidRefinance();
+      uint256 i = 0;
+      for (; i < considerationPayment.length; ) {
+        considerationPayment[i].amount -= carryPayment[i].amount;
+        refinanceConsideration[j] = considerationPayment[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
+      }
+      i = 0;
+      for (; i < carryPayment.length; ) {
+        refinanceConsideration[j] = carryPayment[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
       }
     }
+    // else just use the consideration payment only
+    else {
+      uint256 i = 0;
+      for (; i < considerationPayment.length; ) {
+        refinanceConsideration[j] = considerationPayment[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
+      }
+    }
+
+    if(recallPayment.length > 0){
+      uint256 i = 0;
+      for (; i < recallPayment.length; ) {
+        if(refinanceConsideration[i].recipient == recallPayment[i].recipient && refinanceConsideration[i].token == recallPayment[i].token){
+          refinanceConsideration[i].amount += recallPayment[i].amount;
+          unchecked {
+            ++i;
+          }
+        }
+        else {
+          refinanceConsideration[j] = recallPayment[i];
+          unchecked {
+            ++i;
+            ++j;
+          }
+        }
+      }
+    }
+
     _settle(loan);
-    i = 0;
+    uint256 i = 0;
     for (; i < loan.debt.length; ) {
       loan.debt[i].amount = considerationPayment[i].amount;
       unchecked {
@@ -587,45 +636,5 @@ contract LoanManager is ERC721, ContractOffererInterface {
     loan.issuer = msg.sender;
     loan.start = block.timestamp;
     _issueLoanManager(loan, msg.sender.code.length > 0);
-  }
-
-  function _packageTransfers(
-    ReceivedItem[] memory refinanceConsideration,
-    address refinancer
-  ) internal pure returns (ConduitTransfer[] memory transfers) {
-    uint256 i = 0;
-    transfers = new ConduitTransfer[](refinanceConsideration.length);
-    for (; i < refinanceConsideration.length; ) {
-      ConduitItemType itemType;
-      ReceivedItem memory debt = refinanceConsideration[i];
-
-      assembly {
-        itemType := mload(debt)
-        switch itemType
-        case 1 {
-
-        }
-        case 2 {
-
-        }
-        case 3 {
-
-        }
-        default {
-          revert(0, 0)
-        } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
-      }
-      transfers[i] = ConduitTransfer({
-        itemType: itemType,
-        from: refinancer,
-        token: refinanceConsideration[i].token,
-        identifier: refinanceConsideration[i].identifier,
-        amount: refinanceConsideration[i].amount,
-        to: refinanceConsideration[i].recipient
-      });
-      unchecked {
-        ++i;
-      }
-    }
   }
 }

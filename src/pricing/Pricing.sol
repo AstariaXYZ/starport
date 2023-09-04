@@ -21,7 +21,8 @@ abstract contract Pricing {
     LoanManager.Loan memory loan,
     bytes memory newPricingData
   )
-    public
+    external
+    view
     virtual
-    returns (ReceivedItem[] memory, ReceivedItem[] memory);
+    returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory);
 }

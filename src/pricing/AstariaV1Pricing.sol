@@ -4,85 +4,35 @@ import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {BasePricing} from "src/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 contract AstariaV1Pricing is CompoundInterestPricing {
-  struct Sponsorship {
-    uint256 frequency;
-    uint256 maxRate;
-    bool onRecall;
-    bool isAllowed;
-  }
-  mapping(address => uint256) public deposits;
-  event Deposit(address indexed depositor, uint256 amount);
-  event Withdraw(address indexed withdrawer, address indexed sponsor, uint256 amount);
+  using FixedPointMathLib for uint256;
   constructor(LoanManager LM_) Pricing(LM_) {}
 
-  // ensures the sponsored gas constrainsts are met before invoking super
   function isValidRefinance(
     LoanManager.Loan memory loan,
     bytes memory newPricingData
   )
-    public
+    external
+    view
+    virtual
     override
-    returns (ReceivedItem[] memory, ReceivedItem[] memory)
+    returns (ReceivedItem[] memory recallConsideration, ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration)
   {
-    Sponsorship memory oldSponsorship;
-    BasePricing.Details memory oldDetails;
-    (oldSponsorship, oldDetails) = abi.decode(loan.terms.pricingData, (Sponsorship, BasePricing.Details));
-
-
-    Sponsorship memory newSponsorship;
-    BasePricing.Details memory newDetails;
-    (newSponsorship, newDetails) = abi.decode(newPricingData, (Sponsorship, BasePricing.Details));
-      
-    if(oldSponsorship.isAllowed && 
-      // ensure the loan refinance is within the frequency
-      ((loan.start + oldSponsorship.frequency < block.timestamp) ||
-      // ensure that the maxRate condition is met (if the rate exceeds an upper bound)
-      // and
-      // ensures that the new rate is below the maxRate value
-      (oldDetails.rate > oldSponsorship.maxRate && newDetails.rate <= oldSponsorship.maxRate) ||
-      // ensures that the loan is being recalled 
-      (SettlementHook(loan.terms.hook).isRecalled(loan) && oldSponsorship.onRecall))){
-        _refundGas(loan.borrower);
+    // check if a recall is occuring
+    AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);
+    Details memory newDetails = abi.decode(newPricingData, (Details));
+    if(hook.isRecalled(loan)){
+      uint256 rate = hook.getRecallRate(loan);
+      if(newDetails.rate > rate) revert InvalidRefinance();
     }
-    if(oldSponsorship.frequency != newSponsorship.frequency ||
-      oldSponsorship.maxRate != newSponsorship.maxRate ||
-      oldSponsorship.onRecall != newSponsorship.onRecall ||
-      oldSponsorship.isAllowed != newSponsorship.isAllowed){
-      revert("sponsorship mismatch");
-    }
-    super.isValidRefinance(loan, abi.encode(newDetails));
-  }
+    else revert InvalidRefinance();
+    Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
+    uint256 proportion = newDetails.rate > oldDetails.rate ? 0 : 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
 
-  function _refundGas(address sponsor) internal {
-
-      uint256 balance = deposits[sponsor];
-      require(balance > 0, "Balance must be greater than 0");
-
-      // Calculate the gas fees (gas used * gas price)
-      uint256 gasFees = (gasleft() * tx.gasprice) * 3;
-      uint256 amount = balance < gasFees ? balance : gasFees;
-      require(amount > 0, "Amount must be greater than 0");
-
-      // Update the balance
-      deposits[sponsor] -= amount;
-
-      // Transfer the funds
-      payable(tx.origin).transfer(amount);
-
-      // Emit the withdraw event
-      emit Withdraw(tx.origin, sponsor, amount);
-  }
-
-  function deposit() public payable {
-      require(msg.value > 0, "Amount must be greater than 0");
-      
-      // Record the deposit
-      deposits[msg.sender] += msg.value;
-
-      // Emit the deposit event
-      emit Deposit(msg.sender, msg.value);
+    recallConsideration = (proportion == 0) ? new ReceivedItem[](0) : hook.generateRecallConsideration(loan, proportion, payable(loan.issuer));
+    (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
   }
 }
 

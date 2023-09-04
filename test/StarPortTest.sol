@@ -78,8 +78,7 @@ contract StarPortTest is BaseOrderTest {
     abi.encode(
       BasePricing.Details({
         carryRate: (uint256(1e16) * 10),
-        rate: (uint256(1e16) * 150) / (365 * 1 days),
-        rateMax: (uint256(1e16) * 1000) / (365 * 1 days)
+        rate: (uint256(1e16) * 150) / (365 * 1 days)
       })
     );
 
