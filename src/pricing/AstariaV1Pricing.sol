@@ -18,7 +18,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
     view
     virtual
     override
-    returns (ReceivedItem[] memory recallConsideration, ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration)
+    returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration)
   {
     // check if a recall is occuring
     AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);

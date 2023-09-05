@@ -9,7 +9,7 @@ contract SimpleInterestPricing is BasePricing {
   using FixedPointMathLib for uint256;
 
   constructor(LoanManager LM_) Pricing(LM_) {}
-  function getInterest(
+  function calculateInterest(
     uint256 delta_t,
     uint256 amount,
     uint256 rate // expressed as SPR seconds per rate

@@ -24,8 +24,9 @@ import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
 import "forge-std/console.sol";
+import {ConduitHelper} from "src/ConduitHelper.sol";
 
-contract Custodian is ContractOffererInterface, TokenReceiverInterface {
+contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper {
   LoanManager public immutable LM;
   address public immutable seaport;
 
@@ -176,7 +177,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
           ++j;
         }
       }
-
+      consideration = _removeZeroAmounts(consideration);
       //if a callback is needed for the issuer do it here
       _settleLoan(loan);
     } else {

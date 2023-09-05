@@ -26,7 +26,7 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -43,6 +43,31 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
 abstract contract ConduitHelper {
+
+  function _removeZeroAmounts(ReceivedItem[] memory consideration) internal returns (ReceivedItem[] memory) {
+    uint256 i = 0;
+    uint256 validConsiderations = 0;
+    for (; i < consideration.length; ){
+      if(consideration[i].amount > 0) ++validConsiderations;
+      unchecked {
+        ++i;
+      }
+    }
+    i = 0;
+    uint256 j = 0;
+    ReceivedItem[] memory newConsideration = new ReceivedItem[](validConsiderations);
+    for (; i < consideration.length;  ){
+      if(consideration[i].amount > 0){
+        newConsideration[j] = consideration[i];
+        unchecked{
+          ++j;
+        }
+      }
+      unchecked{
+        ++i;
+      }
+    }
+  }
   function _packageTransfers(
     ReceivedItem[] memory refinanceConsideration,
     address refinancer
@@ -62,22 +87,22 @@ abstract contract ConduitHelper {
       ConduitItemType itemType;
       ReceivedItem memory debt = refinanceConsideration[i];
 
-      // assembly {
-      //   itemType := mload(debt)
-      //   switch itemType
-      //   case 1 {
+      assembly {
+        itemType := mload(debt)
+        switch itemType
+        case 1 {
 
-      //   }
-      //   case 2 {
+        }
+        case 2 {
 
-      //   }
-      //   case 3 {
+        }
+        case 3 {
 
-      //   }
-      //   default {
-      //     revert(0, 0)
-      //   } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
-      // }
+        }
+        default {
+          revert(0, 0)
+        } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
+      }
       if(refinanceConsideration[i].amount > 0){
         transfers[j] = ConduitTransfer({
           itemType: itemType,

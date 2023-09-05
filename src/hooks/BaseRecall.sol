@@ -121,7 +121,7 @@ abstract contract BaseRecall is ConduitHelper {
     uint256 i = 0;
     for (; i < loan.debt.length; ) {
       uint256 delta_t = end - start;
-      uint256 stake = BasePricing(loan.terms.pricing)._getInterest(loan, details, start, end, i);
+      uint256 stake = BasePricing(loan.terms.pricing).getInterest(loan, details, start, end, i);
       recallStake[i] = stake;
     }
   }

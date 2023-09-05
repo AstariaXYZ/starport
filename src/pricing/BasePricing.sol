@@ -5,7 +5,7 @@ import {Pricing} from "src/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 
@@ -81,7 +81,7 @@ abstract contract BasePricing is Pricing {
     uint256 i = 0;
 
     for (; i < loan.debt.length; ) {
-      uint256 carry = _getInterest(loan, details, loan.start, timestamp, i).mulWad(
+      uint256 carry = getInterest(loan, details, loan.start, timestamp, i).mulWad(
         details.carryRate
       );
       carryOwed[i] = carry;
@@ -101,11 +101,11 @@ abstract contract BasePricing is Pricing {
     for (uint256 i = 0; i < loan.debt.length; i++) {
       updatedDebt[i] =
         loan.debt[i].amount +
-        _getInterest(loan, details, start, end, i);
+        getInterest(loan, details, start, end, i);
     }
   }
 
-  function _getInterest(
+  function getInterest(
     LoanManager.Loan memory loan,
     Details memory details,
     uint256 start,
@@ -113,10 +113,10 @@ abstract contract BasePricing is Pricing {
     uint256 index
   ) public view returns (uint256) {
     uint256 delta_t = end - start;
-    return getInterest(delta_t, details.rate, loan.debt[index].amount);
+    return calculateInterest(delta_t, details.rate, loan.debt[index].amount);
   }
 
-  function getInterest(
+  function calculateInterest(
     uint256 delta_t,
     uint256 amount,
     uint256 rate // expressed as SPR seconds per rate
@@ -144,6 +144,7 @@ abstract contract BasePricing is Pricing {
         ++i;
       }
     }
+    console2.log(consideration.length);
   }
 
   function _generateRepayCarryConsideration(
@@ -176,8 +177,21 @@ abstract contract BasePricing is Pricing {
     view
     virtual
     override
-    returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory)
+    returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration)
   {
-    revert InvalidRefinance();
+    Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
+    Details memory newDetails = abi.decode(newPricingData, (Details));
+    bool isRecalled = SettlementHook(loan.terms.hook).isRecalled(loan);
+
+    //todo: figure out the proper flow for here
+    if (
+      (isRecalled && newDetails.rate >= oldDetails.rate) ||
+      (newDetails.rate < oldDetails.rate)
+    ) {
+      (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
+      recallConsideration = new ReceivedItem[](0);
+    }
+    else revert InvalidRefinance();
+
   }
 }

@@ -26,7 +26,7 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {
   ConduitTransfer,
   ConduitItemType

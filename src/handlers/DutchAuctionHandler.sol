@@ -17,9 +17,12 @@ import {
   SettlementHandler
 } from "src/handlers/SettlementHandler.sol";
 
+import {
+  ConduitHelper
+} from "src/ConduitHelper.sol";
 import "forge-std/console.sol";
 
-contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
+contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
   constructor(LoanManager LM_) SettlementHandler(LM_) {
     LM = LM_;
   }
@@ -99,6 +102,7 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
         ++j;
       }
     }
+    consideration = _removeZeroAmounts(consideration);
   }
 
   event log_received_item(ReceivedItem item);

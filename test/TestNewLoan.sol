@@ -110,8 +110,6 @@ contract TestNewLoan is StarPortTest {
     });
     bool isTrusted = true;
 
-    console.log("Refinancer", refinancer.addr);
-    console.log("Harness", address(this));
     LoanManager.Loan memory loan = newLoan(
       NewLoanData(
         address(custody),
