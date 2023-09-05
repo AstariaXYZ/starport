@@ -132,51 +132,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         ReceivedItem[] memory carryFeeConsideration
       ) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-      //      uint256 carryOverZeroCount;
-      //      uint256 payOverZeroCount;
-      uint256 i = 0;
-
-      //      for (; i < paymentConsiderations.length; ) {
-      //        if (paymentConsiderations[i].amount > 0) {
-      //          payOverZeroCount++;
-      //        }
-      //        unchecked {
-      //          ++i;
-      //        }
-      //      }
-      //
-      //      i = 0;
-      //      for (; i < carryFeeConsideration.length; ) {
-      //        if (carryFeeConsideration[i].amount > 0) {
-      //          carryOverZeroCount++;
-      //        }
-      //        unchecked {
-      //          ++i;
-      //        }
-      //      }
-
-      consideration = new ReceivedItem[](
-        paymentConsiderations.length + carryFeeConsideration.length
-      );
-
-      i = 0;
-      for (; i < paymentConsiderations.length; ) {
-        consideration[i] = paymentConsiderations[i];
-        unchecked {
-          ++i;
-        }
-      }
-      uint256 j = 0;
-      i = paymentConsiderations.length;
-      //loop fee considerations and add them to the consideration array
-      for (; j < carryFeeConsideration.length; ) {
-        if (carryFeeConsideration[j].amount > 0) {
-          consideration[i + j] = carryFeeConsideration[j];
-        }
-        unchecked {
-          ++j;
-        }
-      }
+      consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
       consideration = _removeZeroAmounts(consideration);
       //if a callback is needed for the issuer do it here
       _settleLoan(loan);

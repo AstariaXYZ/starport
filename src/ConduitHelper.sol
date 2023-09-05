@@ -43,7 +43,66 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
 abstract contract ConduitHelper {
+  error RepayCarryLengthMismatch();
+  // TODO: Greg pls help us unfuck this mess
+  function _mergeConsiderations(ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration) internal returns(ReceivedItem[] memory) {
+    if(carryConsideration.length == 0 && recallConsideration.length == 0){
+      return repayConsideration;
+    }
+    ReceivedItem[] memory consideration = new ReceivedItem[](repayConsideration.length + carryConsideration.length + recallConsideration.length);
+    uint256 j = 0;
+    // if there is a carry to handle, subtract it from the amount owed
+    if(carryConsideration.length > 0){
+      if(repayConsideration.length != carryConsideration.length) revert RepayCarryLengthMismatch();
+      uint256 i = 0;
+      for (; i < repayConsideration.length; ) {
+        repayConsideration[i].amount -= carryConsideration[i].amount;
+        consideration[j] = repayConsideration[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
+      }
+      i = 0;
+      for (; i < carryConsideration.length; ) {
+        consideration[j] = carryConsideration[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
+      }
+    }
+    // else just use the consideration payment only
+    else {
+      uint256 i = 0;
+      for (; i < repayConsideration.length; ) {
+        consideration[j] = repayConsideration[i];
+        unchecked {
+          ++i;
+          ++j;
+        }
+      }
+    }
 
+    if(recallConsideration.length > 0){
+      uint256 i = 0;
+      for (; i < recallConsideration.length; ) {
+        if(consideration[i].recipient == recallConsideration[i].recipient && consideration[i].token == recallConsideration[i].token){
+          consideration[i].amount += recallConsideration[i].amount;
+          unchecked {
+            ++i;
+          }
+        }
+        else {
+          consideration[j] = recallConsideration[i];
+          unchecked {
+            ++i;
+            ++j;
+          }
+        }
+      }
+    }
+  }
   function _removeZeroAmounts(ReceivedItem[] memory consideration) internal returns (ReceivedItem[] memory) {
     uint256 i = 0;
     uint256 validConsiderations = 0;

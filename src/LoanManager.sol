@@ -547,73 +547,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
       ReceivedItem[] memory recallPayment
     ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
 
-    // if (
-    //   loan.debt.length != considerationPayment.length &&
-    //   carryPayment.length <= considerationPayment.length
-    // ) {
-    //   revert InvalidRefinance();
-    // }
-
-
-
-    ReceivedItem[] memory refinanceConsideration = new ReceivedItem[](
-      considerationPayment.length + carryPayment.length + recallPayment.length
-    );
-
-    // 99% of the cases here are array size 1, don't kill me pls
-    //todo: give to greg to optimize
-    uint256 j = 0;
-    // if there is a carry to handle, subtract it from the amount owed
-    if(carryPayment.length > 0){
-      if(considerationPayment.length != carryPayment.length) revert InvalidRefinance();
-      uint256 i = 0;
-      for (; i < considerationPayment.length; ) {
-        considerationPayment[i].amount -= carryPayment[i].amount;
-        refinanceConsideration[j] = considerationPayment[i];
-        unchecked {
-          ++i;
-          ++j;
-        }
-      }
-      i = 0;
-      for (; i < carryPayment.length; ) {
-        refinanceConsideration[j] = carryPayment[i];
-        unchecked {
-          ++i;
-          ++j;
-        }
-      }
-    }
-    // else just use the consideration payment only
-    else {
-      uint256 i = 0;
-      for (; i < considerationPayment.length; ) {
-        refinanceConsideration[j] = considerationPayment[i];
-        unchecked {
-          ++i;
-          ++j;
-        }
-      }
-    }
-
-    if(recallPayment.length > 0){
-      uint256 i = 0;
-      for (; i < recallPayment.length; ) {
-        if(refinanceConsideration[i].recipient == recallPayment[i].recipient && refinanceConsideration[i].token == recallPayment[i].token){
-          refinanceConsideration[i].amount += recallPayment[i].amount;
-          unchecked {
-            ++i;
-          }
-        }
-        else {
-          refinanceConsideration[j] = recallPayment[i];
-          unchecked {
-            ++i;
-            ++j;
-          }
-        }
-      }
-    }
+    ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(considerationPayment, carryPayment, recallPayment);
 
     _settle(loan);
     uint256 i = 0;
