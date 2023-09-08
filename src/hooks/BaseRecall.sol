@@ -37,7 +37,7 @@ abstract contract BaseRecall is ConduitHelper {
 
   ConsiderationInterface public constant seaport =
   ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
-  mapping(uint256 => Recall) recalls;
+  mapping(uint256 => Recall) public recalls;
   struct Details {
       // period at the begininng of a loan in which the loan cannot be recalled
       uint256 honeymoon;
@@ -50,15 +50,15 @@ abstract contract BaseRecall is ConduitHelper {
   }
 
   struct Recall {
-    address recaller;
+    address payable recaller;
     uint64 start;
   }
 
   function getRecallRate(LoanManager.Loan calldata loan) view external returns (uint256) {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
-    uint256 tokenId = LM.getTokenIdFromLoan(loan);
+    uint256 loanId = LM.getTokenIdFromLoan(loan);
     // calculates the porportion of time elapsed, then multiplies times the max rate
-    return details.recallMax.mulWad((block.timestamp - recalls[tokenId].start).divWad(details.recallWindow)); 
+    return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow)); 
   }
 
   function recall(LoanManager.Loan calldata loan, address conduit) external {
@@ -89,7 +89,7 @@ abstract contract BaseRecall is ConduitHelper {
     
     uint256 tokenId = LM.getTokenIdFromLoan(loan);
     if(LM.ownerOf(tokenId) == address(0)) revert LoanDoesNotExist();
-    recalls[tokenId] = Recall(msg.sender, uint64(block.timestamp));
+    recalls[tokenId] = Recall(payable(msg.sender), uint64(block.timestamp));
   }
 
   // transfers all stake to anyone who asks after the LM token is burned
@@ -104,7 +104,7 @@ abstract contract BaseRecall is ConduitHelper {
     // ensure that a recall exists for the provided tokenId, ensure that the recall was not the borrower (borrowers do not need to provide stake to recall)
     if(recall.start == 0 && recall.recaller != loan.borrower) revert InvalidWithdraw();
     ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
-    recall.recaller = address(0);
+    recall.recaller = payable(address(0));
     recall.start = 0;
 
     uint256 i = 0;
@@ -138,6 +138,7 @@ abstract contract BaseRecall is ConduitHelper {
     address payable receiver
   ) external view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
+    if(receiver == loan.borrower) return new ReceivedItem[](0);
     return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
   }
 
