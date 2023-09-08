@@ -26,7 +26,7 @@ import {LoanManager} from "src/LoanManager.sol";
 import "forge-std/console.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
 
-contract Custodian is ConduitHelper, ContractOffererInterface, TokenReceiverInterface {
+contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper {
   LoanManager public immutable LM;
   address public immutable seaport;
 

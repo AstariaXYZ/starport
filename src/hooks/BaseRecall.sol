@@ -66,25 +66,23 @@ abstract contract BaseRecall is ConduitHelper {
     if(loan.start + details.honeymoon < block.timestamp) {
       revert("recall before honeymoon ended");
     }
-    // valdiate that the recaller is not the borrower
-    if(msg.sender != loan.borrower){
-      // get conduitController
-      (, , address conduitController) = seaport.information();
-      // validate that the provded conduit is owned by the msg.sender
-      if (
-        ConduitControllerInterface(conduitController).ownerOf(conduit) !=
-        msg.sender
-      ) {
-        revert InvalidConduit();
-      }
-      ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, payable(address(this)));
-      if (
-        ConduitInterface(conduit).execute(
-          _packageTransfers(recallConsideration, msg.sender)
-        ) != ConduitInterface.execute.selector
-      ) {
-        revert ConduitTransferError();
-      }
+
+    // get conduitController
+    (, , address conduitController) = seaport.information();
+    // validate that the provded conduit is owned by the msg.sender
+    if (
+      ConduitControllerInterface(conduitController).ownerOf(conduit) !=
+      msg.sender
+    ) {
+      revert InvalidConduit();
+    }
+    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, payable(address(this)));
+    if (
+      ConduitInterface(conduit).execute(
+        _packageTransfers(recallConsideration, msg.sender)
+      ) != ConduitInterface.execute.selector
+    ) {
+      revert ConduitTransferError();
     }
     
     uint256 tokenId = LM.getTokenIdFromLoan(loan);
@@ -138,7 +136,6 @@ abstract contract BaseRecall is ConduitHelper {
     address payable receiver
   ) external view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
-    if(receiver == loan.borrower) return new ReceivedItem[](0);
     return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
   }
 
