@@ -9,6 +9,7 @@ import {BasePricing} from "src/pricing/BasePricing.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 
 import {
   ConduitControllerInterface
@@ -31,6 +32,8 @@ abstract contract BaseRecall is ConduitHelper {
   error InvalidWithdraw();
   error InvalidConduit();
   error ConduitTransferError();
+  error InvalidStakeType();
+  error LoanDoesNotExist();
 
   ConsiderationInterface public constant seaport =
   ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
@@ -48,7 +51,7 @@ abstract contract BaseRecall is ConduitHelper {
 
   struct Recall {
     address recaller;
-    uint8 start;
+    uint64 start;
   }
 
   function getRecallRate(LoanManager.Loan calldata loan) view external returns (uint256) {
@@ -85,9 +88,11 @@ abstract contract BaseRecall is ConduitHelper {
     }
     
     uint256 tokenId = LM.getTokenIdFromLoan(loan);
-    recalls[tokenId] = Recall(msg.sender, uint8(block.timestamp));
+    if(LM.ownerOf(tokenId) == address(0)) revert LoanDoesNotExist();
+    recalls[tokenId] = Recall(msg.sender, uint64(block.timestamp));
   }
 
+  // transfers all stake to anyone who asks after the LM token is burned
   function withdraw(LoanManager.Loan memory loan, address payable receiver) external {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
     uint256 tokenId = LM.getTokenIdFromLoan(loan);
@@ -98,17 +103,18 @@ abstract contract BaseRecall is ConduitHelper {
     Recall storage recall = recalls[tokenId];
     // ensure that a recall exists for the provided tokenId, ensure that the recall was not the borrower (borrowers do not need to provide stake to recall)
     if(recall.start == 0 && recall.recaller != loan.borrower) revert InvalidWithdraw();
+    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
     recall.recaller = address(0);
     recall.start = 0;
 
-    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
-    // if (
-    //   ConduitInterface(conduit).execute(
-    //     _packageTransfers(recallConsideration, address(this))
-    //   ) != ConduitInterface.execute.selector
-    // ) {
-    //   revert LM.ConduitTransferError();
-    // }
+    uint256 i = 0;
+    for (; i < recallConsideration.length; ) {
+      if(loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
+      ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
+      unchecked {
+        ++i;
+      }
+    }
   }
 
   function _getRecallStake(
