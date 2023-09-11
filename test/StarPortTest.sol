@@ -42,6 +42,7 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
 import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
 import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
+import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
 import {BasePricing} from "src/pricing/BasePricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
@@ -118,7 +119,7 @@ contract StarPortTest is BaseOrderTest {
     consideration = new Consideration(address(conduitController));
   }
 
-  function setUp() public override {
+  function setUp() public virtual override {
     _deployAndConfigureConsideration();
     vm.label(alice, "alice");
     vm.label(bob, "bob");
