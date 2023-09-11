@@ -118,7 +118,7 @@ contract StarPortTest is BaseOrderTest {
     consideration = new Consideration(address(conduitController));
   }
 
-  function setUp() public override {
+  function setUp() public virtual override {
     _deployAndConfigureConsideration();
     vm.label(alice, "alice");
     vm.label(bob, "bob");
