@@ -44,9 +44,12 @@ import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
 import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
 import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
 import {BasePricing} from "src/pricing/BasePricing.sol";
+import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
+import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
+import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
 import {Merkle} from "seaport/lib/murky/src/Merkle.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
