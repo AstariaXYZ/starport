@@ -215,6 +215,10 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     return (_getExtraData(tokenId) > uint8(0));
   }
 
+  function issued(uint256 tokenId) external view returns (bool) {
+    return _issued(tokenId);
+  }
+
   function getIssuer(
     Loan calldata loan
   ) external view returns (address payable) {
@@ -239,11 +243,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     _settle(loan);
   }
 
-  function getTokenIdFromLoan(Loan memory loan) public pure returns (uint256) {
+  function getLoanIdFromLoan(Loan memory loan) public pure returns (uint256) {
     return uint256(keccak256(abi.encode(loan)));
   }
   function _settle(Loan memory loan) internal {
-    uint256 tokenId = getTokenIdFromLoan(loan);
+    uint256 tokenId = getLoanIdFromLoan(loan);
     if (!_issued(tokenId)) {
       revert InvalidLoan(tokenId);
     }

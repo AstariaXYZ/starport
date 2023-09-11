@@ -39,7 +39,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
       uint256 proportion;
       address payable receiver = payable(loan.issuer);
-      uint256 loanId = LM.getTokenIdFromLoan(loan);
+      uint256 loanId = LM.getLoanIdFromLoan(loan);
       // scenario where the recaller is not penalized
       // recaller stake is refunded
       if(newDetails.rate > oldDetails.rate){
