@@ -5,15 +5,16 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
 
 contract AstariaV1SettlementHook is SettlementHook, BaseRecall {
-
+    
+    constructor(LoanManager LM_) BaseRecall(LM_) {}
     function isActive(LoanManager.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-        uint256 tokenId = LM.getTokenIdFromLoan(loan);
+        uint256 tokenId = LM.getLoanIdFromLoan(loan);
         return !(uint256(recalls[tokenId].start) + details.recallWindow > block.timestamp);
     }
     function isRecalled(LoanManager.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-        uint256 tokenId = LM.getTokenIdFromLoan(loan);
+        uint256 tokenId = LM.getLoanIdFromLoan(loan);
         return block.timestamp - details.recallWindow < uint256(recalls[tokenId].start);
     }
 }

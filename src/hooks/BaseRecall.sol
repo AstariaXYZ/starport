@@ -1,5 +1,7 @@
 pragma solidity =0.8.17;
 
+import "forge-std/console2.sol";
+
 import {LoanManager} from "src/LoanManager.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
@@ -28,12 +30,15 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 abstract contract BaseRecall is ConduitHelper {
   using FixedPointMathLib for uint256;
 
+  event Recalled(uint256 loandId, address recaller, uint256 end);
+  event Withdraw(uint256 loanId, address withdrawer);
   LoanManager LM;
   error InvalidWithdraw();
   error InvalidConduit();
   error ConduitTransferError();
   error InvalidStakeType();
   error LoanDoesNotExist();
+  error RecallBeforeHoneymoonExpiry();
 
   ConsiderationInterface public constant seaport =
   ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
@@ -54,17 +59,22 @@ abstract contract BaseRecall is ConduitHelper {
     uint64 start;
   }
 
+  constructor(LoanManager LM_){
+    LM = LM_;
+  }
+
   function getRecallRate(LoanManager.Loan calldata loan) view external returns (uint256) {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
-    uint256 loanId = LM.getTokenIdFromLoan(loan);
+    uint256 loanId = LM.getLoanIdFromLoan(loan);
     // calculates the porportion of time elapsed, then multiplies times the max rate
     return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow)); 
   }
 
-  function recall(LoanManager.Loan calldata loan, address conduit) external {
+  function recall(LoanManager.Loan memory loan, address conduit) external {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
-    if(loan.start + details.honeymoon < block.timestamp) {
-      revert("recall before honeymoon ended");
+
+    if((loan.start + details.honeymoon) > block.timestamp) {
+      revert RecallBeforeHoneymoonExpiry();
     }
 
     // get conduitController
@@ -84,21 +94,25 @@ abstract contract BaseRecall is ConduitHelper {
     ) {
       revert ConduitTransferError();
     }
-    
-    uint256 tokenId = LM.getTokenIdFromLoan(loan);
-    if(LM.ownerOf(tokenId) == address(0)) revert LoanDoesNotExist();
-    recalls[tokenId] = Recall(payable(msg.sender), uint64(block.timestamp));
+
+    bytes memory encodedLoan = abi.encode(loan);
+
+    uint256 loanId = uint256(keccak256(encodedLoan));
+    if(!LM.issued(loanId)) revert LoanDoesNotExist();
+    recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
+
+    emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
   }
 
   // transfers all stake to anyone who asks after the LM token is burned
   function withdraw(LoanManager.Loan memory loan, address payable receiver) external {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
-    uint256 tokenId = LM.getTokenIdFromLoan(loan);
+    uint256 loanId = LM.getLoanIdFromLoan(loan);
 
     // loan has not been refinanced, loan is still active. LM.tokenId changes on refinance
-    if(LM.ownerOf(tokenId) != address(0)) revert InvalidWithdraw();
+    if(!LM.issued(loanId)) revert InvalidWithdraw();
 
-    Recall storage recall = recalls[tokenId];
+    Recall storage recall = recalls[loanId];
     // ensure that a recall exists for the provided tokenId, ensure that the recall was not the borrower (borrowers do not need to provide stake to recall)
     if(recall.start == 0 && recall.recaller != loan.borrower) revert InvalidWithdraw();
     ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
@@ -113,6 +127,8 @@ abstract contract BaseRecall is ConduitHelper {
         ++i;
       }
     }
+
+    emit Withdraw(loanId, receiver);
   }
 
   function _getRecallStake(
@@ -127,6 +143,9 @@ abstract contract BaseRecall is ConduitHelper {
       uint256 delta_t = end - start;
       uint256 stake = BasePricing(loan.terms.pricing).getInterest(loan, details, start, end, i);
       recallStake[i] = stake;
+      unchecked {
+        ++i;
+      }
     }
   }
 
