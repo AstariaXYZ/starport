@@ -1,6 +1,7 @@
 import "./AstariaV1Test.sol";
 
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
+// import {Base} from "src/pricing/CompoundInterestPricing.sol";
 // import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 import "forge-std/console2.sol";
 contract TestAstariaV1Loan is AstariaV1Test {
@@ -56,6 +57,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
       Originator(UO),
       selectedCollateral
     );
+    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
 
     {
       vm.startPrank(recaller.addr);
@@ -64,6 +67,23 @@ contract TestAstariaV1Loan is AstariaV1Test {
       BaseRecall(address(hook)).recall(loan, recallerConduit);
       vm.stopPrank();
     }
+    {
+      // refinance with before recall is initiated
+      vm.startPrank(refinancer.addr);
+      vm.expectRevert(Pricing.InvalidRefinance.selector);
+      LM.refinance(
+        loan,
+        abi.encode(
+          BasePricing.Details({
+            rate: (uint256(1e16) * 100) / (365 * 1 days),
+            carryRate: 0
+          })
+        ),
+        refinancerConduit
+      );
+      vm.stopPrank();
+    }
+    uint256 stake;
     {
       uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
       uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook)); 
@@ -79,13 +99,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
       uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(hook)); 
 
       BasePricing.Details memory pricingDetails =  abi.decode(loan.terms.pricingData, (BasePricing.Details));
-      uint256 interest = BasePricing(address(pricing)).calculateInterest(details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate);
-      assertEq(balanceBefore, balanceAfter + interest, "Recaller balance not transfered correctly");
-      assertEq(recallContractBalanceBefore + interest, recallContractBalanceAfter, "Balance not transfered to recall contract correctly");
+      stake = BasePricing(address(pricing)).calculateInterest(details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate);
+      assertEq(balanceBefore, balanceAfter + stake, "Recaller balance not transfered correctly");
+      assertEq(recallContractBalanceBefore + stake, recallContractBalanceAfter, "Balance not transfered to recall contract correctly");
     }
     {
       BaseRecall recallContract = BaseRecall(address(hook));
-      uint256 loanId = LM.getLoanIdFromLoan(loan);
       address recallerAddr;
       uint64 start;
       (recallerAddr, start) = recallContract.recalls(loanId);
@@ -101,34 +120,60 @@ contract TestAstariaV1Loan is AstariaV1Test {
     }
     {
       // refinance with incorrect terms
-      // LM.refinance()
+      vm.expectRevert(AstariaV1Pricing.InsufficientRefinance.selector);
+      vm.startPrank(refinancer.addr);
+      LM.refinance(
+        loan,
+        abi.encode(
+          BasePricing.Details({
+            rate: (uint256(1e16) * 100) / (365 * 1 days),
+            carryRate: 0
+          })
+        ),
+        refinancerConduit
+      );
+      vm.stopPrank();
     }
-
     {
       // refinance with correct terms
-      // check balances
-      // old lender balance
-      // new lender balance
-      // validate terms
-      // validate loanId is deleted
-      // valdiate extraData is deleted
-      
+      uint256 newLenderBefore = erc20s[0].balanceOf(refinancer.addr);
+      uint256 oldLenderBefore = erc20s[0].balanceOf(lender.addr);
+      uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
+      BaseRecall.Details memory details =  abi.decode(loan.terms.hookData, (BaseRecall.Details));
+      vm.startPrank(refinancer.addr);
+      vm.warp(block.timestamp + (details.recallWindow / 2));
+      LM.refinance(
+        loan,
+        abi.encode(
+          BasePricing.Details({
+            rate: details.recallMax / 2,
+            carryRate: 0
+          })
+        ),
+        refinancerConduit
+      );
+      vm.stopPrank();
+      uint256 delta_t = block.timestamp - loan.start;
+      BasePricing.Details memory pricingDetails =  abi.decode(loan.terms.pricingData, (BasePricing.Details));
+      uint256 interest = BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+      uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
+      uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
+      assertEq(oldLenderAfter, oldLenderBefore + loan.debt[0].amount + interest, "Payment to old lender calculated incorrectly");
+      assertEq(newLenderAfter, newLenderBefore - (loan.debt[0].amount + interest + stake), "Payment from new lender calculated incorrectly");
+      assertEq(recallerBefore + stake, erc20s[0].balanceOf(recaller.addr), "Recaller did not recover stake as expected");
+      assertTrue(LM.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
     }
     {
-      // attempt withdraw
-      // validate balances
+      uint256 withdrawerBalanceBefore = erc20s[0].balanceOf(address(this));
+      uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
+      BaseRecall recallContract = BaseRecall(address(hook));
+
+      // attempt a withdraw after the loan has been successfully refinanced
+      recallContract.withdraw(loan, payable(address(this)));
+      uint256 withdrawerBalanceAfter = erc20s[0].balanceOf(address(this));
+      uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(hook));
+      assertEq(withdrawerBalanceBefore + stake, withdrawerBalanceAfter, "Withdrawer did not recover stake as expected");
+      assertEq(recallContractBalanceBefore - stake, recallContractBalanceAfter, "BaseRecall did not return the stake as expected");
     }
-    // vm.startPrank(refinancer.addr);
-    // LM.refinance(
-    //   loan,
-    //   abi.encode(
-    //     BasePricing.Details({
-    //       rate: (uint256(1e16) * 100) / (365 * 1 days),
-    //       carryRate: 0
-    //     })
-    //   ),
-    //   refinancerConduit
-    // );
-    // vm.stopPrank();
   }
 }

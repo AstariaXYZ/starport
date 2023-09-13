@@ -100,7 +100,7 @@ abstract contract BaseRecall is ConduitHelper {
     bytes memory encodedLoan = abi.encode(loan);
 
     uint256 loanId = uint256(keccak256(encodedLoan));
-    if(!LM.issued(loanId)) revert LoanDoesNotExist();
+    if(!LM.active(loanId)) revert LoanDoesNotExist();
     recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
 
     emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
@@ -113,12 +113,12 @@ abstract contract BaseRecall is ConduitHelper {
     uint256 loanId = uint256(keccak256(encodedLoan));
 
     // loan has not been refinanced, loan is still active. LM.tokenId changes on refinance
-    if(LM.issued(loanId)) revert LoanHasNotBeenRefinanced();
+    if(!LM.inactive(loanId)) revert LoanHasNotBeenRefinanced();
 
     Recall storage recall = recalls[loanId];
     // ensure that a recall exists for the provided tokenId, ensure that the recall
-    if(recall.start == 0 || recall.recaller != address(0)) revert WithdrawDoesNotExist();
-    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
+    if(recall.start == 0 || recall.recaller == address(0)) revert WithdrawDoesNotExist();
+    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
     recall.recaller = payable(address(0));
     recall.start = 0;
 

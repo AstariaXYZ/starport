@@ -132,6 +132,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   error InvalidOrigination();
   error InvalidSigner();
   error InvalidContext(ContextErrors);
+  error InvalidNoRefinanceConsideration();
 
   enum ContextErrors {
     BAD_ORIGINATION,
@@ -199,10 +200,28 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     _;
   }
 
-  function active(Loan calldata loan) public view returns (bool) {
+  // function active(Loan calldata loan) public view returns (bool) {
+  //   return
+  //     _getExtraData(uint256(keccak256(abi.encode(loan)))) ==
+  //     uint8(FieldFlags.ACTIVE);
+  // }
+
+  function active(uint256 loanId) public view returns (bool) {
     return
-      _getExtraData(uint256(keccak256(abi.encode(loan)))) ==
+      _getExtraData(loanId) ==
       uint8(FieldFlags.ACTIVE);
+  }
+  
+  function inactive(uint256 loanId) public view returns (bool) {
+    return
+      _getExtraData(loanId) ==
+      uint8(FieldFlags.INACTIVE);
+  }
+
+  function initialized(uint256 loanId) public view returns (bool) {
+    return
+      _getExtraData(loanId) ==
+      uint8(FieldFlags.INITIALIZED);
   }
 
   function tokenURI(
@@ -552,7 +571,10 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
 
     ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(considerationPayment, carryPayment, recallPayment);
+    refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
 
+    // if for malicious or non-malicious the refinanceConsideration is zero 
+    if(refinanceConsideration.length == 0) revert InvalidNoRefinanceConsideration();
     _settle(loan);
     uint256 i = 0;
     for (; i < loan.debt.length; ) {

@@ -45,11 +45,12 @@ import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 abstract contract ConduitHelper {
   error RepayCarryLengthMismatch();
   // TODO: Greg pls help us unfuck this mess
-  function _mergeConsiderations(ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration) internal returns(ReceivedItem[] memory) {
+  function _mergeConsiderations(ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration) internal returns(ReceivedItem[] memory consideration) {
     if(carryConsideration.length == 0 && recallConsideration.length == 0){
       return repayConsideration;
     }
-    ReceivedItem[] memory consideration = new ReceivedItem[](repayConsideration.length + carryConsideration.length + recallConsideration.length);
+    consideration = new ReceivedItem[](repayConsideration.length + carryConsideration.length + recallConsideration.length);
+    
     uint256 j = 0;
     // if there is a carry to handle, subtract it from the amount owed
     if(carryConsideration.length > 0){
@@ -103,7 +104,7 @@ abstract contract ConduitHelper {
       }
     }
   }
-  function _removeZeroAmounts(ReceivedItem[] memory consideration) internal returns (ReceivedItem[] memory) {
+  function _removeZeroAmounts(ReceivedItem[] memory consideration) internal returns (ReceivedItem[] memory newConsideration) {
     uint256 i = 0;
     uint256 validConsiderations = 0;
     for (; i < consideration.length; ){
@@ -114,7 +115,7 @@ abstract contract ConduitHelper {
     }
     i = 0;
     uint256 j = 0;
-    ReceivedItem[] memory newConsideration = new ReceivedItem[](validConsiderations);
+    newConsideration = new ReceivedItem[](validConsiderations);
     for (; i < consideration.length;  ){
       if(consideration[i].amount > 0){
         newConsideration[j] = consideration[i];
