@@ -21,6 +21,8 @@ contract AstariaV1Test is StarPortTest {
 
     recaller = makeAndAllocateAccount("recaller");
 
+    // erc20s[1].mint(recaller.addr, 10000);
+
     pricing = new AstariaV1Pricing(LM);
     handler = new AstariaV1SettlementHandler(LM);
     hook = new AstariaV1SettlementHook(LM);
@@ -35,7 +37,6 @@ contract AstariaV1Test is StarPortTest {
       conduitKeyRecaller,
       recaller.addr
     );
-    console.log("Recaller", recaller.addr);
     conduitController.updateChannel(recallerConduit, address(hook), true);
     erc20s[0].approve(address(recallerConduit), 100000);
     vm.stopPrank();

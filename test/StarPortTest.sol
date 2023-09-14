@@ -189,7 +189,7 @@ contract StarPortTest is BaseOrderTest {
       conduitKeyRefinancer,
       refinancer.addr
     );
-    console.log("Refinancer", refinancer.addr);
+    // console.log("Refinancer", refinancer.addr);
     conduitController.updateChannel(refinancerConduit, address(LM), true);
     erc20s[0].approve(address(refinancerConduit), 100000);
     vm.stopPrank();

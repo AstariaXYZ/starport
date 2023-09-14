@@ -3,6 +3,7 @@ pragma solidity =0.8.17;
 import {LoanManager} from "src/LoanManager.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
+import "forge-std/console2.sol";
 
 contract AstariaV1SettlementHook is SettlementHook, BaseRecall {
     
@@ -15,6 +16,7 @@ contract AstariaV1SettlementHook is SettlementHook, BaseRecall {
     function isRecalled(LoanManager.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
         uint256 tokenId = LM.getLoanIdFromLoan(loan);
-        return block.timestamp - details.recallWindow < uint256(recalls[tokenId].start);
+        Recall memory recall = recalls[tokenId];
+        return (recall.start + details.recallWindow > block.timestamp) && recall.start != 0;
     }
 }

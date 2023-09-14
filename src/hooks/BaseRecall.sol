@@ -39,6 +39,8 @@ abstract contract BaseRecall is ConduitHelper {
   error InvalidStakeType();
   error LoanDoesNotExist();
   error RecallBeforeHoneymoonExpiry();
+  error LoanHasNotBeenRefinanced();
+  error WithdrawDoesNotExist();
 
   ConsiderationInterface public constant seaport =
   ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
@@ -98,7 +100,7 @@ abstract contract BaseRecall is ConduitHelper {
     bytes memory encodedLoan = abi.encode(loan);
 
     uint256 loanId = uint256(keccak256(encodedLoan));
-    if(!LM.issued(loanId)) revert LoanDoesNotExist();
+    if(!LM.active(loanId)) revert LoanDoesNotExist();
     recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
 
     emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
@@ -106,16 +108,17 @@ abstract contract BaseRecall is ConduitHelper {
 
   // transfers all stake to anyone who asks after the LM token is burned
   function withdraw(LoanManager.Loan memory loan, address payable receiver) external {
-    Details memory details = abi.decode(loan.terms.pricingData, (Details));
-    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    Details memory details = abi.decode(loan.terms.hookData, (Details));
+    bytes memory encodedLoan = abi.encode(loan);
+    uint256 loanId = uint256(keccak256(encodedLoan));
 
     // loan has not been refinanced, loan is still active. LM.tokenId changes on refinance
-    if(!LM.issued(loanId)) revert InvalidWithdraw();
+    if(!LM.inactive(loanId)) revert LoanHasNotBeenRefinanced();
 
     Recall storage recall = recalls[loanId];
-    // ensure that a recall exists for the provided tokenId, ensure that the recall was not the borrower (borrowers do not need to provide stake to recall)
-    if(recall.start == 0 && recall.recaller != loan.borrower) revert InvalidWithdraw();
-    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallWindow, 1e18, receiver);
+    // ensure that a recall exists for the provided tokenId, ensure that the recall
+    if(recall.start == 0 || recall.recaller == address(0)) revert WithdrawDoesNotExist();
+    ReceivedItem[] memory recallConsideration = _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
     recall.recaller = payable(address(0));
     recall.start = 0;
 

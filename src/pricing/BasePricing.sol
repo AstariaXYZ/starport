@@ -144,7 +144,6 @@ abstract contract BasePricing is Pricing {
         ++i;
       }
     }
-    console2.log(consideration.length);
   }
 
   function _generateRepayCarryConsideration(
@@ -152,6 +151,7 @@ abstract contract BasePricing is Pricing {
   ) internal view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
+    if(details.carryRate == 0) return new ReceivedItem[](0);
     uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
     consideration = new ReceivedItem[](owing.length);
     uint256 i = 0;

@@ -74,7 +74,8 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
     // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
     // in this case we are not a repayment we have burnt the loan in the generate order for a repayment
-    if (LM.active(loan)) {
+    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    if (LM.active(loanId)) {
       if (
         SettlementHandler(loan.terms.handler).execute(loan) !=
         SettlementHandler.execute.selector
