@@ -26,13 +26,19 @@ import {LoanManager} from "src/LoanManager.sol";
 import "forge-std/console.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
 
-contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper {
+contract Custodian is
+  ContractOffererInterface,
+  TokenReceiverInterface,
+  ConduitHelper
+{
   LoanManager public immutable LM;
   address public immutable seaport;
+  event SeaportCompatibleContractDeployed();
 
   constructor(LoanManager LM_, address seaport_) {
     seaport = seaport_;
     LM = LM_;
+    emit SeaportCompatibleContractDeployed();
   }
 
   function supportsInterface(
@@ -133,7 +139,11 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         ReceivedItem[] memory carryFeeConsideration
       ) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-      consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+      consideration = _mergeConsiderations(
+        paymentConsiderations,
+        carryFeeConsideration,
+        new ReceivedItem[](0)
+      );
       consideration = _removeZeroAmounts(consideration);
       //if a callback is needed for the issuer do it here
       _settleLoan(loan);
@@ -226,11 +236,15 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     //TODO: move this into generate order and then do a view only version that doesnt call settle
   }
 
+  //todo work with seaport
   function getSeaportMetadata()
     external
     pure
     returns (string memory, Schema[] memory schemas)
   {
+    //adhere to sip data, how to encode the context and what it is
+    //TODO: add in the context for the loan
+    //you need to parse LM Open events for the loan and abi encode it
     schemas = new Schema[](1);
     schemas[0] = Schema(8, "");
     return ("Loans", schemas);

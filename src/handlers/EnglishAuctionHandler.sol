@@ -170,7 +170,7 @@ contract EnglishAuctionHandler is SettlementHandler {
     });
 
     op = OrderParameters({
-      offerer: address(LM),
+      offerer: address(this),
       zone: ENGLISH_AUCTION_ZONE,
       offer: offerItems,
       consideration: considerations,

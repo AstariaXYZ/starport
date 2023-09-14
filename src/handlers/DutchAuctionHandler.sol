@@ -17,12 +17,14 @@ import {
   SettlementHandler
 } from "src/handlers/SettlementHandler.sol";
 
-import {
-  ConduitHelper
-} from "src/ConduitHelper.sol";
+import {ConduitHelper} from "src/ConduitHelper.sol";
 import "forge-std/console.sol";
 
-contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
+contract DutchAuctionHandler is
+  SettlementHandler,
+  AmountDeriver,
+  ConduitHelper
+{
   constructor(LoanManager LM_) SettlementHandler(LM_) {
     LM = LM_;
   }
@@ -60,28 +62,11 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper 
       ReceivedItem[] memory paymentConsiderations,
       ReceivedItem[] memory carryFeeConsideration
     ) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-    //    uint256 rake = 0;
-    //    if (feeConsideration.length > 0 && feeConsideration[0].amount > 0) {
-    //      rake += feeConsideration[0].amount;
-    //      considerationLength += feeConsideration.length;
-    //      if (
-    //        payment - feeConsideration[0].amount > paymentConsiderations[0].amount
-    //      ) {
-    //        considerationLength += paymentConsiderations.length;
-    //      }
-    //    }
 
     consideration = new ReceivedItem[](
       paymentConsiderations.length + carryFeeConsideration.length
     );
-    //pay the lender
-    //    consideration[0] = ReceivedItem({
-    //      itemType: ItemType.ERC20,
-    //      token: loan.debt[0].token,
-    //      identifier: loan.debt[0].identifier,
-    //      amount: payment - rake,
-    //      recipient: LM.getIssuer(loan)
-    //    });
+
     //loop the payment considerations and add them to the consideration array
 
     uint256 i = 0;
@@ -104,8 +89,6 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper 
     }
     consideration = _removeZeroAmounts(consideration);
   }
-
-  event log_received_item(ReceivedItem item);
 
   function validate(
     LoanManager.Loan calldata loan

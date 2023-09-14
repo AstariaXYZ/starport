@@ -44,17 +44,29 @@ import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
 abstract contract ConduitHelper {
   error RepayCarryLengthMismatch();
+
   // TODO: Greg pls help us unfuck this mess
-  function _mergeConsiderations(ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration) internal returns(ReceivedItem[] memory consideration) {
-    if(carryConsideration.length == 0 && recallConsideration.length == 0){
+  function _mergeConsiderations(
+    ReceivedItem[] memory repayConsideration,
+    ReceivedItem[] memory carryConsideration,
+    ReceivedItem[] memory additionalConsiderations
+  ) internal returns (ReceivedItem[] memory consideration) {
+    if (
+      carryConsideration.length == 0 && additionalConsiderations.length == 0
+    ) {
       return repayConsideration;
     }
-    consideration = new ReceivedItem[](repayConsideration.length + carryConsideration.length + recallConsideration.length);
-    
+    consideration = new ReceivedItem[](
+      repayConsideration.length +
+        carryConsideration.length +
+        additionalConsiderations.length
+    );
+
     uint256 j = 0;
     // if there is a carry to handle, subtract it from the amount owed
-    if(carryConsideration.length > 0){
-      if(repayConsideration.length != carryConsideration.length) revert RepayCarryLengthMismatch();
+    if (carryConsideration.length > 0) {
+      if (repayConsideration.length != carryConsideration.length)
+        revert RepayCarryLengthMismatch();
       uint256 i = 0;
       for (; i < repayConsideration.length; ) {
         repayConsideration[i].amount -= carryConsideration[i].amount;
@@ -85,17 +97,19 @@ abstract contract ConduitHelper {
       }
     }
 
-    if(recallConsideration.length > 0){
+    if (additionalConsiderations.length > 0) {
       uint256 i = 0;
-      for (; i < recallConsideration.length; ) {
-        if(consideration[i].recipient == recallConsideration[i].recipient && consideration[i].token == recallConsideration[i].token){
-          consideration[i].amount += recallConsideration[i].amount;
+      for (; i < additionalConsiderations.length; ) {
+        if (
+          consideration[i].recipient == additionalConsiderations[i].recipient &&
+          consideration[i].token == additionalConsiderations[i].token
+        ) {
+          consideration[i].amount += additionalConsiderations[i].amount;
           unchecked {
             ++i;
           }
-        }
-        else {
-          consideration[j] = recallConsideration[i];
+        } else {
+          consideration[j] = additionalConsiderations[i];
           unchecked {
             ++i;
             ++j;
@@ -104,11 +118,14 @@ abstract contract ConduitHelper {
       }
     }
   }
-  function _removeZeroAmounts(ReceivedItem[] memory consideration) internal returns (ReceivedItem[] memory newConsideration) {
+
+  function _removeZeroAmounts(
+    ReceivedItem[] memory consideration
+  ) internal returns (ReceivedItem[] memory newConsideration) {
     uint256 i = 0;
     uint256 validConsiderations = 0;
-    for (; i < consideration.length; ){
-      if(consideration[i].amount > 0) ++validConsiderations;
+    for (; i < consideration.length; ) {
+      if (consideration[i].amount > 0) ++validConsiderations;
       unchecked {
         ++i;
       }
@@ -116,26 +133,27 @@ abstract contract ConduitHelper {
     i = 0;
     uint256 j = 0;
     newConsideration = new ReceivedItem[](validConsiderations);
-    for (; i < consideration.length;  ){
-      if(consideration[i].amount > 0){
+    for (; i < consideration.length; ) {
+      if (consideration[i].amount > 0) {
         newConsideration[j] = consideration[i];
-        unchecked{
+        unchecked {
           ++j;
         }
       }
-      unchecked{
+      unchecked {
         ++i;
       }
     }
   }
+
   function _packageTransfers(
     ReceivedItem[] memory refinanceConsideration,
     address refinancer
   ) internal pure returns (ConduitTransfer[] memory transfers) {
     uint256 i = 0;
     uint256 validConsiderations = 0;
-    for (; i < refinanceConsideration.length; ){
-      if(refinanceConsideration[i].amount > 0) ++validConsiderations;
+    for (; i < refinanceConsideration.length; ) {
+      if (refinanceConsideration[i].amount > 0) ++validConsiderations;
       unchecked {
         ++i;
       }
@@ -163,7 +181,7 @@ abstract contract ConduitHelper {
           revert(0, 0)
         } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
       }
-      if(refinanceConsideration[i].amount > 0){
+      if (refinanceConsideration[i].amount > 0) {
         transfers[j] = ConduitTransfer({
           itemType: itemType,
           from: refinancer,
