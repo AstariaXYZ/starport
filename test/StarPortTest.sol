@@ -42,10 +42,14 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
 import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
 import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
+import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
 import {BasePricing} from "src/pricing/BasePricing.sol";
+import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
+import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
+import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
 import {Merkle} from "seaport/lib/murky/src/Merkle.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
@@ -67,6 +71,18 @@ interface IWETH9 {
 }
 
 contract StarPortTest is BaseOrderTest {
+  SettlementHook fixedTermHook;
+  SettlementHook astariaSettlementHook;
+
+  SettlementHandler dutchAuctionHandler;
+  SettlementHandler englishAuctionHandler;
+  SettlementHandler astariaSettlementHandler;
+
+  Pricing simpleInterestPricing;
+  Pricing astariaPricing;
+
+  ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+
   Pricing pricing;
   SettlementHandler handler;
   SettlementHook hook;
@@ -189,6 +205,22 @@ contract StarPortTest is BaseOrderTest {
     conduitController.updateChannel(refinancerConduit, address(LM), true);
     erc20s[0].approve(address(refinancerConduit), 100000);
     vm.stopPrank();
+
+    /////////
+
+    fixedTermHook = new FixedTermHook();
+    astariaSettlementHook = new AstariaV1SettlementHook(LM);
+
+    dutchAuctionHandler = new DutchAuctionHandler(LM);
+    englishAuctionHandler = new EnglishAuctionHandler({
+      LM_: LM,
+      consideration_: seaport,
+      EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
+    });
+    astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
+
+    simpleInterestPricing = new SimpleInterestPricing(LM);
+    astariaPricing = new AstariaV1Pricing(LM);
   }
 
   function onERC721Received(
@@ -697,5 +729,124 @@ contract StarPortTest is BaseOrderTest {
 
     assertEq(balanceAfter - balanceBefore, debt[0].amount);
     vm.stopPrank();
+  }
+
+  function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
+    vm.startPrank(borrower);
+    erc20s[0].approve(address(consideration), amount);
+    vm.stopPrank();
+    _executeRepayLoan(loan);
+  }
+
+  function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+    assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+    uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+    loan = _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc721s[0]),
+        startAmount: 1,
+        endAmount: 1,
+        identifierOrCriteria: 1,
+        itemType: ItemType.ERC721,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC20,
+        token: address(erc20s[0]),
+        amount: borrowAmount,
+        identifier: 0
+      })
+    });
+
+    assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
+    assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
+
+  }
+
+  // TODO update or overload to take interest rate
+  function _createLoan20Collateral20Debt(address lender, uint256 collateralAmount, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
+    assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
+
+    uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
+
+    loan = _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc20s[1]),
+        startAmount: collateralAmount,
+        endAmount: collateralAmount,
+        identifierOrCriteria: 0,
+        itemType: ItemType.ERC20,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC20,
+        token: address(erc20s[0]),
+        amount: borrowAmount,
+        identifier: 0
+      })
+    });
+
+    assertEq(initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out");
+    assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
+  }
+
+  // TODO fix
+  function _createLoan20Collateral721Debt(address lender, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    return _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc20s[0]),
+        startAmount: 20,
+        endAmount: 20,
+        identifierOrCriteria: 0,
+        itemType: ItemType.ERC20,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC721,
+        token: address(erc721s[0]),
+        amount: 1,
+        identifier: 0
+      })
+    });
+  }
+
+  function _createLoan(address lender, LoanManager.Terms memory terms, ConsiderationItem memory collateralItem, SpentItem memory debtItem) internal returns (LoanManager.Loan memory loan) {
+    selectedCollateral.push(collateralItem);
+    debt.push(debtItem);
+
+    UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+      conduit: address(lenderConduit),
+      custodian: address(custodian),
+      issuer: lender,
+      deadline: block.timestamp + 100,
+      terms: terms,
+      collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+      debt: debt
+    });
+
+    loan = newLoan(
+      NewLoanData({
+        custodian: address(custodian),
+        caveats: new LoanManager.Caveat[](0), // TODO check
+        details: abi.encode(loanDetails)
+      }),
+      Originator(UO),
+      selectedCollateral
+    );
   }
 }
