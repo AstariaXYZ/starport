@@ -695,4 +695,106 @@ contract StarPortTest is BaseOrderTest {
     assertEq(balanceAfter - balanceBefore, debt[0].amount);
     vm.stopPrank();
   }
+
+  function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
+    vm.startPrank(borrower);
+    erc20s[0].approve(address(consideration), amount);
+    vm.stopPrank();
+    _executeRepayLoan(loan);
+  }
+
+  function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    return _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc721s[0]),
+        startAmount: 1,
+        endAmount: 1,
+        identifierOrCriteria: 1,
+        itemType: ItemType.ERC721,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC20,
+        token: address(erc20s[0]),
+        amount: borrowAmount,
+        identifier: 0
+      })
+    });
+  }
+
+  function _createLoan20Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    return _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc20s[1]),
+        startAmount: 20,
+        endAmount: 20,
+        identifierOrCriteria: 0,
+        itemType: ItemType.ERC20,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC20,
+        token: address(erc20s[0]),
+        amount: borrowAmount,
+        identifier: 0
+      })
+    });
+  }
+
+  // TODO fix
+  function _createLoan20Collateral721Debt(address lender, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    return _createLoan({
+      lender: lender,
+      terms: terms,
+      collateralItem:
+      ConsiderationItem({
+        token: address(erc20s[0]),
+        startAmount: 20,
+        endAmount: 20,
+        identifierOrCriteria: 0,
+        itemType: ItemType.ERC20,
+        recipient: payable(address(custodian))
+      }),
+      debtItem:
+      SpentItem({
+        itemType: ItemType.ERC721,
+        token: address(erc721s[0]),
+        amount: 1,
+        identifier: 0
+      })
+    });
+  }
+
+  function _createLoan(address lender, LoanManager.Terms memory terms, ConsiderationItem memory collateralItem, SpentItem memory debtItem) internal returns (LoanManager.Loan memory loan) {
+    selectedCollateral.push(collateralItem);
+    debt.push(debtItem);
+
+    UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+      conduit: address(lenderConduit),
+      custodian: address(custodian),
+      issuer: lender,
+      deadline: block.timestamp + 100,
+      terms: terms,
+      collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+      debt: debt
+    });
+
+    loan = newLoan(
+      NewLoanData({
+        custodian: address(custodian),
+        caveats: new LoanManager.Caveat[](0), // TODO check
+        details: abi.encode(loanDetails)
+      }),
+      Originator(UO),
+      selectedCollateral
+    );
+  }
 }
