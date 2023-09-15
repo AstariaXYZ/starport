@@ -112,7 +112,9 @@ abstract contract BaseRecall is ConduitHelper {
     bytes memory encodedLoan = abi.encode(loan);
 
     uint256 loanId = uint256(keccak256(encodedLoan));
+
     if (!LM.active(loanId)) revert LoanDoesNotExist();
+
     recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
     emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
   }
@@ -131,8 +133,10 @@ abstract contract BaseRecall is ConduitHelper {
 
     Recall storage recall = recalls[loanId];
     // ensure that a recall exists for the provided tokenId, ensure that the recall
-    if (recall.start == 0 || recall.recaller == address(0))
+    if (recall.start == 0 || recall.recaller == address(0)) {
       revert WithdrawDoesNotExist();
+    }
+
     ReceivedItem[] memory recallConsideration = _generateRecallConsideration(
       loan,
       0,
@@ -143,13 +147,15 @@ abstract contract BaseRecall is ConduitHelper {
     recall.recaller = payable(address(0));
     recall.start = 0;
 
-    uint256 i = 0;
-    for (; i < recallConsideration.length; ) {
+    for (uint256 i; i < recallConsideration.length; ) {
+
       if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
+
       ERC20(loan.debt[i].token).transfer(
         receiver,
         recallConsideration[i].amount
       );
+
       unchecked {
         ++i;
       }
@@ -168,17 +174,15 @@ abstract contract BaseRecall is ConduitHelper {
       (BasePricing.Details)
     );
     recallStake = new uint256[](loan.debt.length);
-    uint256 i = 0;
-    for (; i < loan.debt.length; ) {
-      uint256 delta_t = end - start;
-      uint256 stake = BasePricing(loan.terms.pricing).getInterest(
+    for (uint256 i; i < loan.debt.length; ) {
+      recallStake[i] = BasePricing(loan.terms.pricing).getInterest(
         loan,
         details,
         start,
         end,
         i
       );
-      recallStake[i] = stake;
+
       unchecked {
         ++i;
       }
@@ -210,14 +214,12 @@ abstract contract BaseRecall is ConduitHelper {
   ) internal view returns (ReceivedItem[] memory consideration) {
     uint256[] memory stake = _getRecallStake(loan, start, end);
     consideration = new ReceivedItem[](stake.length);
-    uint256 i = 0;
-    for (; i < consideration.length; ) {
+
+    for (uint256 i; i < consideration.length; ) {
       consideration[i] = ReceivedItem({
         itemType: loan.debt[i].itemType,
         identifier: loan.debt[i].identifier,
-        amount: stake.length == consideration.length
-          ? stake[i].mulWad(proportion)
-          : stake[0].mulWad(proportion),
+        amount: stake[i].mulWad(proportion),
         token: loan.debt[i].token,
         recipient: receiver
       });
