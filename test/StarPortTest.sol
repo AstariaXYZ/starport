@@ -466,16 +466,9 @@ contract StarPortTest is BaseOrderTest {
       )
     );
     OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
-    offer[0] = OfferItem({
-      itemType: ItemType.ERC721,
-      token: address(LM),
-      identifierOrCriteria: uint256(caveatHash),
-      startAmount: 1,
-      endAmount: 1
-    });
-    uint256 i = 0;
-    for (; i < debt.length; ) {
-      offer[i + 1] = OfferItem({
+
+    for (uint256 i; i < debt.length; ) {
+      offer[i] = OfferItem({
         itemType: debt[i].itemType,
         token: debt[i].token,
         identifierOrCriteria: debt[i].identifier,
@@ -486,6 +479,14 @@ contract StarPortTest is BaseOrderTest {
         ++i;
       }
     }
+
+    offer[nlr.debt.length] = OfferItem({
+      itemType: ItemType.ERC721,
+      token: address(LM),
+      identifierOrCriteria: uint256(caveatHash),
+      startAmount: 1,
+      endAmount: 1
+    });
 
     OfferItem[] memory zOffer = new OfferItem[](1);
     zOffer[0] = OfferItem({
@@ -546,7 +547,7 @@ contract StarPortTest is BaseOrderTest {
 
     fill[0].offerComponents[0] = FulfillmentComponent({
       orderIndex: 1,
-      itemIndex: 1
+      itemIndex: 0
     });
     fill[0].considerationComponents[0] = FulfillmentComponent({
       orderIndex: 0,
@@ -561,6 +562,7 @@ contract StarPortTest is BaseOrderTest {
       orderIndex: 2,
       itemIndex: 0
     });
+
     fill[1].considerationComponents[0] = FulfillmentComponent({
       orderIndex: 0,
       itemIndex: 0
@@ -575,10 +577,12 @@ contract StarPortTest is BaseOrderTest {
       orderIndex: 0,
       itemIndex: 0
     });
+
     fill[2].considerationComponents[0] = FulfillmentComponent({
       orderIndex: 1,
       itemIndex: 0
     });
+
     fill[3] = Fulfillment({
       offerComponents: new FulfillmentComponent[](1),
       considerationComponents: new FulfillmentComponent[](1)
@@ -586,8 +590,9 @@ contract StarPortTest is BaseOrderTest {
 
     fill[3].offerComponents[0] = FulfillmentComponent({
       orderIndex: 1,
-      itemIndex: 0
+      itemIndex: 1
     });
+
     fill[3].considerationComponents[0] = FulfillmentComponent({
       orderIndex: 2,
       itemIndex: 0
@@ -629,16 +634,9 @@ contract StarPortTest is BaseOrderTest {
       )
     );
     OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
-    offer[0] = OfferItem({
-      itemType: ItemType.ERC721,
-      token: address(LM),
-      identifierOrCriteria: uint256(caveatHash),
-      startAmount: 1,
-      endAmount: 1
-    });
-    uint256 i = 0;
-    for (; i < debt.length; ) {
-      offer[i + 1] = OfferItem({
+
+    for (uint i; i < debt.length; ) {
+      offer[i] = OfferItem({
         itemType: debt[i].itemType,
         token: debt[i].token,
         identifierOrCriteria: debt[i].identifier,
@@ -649,6 +647,15 @@ contract StarPortTest is BaseOrderTest {
         ++i;
       }
     }
+
+    offer[nlr.debt.length] = OfferItem({
+      itemType: ItemType.ERC721,
+      token: address(LM),
+      identifierOrCriteria: uint256(caveatHash),
+      startAmount: 1,
+      endAmount: 1
+    });
+
     OrderParameters memory op = _buildContractOrder(
       address(LM),
       nlr.caveats.length == 0 ? new OfferItem[](0) : offer,

@@ -469,20 +469,21 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     bytes32 caveatHash
   ) internal returns (SpentItem[] memory offer) {
     offer = new SpentItem[](debt.length + 1);
-    offer[0] = SpentItem({
-      itemType: ItemType.ERC721,
-      token: address(this),
-      identifier: uint256(caveatHash),
-      amount: 1
-    });
-    uint256 i = 0;
-    for (; i < debt.length; ) {
-      offer[i + 1] = debt[i];
+
+    for (uint256 i; i < debt.length; ) {
+      offer[i] = debt[i];
       _setDebtApprovals(debt[i]);
       unchecked {
         ++i;
       }
     }
+
+    offer[debt.length] = SpentItem({
+      itemType: ItemType.ERC721,
+      token: address(this),
+      identifier: uint256(caveatHash),
+      amount: 1
+    });
   }
 
   function transferFrom(
