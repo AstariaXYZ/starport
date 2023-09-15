@@ -20,7 +20,8 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
   function isValidRefinance(
     LoanManager.Loan memory loan,
-    bytes memory newPricingData
+    bytes memory newPricingData,
+    address caller
   )
     external
     view
@@ -33,7 +34,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
     )
   {
     // borrowers can refinance a loan at any time
-    if (msg.sender != loan.borrower) {
+    if (caller != loan.borrower) {
       // check if a recall is occuring
       AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);
       Details memory newDetails = abi.decode(newPricingData, (Details));

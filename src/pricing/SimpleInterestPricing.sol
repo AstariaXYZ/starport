@@ -20,7 +20,8 @@ contract SimpleInterestPricing is BasePricing {
 
   function isValidRefinance(
     LoanManager.Loan memory loan,
-    bytes memory newPricingData
+    bytes memory newPricingData,
+    address caller
   )
     external
     view

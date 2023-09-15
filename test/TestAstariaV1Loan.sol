@@ -49,7 +49,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
       collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
       debt: debt
     });
-    bool isTrusted = true;
 
     LoanManager.Loan memory loan = newLoan(
       NewLoanData(

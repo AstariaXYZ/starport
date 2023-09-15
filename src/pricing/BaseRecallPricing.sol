@@ -13,7 +13,8 @@ import {StarPortLib} from "src/lib/StarPortLib.sol";
 abstract contract BaseRecallPricing is BasePricing {
   function isValidRefinance(
     LoanManager.Loan memory loan,
-    bytes memory newPricingData
+    bytes memory newPricingData,
+    address caller
   )
     external
     view

@@ -561,7 +561,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
 
       // used for any additional payments beyond consideration and carry
       ReceivedItem[] memory additionalPayment
-    ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
+    ) = Pricing(loan.terms.pricing).isValidRefinance(
+        loan,
+        newPricingData,
+        msg.sender
+      );
 
     ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(
       considerationPayment,
