@@ -6,7 +6,8 @@ import {
   ReceivedItem,
   SettlementHandler
 } from "src/handlers/SettlementHandler.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {BaseHook} from "src/hooks/BaseHook.sol";
+import {BaseRecall} from "src/hooks/BaseRecall.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
@@ -21,23 +22,20 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
     override
     returns (ReceivedItem[] memory, address restricted)
   {
-    // v1 handler is dynamic in that if a recall is active we check the hook
-    // check the recall status is it going to the lender? if so, send to lender
-    // otherwise compute the dutch price
-    //get base recall status from the hook
-    if (SettlementHook(loan.terms.hook).isRecalled(loan)) {
-      revert();
-    }
-    if (SettlementHook(loan.terms.hook).wasActive(loan)) {
-      return super.getSettlement(loan);
+    (address recaller, ) = BaseRecall(loan.terms.hook).recalls(
+      LM.getLoanIdFromLoan(loan)
+    );
+
+    if (recaller == loan.issuer) {
+      return (new ReceivedItem[](0), recaller);
     } else {
-      return (new ReceivedItem[](0), LM.getIssuer(loan));
+      return DutchAuctionHandler(address(this)).getSettlement(loan);
     }
   }
 
   function validate(
     LoanManager.Loan calldata loan
-  ) external view override returns (bool) {
+  ) external view virtual override returns (bool) {
     return true;
   }
 }

@@ -121,7 +121,7 @@ abstract contract ConduitHelper {
 
   function _removeZeroAmounts(
     ReceivedItem[] memory consideration
-  ) internal returns (ReceivedItem[] memory newConsideration) {
+  ) internal view returns (ReceivedItem[] memory newConsideration) {
     uint256 i = 0;
     uint256 validConsiderations = 0;
     for (; i < consideration.length; ) {

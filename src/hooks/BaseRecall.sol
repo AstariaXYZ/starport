@@ -59,7 +59,6 @@ abstract contract BaseRecall is ConduitHelper {
   struct Recall {
     address payable recaller;
     uint64 start;
-    //    bytes32 orderHash;
   }
 
   constructor(LoanManager LM_) {
@@ -87,7 +86,7 @@ abstract contract BaseRecall is ConduitHelper {
 
     // get conduitController
     (, , address conduitController) = seaport.information();
-    // validate that the provded conduit is owned by the msg.sender
+    // validate that the provided conduit is owned by the msg.sender
     if (
       ConduitControllerInterface(conduitController).ownerOf(conduit) !=
       msg.sender
@@ -114,7 +113,6 @@ abstract contract BaseRecall is ConduitHelper {
     uint256 loanId = uint256(keccak256(encodedLoan));
     if (!LM.active(loanId)) revert LoanDoesNotExist();
     recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
-
     emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
   }
 

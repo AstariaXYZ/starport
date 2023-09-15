@@ -43,6 +43,7 @@ contract DutchAuctionHandler is
     LoanManager.Loan memory loan
   )
     external
+    view
     virtual
     override
     returns (ReceivedItem[] memory consideration, address restricted)
@@ -92,7 +93,7 @@ contract DutchAuctionHandler is
 
   function validate(
     LoanManager.Loan calldata loan
-  ) external view override returns (bool) {
+  ) external view virtual override returns (bool) {
     Details memory details = abi.decode(loan.terms.handlerData, (Details));
     return details.startingPrice > details.endingPrice;
   }
