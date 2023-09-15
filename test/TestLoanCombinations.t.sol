@@ -5,38 +5,6 @@ import { LibString } from "solady/src/utils/LibString.sol";
 import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarPortTest {
-    SettlementHook fixedTermHook;
-    SettlementHook astariaSettlementHook;
-    //    SettlementHook swap;
-
-    SettlementHandler dutchAuctionHandler;
-    SettlementHandler englishAuctionHandler;
-    SettlementHandler astariaSettlementHandler;
-
-    Pricing simpleInterestPricing;
-    Pricing astariaPricing;
-
-    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
-
-
-    function setUp() public override {
-        super.setUp();
-
-        fixedTermHook = new FixedTermHook();
-        astariaSettlementHook = new AstariaV1SettlementHook(LM);
-
-        dutchAuctionHandler = new DutchAuctionHandler(LM);
-        englishAuctionHandler = new EnglishAuctionHandler({
-            LM_: LM,
-            consideration_: seaport,
-            EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
-        });
-        astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
-
-        simpleInterestPricing = new SimpleInterestPricing(LM);
-        astariaPricing = new AstariaV1Pricing(LM);
-    }
-
     // TODO test liquidations
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
@@ -47,11 +15,24 @@ contract TestLoanCombinations is StarPortTest {
             handlerData: defaultHandlerData,
             hookData: defaultHookData
         });
+
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
         LoanManager.Loan memory loan = _createLoan721Collateral20Debt({
             lender: lender.addr,
             borrowAmount: 100,
             terms: terms
         });
+
+        assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
+        assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
+
+
+    uint256 loanId = LM.getLoanIdFromLoan(loan);
+        assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
         skip(10 days);
 
         _repayLoan({
@@ -72,16 +53,18 @@ contract TestLoanCombinations is StarPortTest {
         });
         LoanManager.Loan memory loan = _createLoan20Collateral20Debt({
             lender: lender.addr,
-            borrowAmount: 100,
+            collateralAmount: 20, // erc20s[1]
+            borrowAmount: 100, // erc20s[0]
             terms: terms
         });
-        skip(10 days);
 
-        _repayLoan({
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+//        skip(10 days);
+//
+//        _repayLoan({
+//            borrower: borrower.addr,
+//            amount: 375,
+//            loan: loan
+//        });
     }
 
     function testLoan20For721SimpleInterestDutchFixedRepay() public {
@@ -98,7 +81,7 @@ contract TestLoanCombinations is StarPortTest {
 //            terms: terms
 //        });
 //        skip(10 days);
-
+//
 //        _repayLoan({ // TODO different repay
 //            borrower: borrower.addr,
 //            amount: 375,

@@ -71,6 +71,18 @@ interface IWETH9 {
 }
 
 contract StarPortTest is BaseOrderTest {
+  SettlementHook fixedTermHook;
+  SettlementHook astariaSettlementHook;
+
+  SettlementHandler dutchAuctionHandler;
+  SettlementHandler englishAuctionHandler;
+  SettlementHandler astariaSettlementHandler;
+
+  Pricing simpleInterestPricing;
+  Pricing astariaPricing;
+
+  ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+
   Pricing pricing;
   SettlementHandler handler;
   SettlementHook hook;
@@ -193,6 +205,22 @@ contract StarPortTest is BaseOrderTest {
     conduitController.updateChannel(refinancerConduit, address(LM), true);
     erc20s[0].approve(address(refinancerConduit), 100000);
     vm.stopPrank();
+
+    /////////
+
+    fixedTermHook = new FixedTermHook();
+    astariaSettlementHook = new AstariaV1SettlementHook(LM);
+
+    dutchAuctionHandler = new DutchAuctionHandler(LM);
+    englishAuctionHandler = new EnglishAuctionHandler({
+      LM_: LM,
+      consideration_: seaport,
+      EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
+    });
+    astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
+
+    simpleInterestPricing = new SimpleInterestPricing(LM);
+    astariaPricing = new AstariaV1Pricing(LM);
   }
 
   function onERC721Received(
@@ -704,7 +732,11 @@ contract StarPortTest is BaseOrderTest {
   }
 
   function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
-    return _createLoan({
+    uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+    assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+    uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+    loan = _createLoan({
       lender: lender,
       terms: terms,
       collateralItem:
@@ -724,17 +756,27 @@ contract StarPortTest is BaseOrderTest {
         identifier: 0
       })
     });
+
+    assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
+    assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
+
   }
 
-  function _createLoan20Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
-    return _createLoan({
+  // TODO update or overload to take interest rate
+  function _createLoan20Collateral20Debt(address lender, uint256 collateralAmount, uint256 borrowAmount, LoanManager.Terms memory terms) internal returns (LoanManager.Loan memory loan) {
+    uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
+    assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
+
+    uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
+
+    loan = _createLoan({
       lender: lender,
       terms: terms,
       collateralItem:
       ConsiderationItem({
         token: address(erc20s[1]),
-        startAmount: 20,
-        endAmount: 20,
+        startAmount: collateralAmount,
+        endAmount: collateralAmount,
         identifierOrCriteria: 0,
         itemType: ItemType.ERC20,
         recipient: payable(address(custodian))
@@ -747,6 +789,9 @@ contract StarPortTest is BaseOrderTest {
         identifier: 0
       })
     });
+
+    assertEq(initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out");
+    assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
   }
 
   // TODO fix
