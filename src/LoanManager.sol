@@ -547,6 +547,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     address conduit
   ) external {
     (, , address conduitController) = seaport.information();
+
     if (
       ConduitControllerInterface(conduitController).ownerOf(conduit) !=
       msg.sender
@@ -576,16 +577,19 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
 
     // if for malicious or non-malicious the refinanceConsideration is zero
-    if (refinanceConsideration.length == 0)
+    if (refinanceConsideration.length == 0) {
       revert InvalidNoRefinanceConsideration();
+    }
+
     _settle(loan);
-    uint256 i = 0;
-    for (; i < loan.debt.length; ) {
+
+    for (uint256 i; i < loan.debt.length; ) {
       loan.debt[i].amount = considerationPayment[i].amount;
       unchecked {
         ++i;
       }
     }
+
     if (
       ConduitInterface(conduit).execute(
         _packageTransfers(refinanceConsideration, msg.sender)
