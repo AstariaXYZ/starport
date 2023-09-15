@@ -86,7 +86,8 @@ contract SwapPricing is Pricing {
 
     function isValidRefinance(
         LoanManager.Loan memory loan,
-        bytes memory newPricingData
+        bytes memory newPricingData,
+        address caller
     ) external view override returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory) {
         return (new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0));
     }

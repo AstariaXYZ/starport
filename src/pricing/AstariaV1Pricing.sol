@@ -8,9 +8,11 @@ import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
 
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
   using FixedPointMathLib for uint256;
+  using {StarPortLib.getId} for LoanManager.Loan;
 
   constructor(LoanManager LM_) Pricing(LM_) {}
 
@@ -18,7 +20,8 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
   function isValidRefinance(
     LoanManager.Loan memory loan,
-    bytes memory newPricingData
+    bytes memory newPricingData,
+    address caller
   )
     external
     view
@@ -31,7 +34,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
     )
   {
     // borrowers can refinance a loan at any time
-    if (msg.sender != loan.borrower) {
+    if (caller != loan.borrower) {
       // check if a recall is occuring
       AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);
       Details memory newDetails = abi.decode(newPricingData, (Details));
@@ -46,7 +49,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
       uint256 proportion;
       address payable receiver = payable(loan.issuer);
-      uint256 loanId = LM.getLoanIdFromLoan(loan);
+      uint256 loanId = loan.getId();
       // scenario where the recaller is not penalized
       // recaller stake is refunded
       if (newDetails.rate > oldDetails.rate) {

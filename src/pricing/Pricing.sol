@@ -8,7 +8,7 @@ import "seaport/lib/seaport-sol/src/lib/ReceivedItemLib.sol";
 abstract contract Pricing {
   LoanManager LM;
   error InvalidRefinance();
-  
+
   constructor(LoanManager LM_) {
     LM = LM_;
   }
@@ -19,10 +19,15 @@ abstract contract Pricing {
 
   function isValidRefinance(
     LoanManager.Loan memory loan,
-    bytes memory newPricingData
+    bytes memory newPricingData,
+    address caller
   )
     external
     view
     virtual
-    returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory);
+    returns (
+      ReceivedItem[] memory,
+      ReceivedItem[] memory,
+      ReceivedItem[] memory
+    );
 }

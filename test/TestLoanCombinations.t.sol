@@ -2,9 +2,12 @@ import "./StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import { LibString } from "solady/src/utils/LibString.sol";
 
+import { StarPortLib } from "src/lib/StarPortLib.sol";
+
 import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarPortTest {
+    using {StarPortLib.getId} for LoanManager.Loan;
     // TODO test liquidations
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
@@ -31,7 +34,7 @@ contract TestLoanCombinations is StarPortTest {
         assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
 
 
-    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    uint256 loanId = loan.getId();
         assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
         skip(10 days);
 

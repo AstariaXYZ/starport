@@ -12,7 +12,7 @@ import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 abstract contract BasePricing is Pricing {
   using FixedPointMathLib for uint256;
-  using StarPortLib for LoanManager.Loan;
+  using {StarPortLib.getId} for LoanManager.Loan;
   struct Details {
     uint256 rate;
     uint256 carryRate;
