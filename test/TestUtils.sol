@@ -25,7 +25,7 @@ contract TestStarLiteUtils is Test {
         SpentItem[] memory spentItems = new SpentItem[](2);
         spentItems[0] = SpentItem({itemType: ItemType.ERC20, token: address(2), identifier: 3, amount: 4});
 
-        spentItems[1] = SpentItem({itemType: ItemType.ERC20, token: address(2), identifier: 3, amount: 4});
+                                            spentItems[1] = SpentItem({itemType: ItemType.ERC20, token: address(2), identifier: 3, amount: 4});
 
         ReceivedItem[] memory consideration0 = testContract.spentToReceivedBoring(spentItems, address(1));
 
