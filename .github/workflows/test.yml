@@ -10,7 +10,6 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -20,6 +19,27 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 16
+
       - run: yarn
+
       - uses: onbjerg/foundry-toolchain@v1
+
       - run: forge test --ffi -vvv
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - run: yarn
+
+      - uses: onbjerg/foundry-toolchain@v1
+
+      - run: forge fmt --check
