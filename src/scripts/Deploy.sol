@@ -8,18 +8,18 @@ import "../handlers/EnglishAuctionHandler.sol";
 import "../hooks/FixedTermHook.sol";
 
 contract Deploy is Script {
-  function run() public {
-    vm.startBroadcast();
-    LoanManager LM = new LoanManager();
-    UniqueOriginator UO = new UniqueOriginator(LM, msg.sender, 0);
-    Pricing PR = new SimpleInterestPricing(LM);
-    address EAZone = address(0x004C00500000aD104D7DBd00e3ae0A5C00560C00);
-    SettlementHandler SH = new EnglishAuctionHandler(
+    function run() public {
+        vm.startBroadcast();
+        LoanManager LM = new LoanManager();
+        UniqueOriginator UO = new UniqueOriginator(LM, msg.sender, 0);
+        Pricing PR = new SimpleInterestPricing(LM);
+        address EAZone = address(0x004C00500000aD104D7DBd00e3ae0A5C00560C00);
+        SettlementHandler SH = new EnglishAuctionHandler(
       LM,
       ConsiderationInterface(LM.seaport()),
       EAZone
     );
-    FixedTermHook HK = new FixedTermHook();
-    vm.stopBroadcast();
-  }
+        FixedTermHook HK = new FixedTermHook();
+        vm.stopBroadcast();
+    }
 }
