@@ -153,7 +153,7 @@ contract EnglishAuctionHandler is SettlementHandler {
         identifierOrCriteria: loan.debt[i].identifier,
         startAmount: details.reservePrice[i] - reserveRake,
         endAmount: (loan.debt[i].amount * 2) - rake,
-        recipient: payable(LM.getIssuer(loan))
+        recipient: payable(loan.issuer)
       });
       unchecked {
         ++i;
@@ -170,7 +170,7 @@ contract EnglishAuctionHandler is SettlementHandler {
     });
 
     op = OrderParameters({
-      offerer: address(LM),
+      offerer: address(this),
       zone: ENGLISH_AUCTION_ZONE,
       offer: offerItems,
       consideration: considerations,

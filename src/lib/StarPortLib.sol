@@ -6,7 +6,15 @@ import {
   SpentItem
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
+import {LoanManager} from "src/LoanManager.sol";
+
 library StarPortLib {
+  function getId(
+    LoanManager.Loan memory loan
+  ) internal pure returns (uint256 loanId) {
+    loanId = uint256(keccak256(abi.encode(loan)));
+  }
+
   function toReceivedItems(
     SpentItem[] calldata spentItems,
     address recipient

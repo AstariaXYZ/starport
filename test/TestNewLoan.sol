@@ -1,4 +1,5 @@
 import "./StarPortTest.sol";
+import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 
 contract TestNewLoan is StarPortTest {
   function testNewLoanERC721CollateralDefaultTerms2()
@@ -71,6 +72,7 @@ contract TestNewLoan is StarPortTest {
   function testNewLoanERC721CollateralDefaultTermsRefinance() public {
     Custodian custody = Custodian(LM.defaultCustodian());
 
+    //    pricing = new AstariaV1Pricing(LM);
     LoanManager.Terms memory terms = LoanManager.Terms({
       hook: address(hook),
       handler: address(handler),
