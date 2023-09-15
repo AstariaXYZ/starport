@@ -42,11 +42,7 @@ contract MerkleOriginator is Originator {
     Details memory details
   ) internal view returns (Response memory response) {
     bool needsMint = details.issuer.code.length > 0;
-    response = Response({
-      terms: details.terms,
-      mint: needsMint,
-      issuer: details.issuer
-    });
+    response = Response({terms: details.terms, issuer: details.issuer});
   }
 
   function _validateMerkleProof(

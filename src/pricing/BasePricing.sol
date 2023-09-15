@@ -7,12 +7,12 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
-
+import {BaseHook} from "src/hooks/BaseHook.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 abstract contract BasePricing is Pricing {
   using FixedPointMathLib for uint256;
-
+  using StarPortLib for LoanManager.Loan;
   struct Details {
     uint256 rate;
     uint256 carryRate;
@@ -41,37 +41,6 @@ abstract contract BasePricing is Pricing {
     return _getOwed(loan, details, loan.start, block.timestamp);
   }
 
-  // function _getOwedCarry(
-  //   LoanManager.Loan memory loan,
-  //   Details memory details,
-  //   uint256 timestamp
-  // ) internal view returns (uint256[] memory carryOwed) {
-  //   carryOwed = new uint256[](loan.debt.length);
-  //   uint256 carryOwedAboveZero;
-  //   uint256 i = 0;
-
-  //   for (; i < loan.debt.length; ) {
-  //     uint256 carry = _getInterest(loan, details, loan.start, timestamp, i).mulWad(
-  //       details.carryRate
-  //     );
-  //     if (carry > 0) {
-  //       carryOwed[i] = carry;
-  //       unchecked {
-  //         ++carryOwedAboveZero;
-  //       }
-  //     }
-  //     unchecked {
-  //       ++i;
-  //     }
-  //   }
-
-  //   if (carryOwedAboveZero != loan.debt.length) {
-      // assembly {
-      //   mstore(carryOwed, carryOwedAboveZero)
-      // }
-  //   }
-  // }
-
   function _getOwedCarry(
     LoanManager.Loan memory loan,
     Details memory details,
@@ -81,9 +50,8 @@ abstract contract BasePricing is Pricing {
     uint256 i = 0;
 
     for (; i < loan.debt.length; ) {
-      uint256 carry = getInterest(loan, details, loan.start, timestamp, i).mulWad(
-        details.carryRate
-      );
+      uint256 carry = getInterest(loan, details, loan.start, timestamp, i)
+        .mulWad(details.carryRate);
       carryOwed[i] = carry;
       unchecked {
         ++i;
@@ -128,8 +96,13 @@ abstract contract BasePricing is Pricing {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
     consideration = new ReceivedItem[](loan.debt.length);
-    uint256[] memory owing = _getOwed(loan, details, loan.start, block.timestamp);
-    address payable issuer = LM.getIssuer(loan);
+    uint256[] memory owing = _getOwed(
+      loan,
+      details,
+      loan.start,
+      block.timestamp
+    );
+    bool isActive = LM.active(loan.getId());
 
     uint256 i = 0;
     for (; i < consideration.length; ) {
@@ -138,7 +111,7 @@ abstract contract BasePricing is Pricing {
         identifier: loan.debt[i].identifier,
         amount: owing[i],
         token: loan.debt[i].token,
-        recipient: payable(issuer)
+        recipient: payable(loan.issuer)
       });
       unchecked {
         ++i;
@@ -151,7 +124,7 @@ abstract contract BasePricing is Pricing {
   ) internal view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
-    if(details.carryRate == 0) return new ReceivedItem[](0);
+    if (details.carryRate == 0) return new ReceivedItem[](0);
     uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
     consideration = new ReceivedItem[](owing.length);
     uint256 i = 0;
@@ -167,31 +140,5 @@ abstract contract BasePricing is Pricing {
         ++i;
       }
     }
-  }
-
-  function isValidRefinance(
-    LoanManager.Loan memory loan,
-    bytes memory newPricingData
-  )
-    external
-    view
-    virtual
-    override
-    returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration, ReceivedItem[] memory recallConsideration)
-  {
-    Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
-    Details memory newDetails = abi.decode(newPricingData, (Details));
-    bool isRecalled = SettlementHook(loan.terms.hook).isRecalled(loan);
-
-    //todo: figure out the proper flow for here
-    if (
-      (isRecalled && newDetails.rate >= oldDetails.rate) ||
-      (newDetails.rate < oldDetails.rate)
-    ) {
-      (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
-      recallConsideration = new ReceivedItem[](0);
-    }
-    else revert InvalidRefinance();
-
   }
 }

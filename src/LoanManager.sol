@@ -68,7 +68,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
 
   bytes32 internal immutable _DOMAIN_SEPARATOR;
 
-  //TODO: we need toadd in type hashes into the hashes
+  //TODO: we need to add in type hashes into the hashes
   mapping(bytes32 => bool) public usedHashes;
   mapping(address => uint256) public borrowerNonce; //needs to be invalidated
 
@@ -207,21 +207,15 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   // }
 
   function active(uint256 loanId) public view returns (bool) {
-    return
-      _getExtraData(loanId) ==
-      uint8(FieldFlags.ACTIVE);
+    return _getExtraData(loanId) == uint8(FieldFlags.ACTIVE);
   }
-  
+
   function inactive(uint256 loanId) public view returns (bool) {
-    return
-      _getExtraData(loanId) ==
-      uint8(FieldFlags.INACTIVE);
+    return _getExtraData(loanId) == uint8(FieldFlags.INACTIVE);
   }
 
   function initialized(uint256 loanId) public view returns (bool) {
-    return
-      _getExtraData(loanId) ==
-      uint8(FieldFlags.INITIALIZED);
+    return _getExtraData(loanId) == uint8(FieldFlags.INITIALIZED);
   }
 
   function tokenURI(
@@ -238,15 +232,15 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     return _issued(tokenId);
   }
 
-  function getIssuer(
-    Loan calldata loan
-  ) external view returns (address payable) {
-    uint256 loanId = uint256(keccak256(abi.encode(loan)));
-    if (!_issued(loanId)) {
-      revert InvalidLoan(loanId);
-    }
-    return !_exists(loanId) ? payable(loan.issuer) : payable(_ownerOf(loanId));
-  }
+  //  function getIssuer(
+  //    Loan calldata loan
+  //  ) external view returns (address payable) {
+  //    uint256 loanId = uint256(keccak256(abi.encode(loan)));
+  //    if (!_issued(loanId)) {
+  //      revert InvalidLoan(loanId);
+  //    }
+  //    return !_exists(loanId) ? payable(loan.issuer) : payable(_ownerOf(loanId));
+  //  }
 
   //break the revert of the ownerOf method, so we can ensure anyone calling it in the settlement pipeline wont halt
   function ownerOf(uint256 loanId) public view override returns (address) {
@@ -265,6 +259,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   function getLoanIdFromLoan(Loan memory loan) public pure returns (uint256) {
     return uint256(keccak256(abi.encode(loan)));
   }
+
   function _settle(Loan memory loan) internal {
     uint256 tokenId = getLoanIdFromLoan(loan);
     if (!_issued(tokenId)) {
@@ -413,7 +408,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
       offer = _setOffer(loan.debt, caveatHash);
     }
 
-    _issueLoanManager(loan, response.mint);
+    _issueLoanManager(loan, response.issuer.code.length > 0);
   }
 
   function _issueLoanManager(Loan memory loan, bool mint) internal {
@@ -426,15 +421,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
       _safeMint(loan.issuer, loanId, encodedLoan);
     }
     emit Open(loanId, loan);
-  }
-
-  function issue(Loan calldata loan) external {
-    bytes memory encodedLoan = abi.encode(loan);
-    uint256 loanId = uint256(keccak256(encodedLoan));
-    if (_getExtraData(loanId) == uint8(FieldFlags.INITIALIZED)) {
-      revert InvalidLoan(loanId);
-    }
-    _safeMint(loan.issuer, loanId, encodedLoan);
   }
 
   /**
@@ -507,7 +493,17 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     address to,
     uint256 tokenId
   ) public payable override {
-    if (from != address(this)) super.transferFrom(from, to, tokenId);
+    //active loans do nothing
+    if (from != address(this)) revert("cannot transfer loans");
+  }
+
+  function safeTransferFrom(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes calldata data
+  ) public payable override {
+    if (from != address(this)) revert("Cannot transfer loans");
   }
 
   /**
@@ -566,15 +562,20 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
       ReceivedItem[] memory carryPayment,
       // note: considerationPayment - carryPayment = amount to pay lender
 
-      // used to pay the lender from the recall amount
-      ReceivedItem[] memory recallPayment
+      // used for any additional payments beyond consideration and carry
+      ReceivedItem[] memory additionalPayment
     ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
 
-    ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(considerationPayment, carryPayment, recallPayment);
+    ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(
+      considerationPayment,
+      carryPayment,
+      additionalPayment
+    );
     refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
 
-    // if for malicious or non-malicious the refinanceConsideration is zero 
-    if(refinanceConsideration.length == 0) revert InvalidNoRefinanceConsideration();
+    // if for malicious or non-malicious the refinanceConsideration is zero
+    if (refinanceConsideration.length == 0)
+      revert InvalidNoRefinanceConsideration();
     _settle(loan);
     uint256 i = 0;
     for (; i < loan.debt.length; ) {
