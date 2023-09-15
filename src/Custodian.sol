@@ -24,14 +24,23 @@ import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
 import "forge-std/console.sol";
+import {ConduitHelper} from "src/ConduitHelper.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
-contract Custodian is ContractOffererInterface, TokenReceiverInterface {
+contract Custodian is
+  ContractOffererInterface,
+  TokenReceiverInterface,
+  ConduitHelper
+{
+  using {StarPortLib.getId} for LoanManager.Loan;
   LoanManager public immutable LM;
   address public immutable seaport;
+  event SeaportCompatibleContractDeployed();
 
   constructor(LoanManager LM_, address seaport_) {
     seaport = seaport_;
     LM = LM_;
+    emit SeaportCompatibleContractDeployed();
   }
 
   function supportsInterface(
@@ -73,7 +82,8 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
     // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
     // in this case we are not a repayment we have burnt the loan in the generate order for a repayment
-    if (LM.active(loan)) {
+    uint256 loanId = loan.getId();
+    if (LM.active(loanId)) {
       if (
         SettlementHandler(loan.terms.handler).execute(loan) !=
         SettlementHandler.execute.selector
@@ -131,52 +141,12 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
         ReceivedItem[] memory carryFeeConsideration
       ) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-      //      uint256 carryOverZeroCount;
-      //      uint256 payOverZeroCount;
-      uint256 i = 0;
-
-      //      for (; i < paymentConsiderations.length; ) {
-      //        if (paymentConsiderations[i].amount > 0) {
-      //          payOverZeroCount++;
-      //        }
-      //        unchecked {
-      //          ++i;
-      //        }
-      //      }
-      //
-      //      i = 0;
-      //      for (; i < carryFeeConsideration.length; ) {
-      //        if (carryFeeConsideration[i].amount > 0) {
-      //          carryOverZeroCount++;
-      //        }
-      //        unchecked {
-      //          ++i;
-      //        }
-      //      }
-
-      consideration = new ReceivedItem[](
-        paymentConsiderations.length + carryFeeConsideration.length
+      consideration = _mergeConsiderations(
+        paymentConsiderations,
+        carryFeeConsideration,
+        new ReceivedItem[](0)
       );
-
-      i = 0;
-      for (; i < paymentConsiderations.length; ) {
-        consideration[i] = paymentConsiderations[i];
-        unchecked {
-          ++i;
-        }
-      }
-      uint256 j = 0;
-      i = paymentConsiderations.length;
-      //loop fee considerations and add them to the consideration array
-      for (; j < carryFeeConsideration.length; ) {
-        if (carryFeeConsideration[j].amount > 0) {
-          consideration[i + j] = carryFeeConsideration[j];
-        }
-        unchecked {
-          ++j;
-        }
-      }
-
+      consideration = _removeZeroAmounts(consideration);
       //if a callback is needed for the issuer do it here
       _settleLoan(loan);
     } else {
@@ -268,11 +238,15 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface {
     //TODO: move this into generate order and then do a view only version that doesnt call settle
   }
 
+  //todo work with seaport
   function getSeaportMetadata()
     external
     pure
     returns (string memory, Schema[] memory schemas)
   {
+    //adhere to sip data, how to encode the context and what it is
+    //TODO: add in the context for the loan
+    //you need to parse LM Open events for the loan and abi encode it
     schemas = new Schema[](1);
     schemas[0] = Schema(8, "");
     return ("Loans", schemas);

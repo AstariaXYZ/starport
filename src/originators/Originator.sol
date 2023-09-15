@@ -30,7 +30,6 @@ abstract contract Originator {
   struct Response {
     LoanManager.Terms terms;
     address issuer;
-    bool mint;
   }
 
   struct Request {
@@ -143,10 +142,6 @@ abstract contract Originator {
   function terms(
     bytes calldata
   ) external view virtual returns (LoanManager.Terms memory);
-
-  //  function isValidRefinance(
-  //    LoanManager.Obligation
-  //  ) external virtual returns (Response memory);
 
   // Abstract function to execute the loan, to be overridden in child contracts
   function execute(Request calldata) external virtual returns (Response memory);

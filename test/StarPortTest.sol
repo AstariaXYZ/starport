@@ -41,7 +41,8 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //} from "seaport/reference/ReferenceConsideration.sol";
 import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
 import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
-import {FixedTermPricing} from "src/pricing/FixedTermPricing.sol";
+import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
+import {BasePricing} from "src/pricing/BasePricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
@@ -75,7 +76,7 @@ contract StarPortTest is BaseOrderTest {
   // 1% interest rate per second
   bytes defaultPricingData =
     abi.encode(
-      FixedTermPricing.Details({
+      BasePricing.Details({
         carryRate: (uint256(1e16) * 10),
         rate: (uint256(1e16) * 150) / (365 * 1 days)
       })
@@ -117,7 +118,7 @@ contract StarPortTest is BaseOrderTest {
     consideration = new Consideration(address(conduitController));
   }
 
-  function setUp() public override {
+  function setUp() public virtual override {
     _deployAndConfigureConsideration();
     vm.label(alice, "alice");
     vm.label(bob, "bob");
@@ -149,7 +150,7 @@ contract StarPortTest is BaseOrderTest {
     UO = new UniqueOriginator(LM, strategist.addr, 1e16);
     MO = new MerkleOriginator(LM, strategist.addr, 1e16);
     CP = new CapitalPool(address(erc20s[0]), conduitController, address(MO));
-    pricing = new FixedTermPricing(LM);
+    pricing = new SimpleInterestPricing(LM);
     handler = new DutchAuctionHandler(LM);
     hook = new FixedTermHook();
     vm.label(address(erc721s[0]), "Collateral NFT");
@@ -184,7 +185,7 @@ contract StarPortTest is BaseOrderTest {
       conduitKeyRefinancer,
       refinancer.addr
     );
-    console.log("Refinancer", refinancer.addr);
+    // console.log("Refinancer", refinancer.addr);
     conduitController.updateChannel(refinancerConduit, address(LM), true);
     erc20s[0].approve(address(refinancerConduit), 100000);
     vm.stopPrank();

@@ -1,4 +1,5 @@
 import "./StarPortTest.sol";
+import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 
 contract TestNewLoan is StarPortTest {
   function testNewLoanERC721CollateralDefaultTerms2()
@@ -71,6 +72,7 @@ contract TestNewLoan is StarPortTest {
   function testNewLoanERC721CollateralDefaultTermsRefinance() public {
     Custodian custody = Custodian(LM.defaultCustodian());
 
+    //    pricing = new AstariaV1Pricing(LM);
     LoanManager.Terms memory terms = LoanManager.Terms({
       hook: address(hook),
       handler: address(handler),
@@ -110,8 +112,6 @@ contract TestNewLoan is StarPortTest {
     });
     bool isTrusted = true;
 
-    console.log("Refinancer", refinancer.addr);
-    console.log("Harness", address(this));
     LoanManager.Loan memory loan = newLoan(
       NewLoanData(
         address(custody),
@@ -125,7 +125,7 @@ contract TestNewLoan is StarPortTest {
     LM.refinance(
       loan,
       abi.encode(
-        FixedTermPricing.Details({
+        BasePricing.Details({
           rate: (uint256(1e16) * 100) / (365 * 1 days),
           carryRate: 0
         })

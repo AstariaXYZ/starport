@@ -5,13 +5,14 @@ import {Pricing} from "src/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
-contract FixedTermPricing is Pricing {
+import {BaseHook} from "src/hooks/BaseHook.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
+
+abstract contract BasePricing is Pricing {
   using FixedPointMathLib for uint256;
-
-  constructor(LoanManager LM_) Pricing(LM_) {}
-
+  using {StarPortLib.getId} for LoanManager.Loan;
   struct Details {
     uint256 rate;
     uint256 carryRate;
@@ -37,7 +38,7 @@ contract FixedTermPricing is Pricing {
     LoanManager.Loan memory loan
   ) public view returns (uint256[] memory) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
-    return _getOwed(loan, details, block.timestamp);
+    return _getOwed(loan, details, loan.start, block.timestamp);
   }
 
   function _getOwedCarry(
@@ -46,27 +47,14 @@ contract FixedTermPricing is Pricing {
     uint256 timestamp
   ) internal view returns (uint256[] memory carryOwed) {
     carryOwed = new uint256[](loan.debt.length);
-    uint256 carryOwedAboveZero;
     uint256 i = 0;
 
     for (; i < loan.debt.length; ) {
-      uint256 carry = _getInterest(loan, details, timestamp, i).mulWad(
-        details.carryRate
-      );
-      if (carry > 0) {
-        carryOwed[i] = carry;
-        unchecked {
-          ++carryOwedAboveZero;
-        }
-      }
+      uint256 carry = getInterest(loan, details, loan.start, timestamp, i)
+        .mulWad(details.carryRate);
+      carryOwed[i] = carry;
       unchecked {
         ++i;
-      }
-    }
-
-    if (carryOwedAboveZero != loan.debt.length) {
-      assembly {
-        mstore(carryOwed, carryOwedAboveZero)
       }
     }
   }
@@ -74,26 +62,33 @@ contract FixedTermPricing is Pricing {
   function _getOwed(
     LoanManager.Loan memory loan,
     Details memory details,
-    uint256 timestamp
+    uint256 start,
+    uint256 end
   ) internal view returns (uint256[] memory updatedDebt) {
     updatedDebt = new uint256[](loan.debt.length);
     for (uint256 i = 0; i < loan.debt.length; i++) {
       updatedDebt[i] =
         loan.debt[i].amount +
-        _getInterest(loan, details, timestamp, i);
+        getInterest(loan, details, start, end, i);
     }
   }
 
-  function _getInterest(
+  function getInterest(
     LoanManager.Loan memory loan,
     Details memory details,
-    uint256 timestamp,
+    uint256 start,
+    uint256 end,
     uint256 index
-  ) internal view returns (uint256) {
-    uint256 delta_t = timestamp - loan.start;
-
-    return (delta_t * details.rate).mulWad(loan.debt[index].amount);
+  ) public view returns (uint256) {
+    uint256 delta_t = end - start;
+    return calculateInterest(delta_t, details.rate, loan.debt[index].amount);
   }
+
+  function calculateInterest(
+    uint256 delta_t,
+    uint256 amount,
+    uint256 rate // expressed as SPR seconds per rate
+  ) public pure virtual returns (uint256);
 
   function _generateRepayConsideration(
     LoanManager.Loan memory loan
@@ -101,17 +96,22 @@ contract FixedTermPricing is Pricing {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
     consideration = new ReceivedItem[](loan.debt.length);
-    uint256[] memory owing = _getOwed(loan, details, block.timestamp);
-    address payable issuer = LM.getIssuer(loan);
+    uint256[] memory owing = _getOwed(
+      loan,
+      details,
+      loan.start,
+      block.timestamp
+    );
+    bool isActive = LM.active(loan.getId());
 
     uint256 i = 0;
     for (; i < consideration.length; ) {
       consideration[i] = ReceivedItem({
         itemType: loan.debt[i].itemType,
         identifier: loan.debt[i].identifier,
-        amount: owing.length == consideration.length ? owing[i] : owing[0],
+        amount: owing[i],
         token: loan.debt[i].token,
-        recipient: payable(issuer)
+        recipient: payable(loan.issuer)
       });
       unchecked {
         ++i;
@@ -124,6 +124,7 @@ contract FixedTermPricing is Pricing {
   ) internal view returns (ReceivedItem[] memory consideration) {
     Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
+    if (details.carryRate == 0) return new ReceivedItem[](0);
     uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
     consideration = new ReceivedItem[](owing.length);
     uint256 i = 0;
@@ -131,7 +132,7 @@ contract FixedTermPricing is Pricing {
       consideration[i] = ReceivedItem({
         itemType: loan.debt[i].itemType,
         identifier: loan.debt[i].identifier,
-        amount: owing.length == consideration.length ? owing[i] : owing[0],
+        amount: owing[i],
         token: loan.debt[i].token,
         recipient: payable(loan.originator)
       });
@@ -139,28 +140,5 @@ contract FixedTermPricing is Pricing {
         ++i;
       }
     }
-  }
-
-  function isValidRefinance(
-    LoanManager.Loan memory loan,
-    bytes memory newPricingData
-  )
-    external
-    view
-    override
-    returns (ReceivedItem[] memory, ReceivedItem[] memory)
-  {
-    Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
-    Details memory newDetails = abi.decode(newPricingData, (Details));
-    bool active = SettlementHook(loan.terms.hook).isActive(loan);
-
-    //todo: figure out the proper flow for here
-    if (
-      (active && newDetails.rate >= oldDetails.rate) ||
-      (!active && newDetails.rate <= oldDetails.rate)
-    ) {
-      revert InvalidRefinance();
-    }
-    return getPaymentConsideration(loan);
   }
 }

@@ -26,7 +26,7 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import {
   ConduitTransfer,
   ConduitItemType
@@ -42,9 +42,12 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
 
-contract LoanManager is ERC721, ContractOffererInterface {
+import {ConduitHelper} from "src/ConduitHelper.sol";
+
+contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   using FixedPointMathLib for uint256;
   using {StarPortLib.toReceivedItems} for SpentItem[];
+  using {StarPortLib.getId} for LoanManager.Loan;
 
   ConsiderationInterface public constant seaport =
     ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
@@ -66,7 +69,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
 
   bytes32 internal immutable _DOMAIN_SEPARATOR;
 
-  //TODO: we need toadd in type hashes into the hashes
+  //TODO: we need to add in type hashes into the hashes
   mapping(bytes32 => bool) public usedHashes;
   mapping(address => uint256) public borrowerNonce; //needs to be invalidated
 
@@ -130,6 +133,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
   error InvalidOrigination();
   error InvalidSigner();
   error InvalidContext(ContextErrors);
+  error InvalidNoRefinanceConsideration();
 
   enum ContextErrors {
     BAD_ORIGINATION,
@@ -197,10 +201,22 @@ contract LoanManager is ERC721, ContractOffererInterface {
     _;
   }
 
-  function active(Loan calldata loan) public view returns (bool) {
-    return
-      _getExtraData(uint256(keccak256(abi.encode(loan)))) ==
-      uint8(FieldFlags.ACTIVE);
+  // function active(Loan calldata loan) public view returns (bool) {
+  //   return
+  //     _getExtraData(uint256(keccak256(abi.encode(loan)))) ==
+  //     uint8(FieldFlags.ACTIVE);
+  // }
+
+  function active(uint256 loanId) public view returns (bool) {
+    return _getExtraData(loanId) == uint8(FieldFlags.ACTIVE);
+  }
+
+  function inactive(uint256 loanId) public view returns (bool) {
+    return _getExtraData(loanId) == uint8(FieldFlags.INACTIVE);
+  }
+
+  function initialized(uint256 loanId) public view returns (bool) {
+    return _getExtraData(loanId) == uint8(FieldFlags.INITIALIZED);
   }
 
   function tokenURI(
@@ -213,15 +229,19 @@ contract LoanManager is ERC721, ContractOffererInterface {
     return (_getExtraData(tokenId) > uint8(0));
   }
 
-  function getIssuer(
-    Loan calldata loan
-  ) external view returns (address payable) {
-    uint256 loanId = uint256(keccak256(abi.encode(loan)));
-    if (!_issued(loanId)) {
-      revert InvalidLoan(loanId);
-    }
-    return !_exists(loanId) ? payable(loan.issuer) : payable(_ownerOf(loanId));
+  function issued(uint256 tokenId) external view returns (bool) {
+    return _issued(tokenId);
   }
+
+  //  function getIssuer(
+  //    Loan calldata loan
+  //  ) external view returns (address payable) {
+  //    uint256 loanId = uint256(keccak256(abi.encode(loan)));
+  //    if (!_issued(loanId)) {
+  //      revert InvalidLoan(loanId);
+  //    }
+  //    return !_exists(loanId) ? payable(loan.issuer) : payable(_ownerOf(loanId));
+  //  }
 
   //break the revert of the ownerOf method, so we can ensure anyone calling it in the settlement pipeline wont halt
   function ownerOf(uint256 loanId) public view override returns (address) {
@@ -238,7 +258,7 @@ contract LoanManager is ERC721, ContractOffererInterface {
   }
 
   function _settle(Loan memory loan) internal {
-    uint256 tokenId = uint256(keccak256(abi.encode(loan)));
+    uint256 tokenId = loan.getId();
     if (!_issued(tokenId)) {
       revert InvalidLoan(tokenId);
     }
@@ -385,28 +405,19 @@ contract LoanManager is ERC721, ContractOffererInterface {
       offer = _setOffer(loan.debt, caveatHash);
     }
 
-    _issueLoanManager(loan, response.mint);
+    _issueLoanManager(loan, response.issuer.code.length > 0);
   }
 
   function _issueLoanManager(Loan memory loan, bool mint) internal {
     bytes memory encodedLoan = abi.encode(loan);
 
-    uint256 loanId = uint256(keccak256(encodedLoan));
+    uint256 loanId = loan.getId();
 
     _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
     if (mint) {
       _safeMint(loan.issuer, loanId, encodedLoan);
     }
     emit Open(loanId, loan);
-  }
-
-  function issue(Loan calldata loan) external {
-    bytes memory encodedLoan = abi.encode(loan);
-    uint256 loanId = uint256(keccak256(encodedLoan));
-    if (_getExtraData(loanId) == uint8(FieldFlags.INITIALIZED)) {
-      revert InvalidLoan(loanId);
-    }
-    _safeMint(loan.issuer, loanId, encodedLoan);
   }
 
   /**
@@ -479,7 +490,17 @@ contract LoanManager is ERC721, ContractOffererInterface {
     address to,
     uint256 tokenId
   ) public payable override {
-    if (from != address(this)) super.transferFrom(from, to, tokenId);
+    //active loans do nothing
+    if (from != address(this)) revert("cannot transfer loans");
+  }
+
+  function safeTransferFrom(
+    address from,
+    address to,
+    uint256 tokenId,
+    bytes calldata data
+  ) public payable override {
+    if (from != address(this)) revert("Cannot transfer loans");
   }
 
   /**
@@ -532,39 +553,28 @@ contract LoanManager is ERC721, ContractOffererInterface {
       revert InvalidConduit();
     }
     (
+      // used to update the new loan amount
       ReceivedItem[] memory considerationPayment,
-      ReceivedItem[] memory carryPayment
+      // used to pay the carry amount
+      ReceivedItem[] memory carryPayment,
+      // note: considerationPayment - carryPayment = amount to pay lender
+
+      // used for any additional payments beyond consideration and carry
+      ReceivedItem[] memory additionalPayment
     ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData);
 
-    if (
-      loan.debt.length != considerationPayment.length &&
-      carryPayment.length <= considerationPayment.length
-    ) {
-      revert InvalidRefinance();
-    }
-
-    ReceivedItem[] memory refinanceConsideration = new ReceivedItem[](
-      considerationPayment.length + carryPayment.length
+    ReceivedItem[] memory refinanceConsideration = _mergeConsiderations(
+      considerationPayment,
+      carryPayment,
+      additionalPayment
     );
+    refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
 
-    //todo: give to greg to optimize
-    uint256 i = 0;
-    for (; i < considerationPayment.length; ) {
-      refinanceConsideration[i] = considerationPayment[i];
-      unchecked {
-        ++i;
-      }
-    }
-    uint256 j = 0;
-    for (; j < carryPayment.length; ) {
-      refinanceConsideration[i] = carryPayment[j];
-      unchecked {
-        ++i;
-        j++;
-      }
-    }
+    // if for malicious or non-malicious the refinanceConsideration is zero
+    if (refinanceConsideration.length == 0)
+      revert InvalidNoRefinanceConsideration();
     _settle(loan);
-    i = 0;
+    uint256 i = 0;
     for (; i < loan.debt.length; ) {
       loan.debt[i].amount = considerationPayment[i].amount;
       unchecked {
@@ -584,45 +594,5 @@ contract LoanManager is ERC721, ContractOffererInterface {
     loan.issuer = msg.sender;
     loan.start = block.timestamp;
     _issueLoanManager(loan, msg.sender.code.length > 0);
-  }
-
-  function _packageTransfers(
-    ReceivedItem[] memory refinanceConsideration,
-    address refinancer
-  ) internal pure returns (ConduitTransfer[] memory transfers) {
-    uint256 i = 0;
-    transfers = new ConduitTransfer[](refinanceConsideration.length);
-    for (; i < refinanceConsideration.length; ) {
-      ConduitItemType itemType;
-      ReceivedItem memory debt = refinanceConsideration[i];
-
-      assembly {
-        itemType := mload(debt)
-        switch itemType
-        case 1 {
-
-        }
-        case 2 {
-
-        }
-        case 3 {
-
-        }
-        default {
-          revert(0, 0)
-        } //TODO: Update with error selector - InvalidContext(ContextErrors.INVALID_LOAN)
-      }
-      transfers[i] = ConduitTransfer({
-        itemType: itemType,
-        from: refinancer,
-        token: refinanceConsideration[i].token,
-        identifier: refinanceConsideration[i].identifier,
-        amount: refinanceConsideration[i].amount,
-        to: refinanceConsideration[i].recipient
-      });
-      unchecked {
-        ++i;
-      }
-    }
   }
 }
