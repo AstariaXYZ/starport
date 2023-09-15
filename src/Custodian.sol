@@ -25,12 +25,14 @@ import {Pricing} from "src/pricing/Pricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
 import "forge-std/console.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 contract Custodian is
   ContractOffererInterface,
   TokenReceiverInterface,
   ConduitHelper
 {
+  using {StarPortLib.getId} for LoanManager.Loan;
   LoanManager public immutable LM;
   address public immutable seaport;
   event SeaportCompatibleContractDeployed();
@@ -80,7 +82,7 @@ contract Custodian is
     // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
     // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
     // in this case we are not a repayment we have burnt the loan in the generate order for a repayment
-    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    uint256 loanId = loan.getId();
     if (LM.active(loanId)) {
       if (
         SettlementHandler(loan.terms.handler).execute(loan) !=

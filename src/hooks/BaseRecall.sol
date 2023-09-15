@@ -26,10 +26,11 @@ import {
 } from "seaport-types/src/interfaces/ConduitInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 abstract contract BaseRecall is ConduitHelper {
   using FixedPointMathLib for uint256;
-
+  using {StarPortLib.getId} for LoanManager.Loan;
   event Recalled(uint256 loandId, address recaller, uint256 end);
   event Withdraw(uint256 loanId, address withdrawer);
   LoanManager LM;
@@ -69,7 +70,7 @@ abstract contract BaseRecall is ConduitHelper {
     LoanManager.Loan calldata loan
   ) external view returns (uint256) {
     Details memory details = abi.decode(loan.terms.hookData, (Details));
-    uint256 loanId = LM.getLoanIdFromLoan(loan);
+    uint256 loanId = loan.getId();
     // calculates the porportion of time elapsed, then multiplies times the max rate
     return
       details.recallMax.mulWad(

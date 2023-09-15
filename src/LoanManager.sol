@@ -47,6 +47,7 @@ import {ConduitHelper} from "src/ConduitHelper.sol";
 contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   using FixedPointMathLib for uint256;
   using {StarPortLib.toReceivedItems} for SpentItem[];
+  using {StarPortLib.getId} for LoanManager.Loan;
 
   ConsiderationInterface public constant seaport =
     ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
@@ -256,12 +257,8 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
     _settle(loan);
   }
 
-  function getLoanIdFromLoan(Loan memory loan) public pure returns (uint256) {
-    return uint256(keccak256(abi.encode(loan)));
-  }
-
   function _settle(Loan memory loan) internal {
-    uint256 tokenId = getLoanIdFromLoan(loan);
+    uint256 tokenId = loan.getId();
     if (!_issued(tokenId)) {
       revert InvalidLoan(tokenId);
     }
@@ -414,7 +411,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
   function _issueLoanManager(Loan memory loan, bool mint) internal {
     bytes memory encodedLoan = abi.encode(loan);
 
-    uint256 loanId = uint256(keccak256(encodedLoan));
+    uint256 loanId = loan.getId();
 
     _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
     if (mint) {

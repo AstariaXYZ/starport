@@ -4,7 +4,10 @@ import {BaseRecall} from "src/hooks/BaseRecall.sol";
 // import {Base} from "src/pricing/CompoundInterestPricing.sol";
 // import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 import "forge-std/console2.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
+
 contract TestAstariaV1Loan is AstariaV1Test {
+  using {StarPortLib.getId} for LoanManager.Loan;
 
   function testNewLoanERC721CollateralDefaultTermsRecall() public {
     Custodian custody = Custodian(LM.defaultCustodian());
@@ -57,8 +60,11 @@ contract TestAstariaV1Loan is AstariaV1Test {
       Originator(UO),
       selectedCollateral
     );
-    uint256 loanId = LM.getLoanIdFromLoan(loan);
-    assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
+    uint256 loanId = loan.getId();
+    assertTrue(
+      LM.active(loanId),
+      "LoanId not in active state after a new loan"
+    );
 
     {
       vm.startPrank(recaller.addr);
@@ -86,22 +92,40 @@ contract TestAstariaV1Loan is AstariaV1Test {
     uint256 stake;
     {
       uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
-      uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook)); 
-      BaseRecall.Details memory details =  abi.decode(loan.terms.hookData, (BaseRecall.Details));
+      uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
+      BaseRecall.Details memory details = abi.decode(
+        loan.terms.hookData,
+        (BaseRecall.Details)
+      );
       vm.warp(block.timestamp + details.honeymoon);
       vm.startPrank(recaller.addr);
 
       BaseRecall recallContract = BaseRecall(address(hook));
       recallContract.recall(loan, recallerConduit);
       vm.stopPrank();
-      
-      uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
-      uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(hook)); 
 
-      BasePricing.Details memory pricingDetails =  abi.decode(loan.terms.pricingData, (BasePricing.Details));
-      stake = BasePricing(address(pricing)).calculateInterest(details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate);
-      assertEq(balanceBefore, balanceAfter + stake, "Recaller balance not transfered correctly");
-      assertEq(recallContractBalanceBefore + stake, recallContractBalanceAfter, "Balance not transfered to recall contract correctly");
+      uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
+      uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(hook));
+
+      BasePricing.Details memory pricingDetails = abi.decode(
+        loan.terms.pricingData,
+        (BasePricing.Details)
+      );
+      stake = BasePricing(address(pricing)).calculateInterest(
+        details.recallStakeDuration,
+        loan.debt[0].amount,
+        pricingDetails.rate
+      );
+      assertEq(
+        balanceBefore,
+        balanceAfter + stake,
+        "Recaller balance not transfered correctly"
+      );
+      assertEq(
+        recallContractBalanceBefore + stake,
+        recallContractBalanceAfter,
+        "Balance not transfered to recall contract correctly"
+      );
     }
     {
       BaseRecall recallContract = BaseRecall(address(hook));
@@ -109,7 +133,11 @@ contract TestAstariaV1Loan is AstariaV1Test {
       uint64 start;
       (recallerAddr, start) = recallContract.recalls(loanId);
 
-      assertEq(recaller.addr, recallerAddr, "Recaller address logged incorrectly");
+      assertEq(
+        recaller.addr,
+        recallerAddr,
+        "Recaller address logged incorrectly"
+      );
       assertEq(start, block.timestamp, "Recall start logged incorrectly");
     }
     {
@@ -139,29 +167,51 @@ contract TestAstariaV1Loan is AstariaV1Test {
       uint256 newLenderBefore = erc20s[0].balanceOf(refinancer.addr);
       uint256 oldLenderBefore = erc20s[0].balanceOf(lender.addr);
       uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
-      BaseRecall.Details memory details =  abi.decode(loan.terms.hookData, (BaseRecall.Details));
+      BaseRecall.Details memory details = abi.decode(
+        loan.terms.hookData,
+        (BaseRecall.Details)
+      );
       vm.startPrank(refinancer.addr);
       vm.warp(block.timestamp + (details.recallWindow / 2));
       LM.refinance(
         loan,
         abi.encode(
-          BasePricing.Details({
-            rate: details.recallMax / 2,
-            carryRate: 0
-          })
+          BasePricing.Details({rate: details.recallMax / 2, carryRate: 0})
         ),
         refinancerConduit
       );
       vm.stopPrank();
       uint256 delta_t = block.timestamp - loan.start;
-      BasePricing.Details memory pricingDetails =  abi.decode(loan.terms.pricingData, (BasePricing.Details));
-      uint256 interest = BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+      BasePricing.Details memory pricingDetails = abi.decode(
+        loan.terms.pricingData,
+        (BasePricing.Details)
+      );
+      uint256 interest = BasePricing(address(pricing)).calculateInterest(
+        delta_t,
+        loan.debt[0].amount,
+        pricingDetails.rate
+      );
       uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
       uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
-      assertEq(oldLenderAfter, oldLenderBefore + loan.debt[0].amount + interest, "Payment to old lender calculated incorrectly");
-      assertEq(newLenderAfter, newLenderBefore - (loan.debt[0].amount + interest + stake), "Payment from new lender calculated incorrectly");
-      assertEq(recallerBefore + stake, erc20s[0].balanceOf(recaller.addr), "Recaller did not recover stake as expected");
-      assertTrue(LM.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
+      assertEq(
+        oldLenderAfter,
+        oldLenderBefore + loan.debt[0].amount + interest,
+        "Payment to old lender calculated incorrectly"
+      );
+      assertEq(
+        newLenderAfter,
+        newLenderBefore - (loan.debt[0].amount + interest + stake),
+        "Payment from new lender calculated incorrectly"
+      );
+      assertEq(
+        recallerBefore + stake,
+        erc20s[0].balanceOf(recaller.addr),
+        "Recaller did not recover stake as expected"
+      );
+      assertTrue(
+        LM.inactive(loanId),
+        "LoanId not properly flipped to inactive after refinance"
+      );
     }
     {
       uint256 withdrawerBalanceBefore = erc20s[0].balanceOf(address(this));
@@ -172,8 +222,16 @@ contract TestAstariaV1Loan is AstariaV1Test {
       recallContract.withdraw(loan, payable(address(this)));
       uint256 withdrawerBalanceAfter = erc20s[0].balanceOf(address(this));
       uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(hook));
-      assertEq(withdrawerBalanceBefore + stake, withdrawerBalanceAfter, "Withdrawer did not recover stake as expected");
-      assertEq(recallContractBalanceBefore - stake, recallContractBalanceAfter, "BaseRecall did not return the stake as expected");
+      assertEq(
+        withdrawerBalanceBefore + stake,
+        withdrawerBalanceAfter,
+        "Withdrawer did not recover stake as expected"
+      );
+      assertEq(
+        recallContractBalanceBefore - stake,
+        recallContractBalanceAfter,
+        "BaseRecall did not return the stake as expected"
+      );
     }
   }
 }

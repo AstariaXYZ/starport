@@ -9,8 +9,11 @@ import {
 import {BaseHook} from "src/hooks/BaseHook.sol";
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
+  using {StarPortLib.getId} for LoanManager.Loan;
+
   constructor(LoanManager LM_) DutchAuctionHandler(LM_) {}
 
   function getSettlement(
@@ -22,9 +25,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
     override
     returns (ReceivedItem[] memory, address restricted)
   {
-    (address recaller, ) = BaseRecall(loan.terms.hook).recalls(
-      LM.getLoanIdFromLoan(loan)
-    );
+    (address recaller, ) = BaseRecall(loan.terms.hook).recalls(loan.getId());
 
     if (recaller == loan.issuer) {
       return (new ReceivedItem[](0), recaller);

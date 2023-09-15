@@ -8,9 +8,11 @@ import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
 
 import {BaseRecall} from "src/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
   using FixedPointMathLib for uint256;
+  using {StarPortLib.getId} for LoanManager.Loan;
 
   constructor(LoanManager LM_) Pricing(LM_) {}
 
@@ -46,7 +48,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
       uint256 proportion;
       address payable receiver = payable(loan.issuer);
-      uint256 loanId = LM.getLoanIdFromLoan(loan);
+      uint256 loanId = loan.getId();
       // scenario where the recaller is not penalized
       // recaller stake is refunded
       if (newDetails.rate > oldDetails.rate) {
