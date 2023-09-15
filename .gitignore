@@ -5,6 +5,8 @@ artifacts/
 cache_hardhat/
 typechain-types/
 
+.idea/
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 abstract contract Assertions {
   //Assert balances are correct after new loan is created
   modifier newLoanAssertions() {
@@ -22,5 +23,4 @@ abstract contract Assertions {
   
   }
 }
-
 
