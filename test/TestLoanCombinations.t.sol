@@ -1,14 +1,15 @@
 import "./StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import { LibString } from "solady/src/utils/LibString.sol";
+import {LibString} from "solady/src/utils/LibString.sol";
 
-import { StarPortLib } from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarPortTest {
     using {StarPortLib.getId} for LoanManager.Loan;
     // TODO test liquidations
+
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(fixedTermHook),
@@ -24,25 +25,17 @@ contract TestLoanCombinations is StarPortTest {
 
         uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
 
-        LoanManager.Loan memory loan = _createLoan721Collateral20Debt({
-            lender: lender.addr,
-            borrowAmount: 100,
-            terms: terms
-        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
 
         assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
         assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
 
-
-    uint256 loanId = loan.getId();
+        uint256 loanId = loan.getId();
         assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
         skip(10 days);
 
-        _repayLoan({
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 
     function testLoan20for20SimpleInterestDutchFixedRepay() public {
@@ -61,35 +54,35 @@ contract TestLoanCombinations is StarPortTest {
             terms: terms
         });
 
-//        skip(10 days);
-//
-//        _repayLoan({
-//            borrower: borrower.addr,
-//            amount: 375,
-//            loan: loan
-//        });
+        //        skip(10 days);
+        //
+        //        _repayLoan({
+        //            borrower: borrower.addr,
+        //            amount: 375,
+        //            loan: loan
+        //        });
     }
 
     function testLoan20For721SimpleInterestDutchFixedRepay() public {
-//        LoanManager.Terms memory terms = LoanManager.Terms({
-//            hook: address(fixedTermHook),
-//            handler: address(dutchAuctionHandler),
-//            pricing: address(simpleInterestPricing),
-//            pricingData: defaultPricingData,
-//            handlerData: defaultHandlerData,
-//            hookData: defaultHookData
-//        });
-//        LoanManager.Loan memory loan = _createLoan20Collateral721Debt({
-//            lender: lender.addr,
-//            terms: terms
-//        });
-//        skip(10 days);
-//
-//        _repayLoan({ // TODO different repay
-//            borrower: borrower.addr,
-//            amount: 375,
-//            loan: loan
-//        });
+        //        LoanManager.Terms memory terms = LoanManager.Terms({
+        //            hook: address(fixedTermHook),
+        //            handler: address(dutchAuctionHandler),
+        //            pricing: address(simpleInterestPricing),
+        //            pricingData: defaultPricingData,
+        //            handlerData: defaultHandlerData,
+        //            hookData: defaultHookData
+        //        });
+        //        LoanManager.Loan memory loan = _createLoan20Collateral721Debt({
+        //            lender: lender.addr,
+        //            terms: terms
+        //        });
+        //        skip(10 days);
+        //
+        //        _repayLoan({ // TODO different repay
+        //            borrower: borrower.addr,
+        //            amount: 375,
+        //            loan: loan
+        //        });
     }
 
     function testLoanAstariaSettlementRepay() public {
@@ -105,29 +98,22 @@ contract TestLoanCombinations is StarPortTest {
             handlerData: astariaSettlementHandlerData,
             hookData: astariaSettlementHookData
         });
-        LoanManager.Loan memory loan = _createLoan721Collateral20Debt({
-            lender: lender.addr,
-            borrowAmount: 100,
-            terms: terms
-        });
-//        skip(10 days);
-//
-//        _repayLoan({
-//            borrower: borrower.addr,
-//            amount: 375,
-//            loan: loan
-//        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+        //        skip(10 days);
+        //
+        //        _repayLoan({
+        //            borrower: borrower.addr,
+        //            amount: 375,
+        //            loan: loan
+        //        });
     }
 
     function testLoanSimpleInterestEnglishFixed() public {
         uint256[] memory reservePrice = new uint256[](1);
         reservePrice[0] = 300;
-        bytes memory englishAuctionHandlerData = abi.encode(
-            EnglishAuctionHandler.Details({
-                reservePrice: reservePrice,
-                window: 7 days
-            })
-        );
+        bytes memory englishAuctionHandlerData =
+            abi.encode(EnglishAuctionHandler.Details({reservePrice: reservePrice, window: 7 days}));
 
         LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(fixedTermHook),
@@ -137,17 +123,10 @@ contract TestLoanCombinations is StarPortTest {
             handlerData: englishAuctionHandlerData,
             hookData: defaultHookData
         });
-        LoanManager.Loan memory loan = _createLoan721Collateral20Debt({
-            lender: lender.addr,
-            borrowAmount: 100,
-            terms: terms
-        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
         skip(10 days);
 
-        _repayLoan({
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 }

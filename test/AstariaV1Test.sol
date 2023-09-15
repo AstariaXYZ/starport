@@ -1,4 +1,5 @@
 pragma solidity =0.8.17;
+
 import "forge-std/console2.sol";
 
 import "./StarPortTest.sol";
@@ -12,56 +13,46 @@ import {BaseRecall} from "src/hooks/BaseRecall.sol";
 
 import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
 // import "forge-std/console2.sol";
+
 contract AstariaV1Test is StarPortTest {
-  Account recaller;
-  address recallerConduit;
-  bytes32 conduitKeyRecaller;
-  function setUp() public override {
-    super.setUp();
+    Account recaller;
+    address recallerConduit;
+    bytes32 conduitKeyRecaller;
 
-    recaller = makeAndAllocateAccount("recaller");
+    function setUp() public override {
+        super.setUp();
 
-    // erc20s[1].mint(recaller.addr, 10000);
+        recaller = makeAndAllocateAccount("recaller");
 
-    pricing = new AstariaV1Pricing(LM);
-    handler = new AstariaV1SettlementHandler(LM);
-    hook = new AstariaV1SettlementHook(LM);
+        // erc20s[1].mint(recaller.addr, 10000);
 
-    conduitKeyRecaller = bytes32(
-      uint256(uint160(address(recaller.addr))) << 96
-    );
+        pricing = new AstariaV1Pricing(LM);
+        handler = new AstariaV1SettlementHandler(LM);
+        hook = new AstariaV1SettlementHook(LM);
 
+        conduitKeyRecaller = bytes32(uint256(uint160(address(recaller.addr))) << 96);
 
-    vm.startPrank(recaller.addr);
-    recallerConduit = conduitController.createConduit(
-      conduitKeyRecaller,
-      recaller.addr
-    );
-    conduitController.updateChannel(recallerConduit, address(hook), true);
-    erc20s[0].approve(address(recallerConduit), 100000);
-    vm.stopPrank();
+        vm.startPrank(recaller.addr);
+        recallerConduit = conduitController.createConduit(conduitKeyRecaller, recaller.addr);
+        conduitController.updateChannel(recallerConduit, address(hook), true);
+        erc20s[0].approve(address(recallerConduit), 100000);
+        vm.stopPrank();
 
-    // // 1% interest rate per second
-    defaultPricingData =
-      abi.encode(
-        BasePricing.Details({
-          carryRate: (uint256(1e16) * 10),
-          rate: (uint256(1e16) * 150) / (365 * 1 days)
-        })
-      );
+        // // 1% interest rate per second
+        defaultPricingData = abi.encode(
+            BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
+        );
 
-    defaultHandlerData = new bytes(0);
+        defaultHandlerData = new bytes(0);
 
-    defaultHookData =
-      abi.encode(
-        BaseRecall.Details({
-          honeymoon: 1 days,
-          recallWindow: 3 days,
-          recallStakeDuration: 30 days,
-          // 1000% APR
-          recallMax: (uint256(1e16) * 1000) / (365 * 1 days)
-        })
-      );
-  }
-
+        defaultHookData = abi.encode(
+            BaseRecall.Details({
+                honeymoon: 1 days,
+                recallWindow: 3 days,
+                recallStakeDuration: 30 days,
+                // 1000% APR
+                recallMax: (uint256(1e16) * 1000) / (365 * 1 days)
+            })
+        );
+    }
 }
