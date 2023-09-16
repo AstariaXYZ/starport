@@ -17,3 +17,9 @@ typechain-types/
 
 # Node
 node_modules/
+
+# Ignore Docs gitignore
+/docs/.gitignore
+
+
+
