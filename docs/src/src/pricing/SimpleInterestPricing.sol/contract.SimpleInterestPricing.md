@@ -1,5 +1,5 @@
 # SimpleInterestPricing
-[Git Source](https://github.com/AstariaXYZ/starport/blob/15aa42a21bd8713473a3e2d3f09c004e943dc663/src/pricing/SimpleInterestPricing.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/579f2b696f3db97ba152a0f0d28350598ebf1089/src/pricing/SimpleInterestPricing.sol)
 
 **Inherits:**
 [BasePricing](/src/pricing/BasePricing.sol/abstract.BasePricing.md)
