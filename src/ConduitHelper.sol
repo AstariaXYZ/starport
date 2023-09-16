@@ -24,11 +24,11 @@ import {Custodian} from "src/Custodian.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
+import {LoanManager} from "src/LoanManager.sol";
 
 abstract contract ConduitHelper {
     error RepayCarryLengthMismatch();
 
-    // TODO: Greg pls help us unfuck this mess
     function _mergeConsiderations(
         ReceivedItem[] memory repayConsideration,
         ReceivedItem[] memory carryConsideration,
@@ -37,11 +37,9 @@ abstract contract ConduitHelper {
         if (carryConsideration.length == 0 && additionalConsiderations.length == 0) {
             return repayConsideration;
         }
-        consideration = new ReceivedItem[](
-      repayConsideration.length +
+        consideration = new ReceivedItem[](repayConsideration.length +
         carryConsideration.length +
-        additionalConsiderations.length
-    );
+        additionalConsiderations.length);
 
         uint256 j = 0;
         // if there is a carry to handle, subtract it from the amount owed
@@ -69,11 +67,9 @@ abstract contract ConduitHelper {
         }
         // else just use the consideration payment only
         else {
-            uint256 i = 0;
-            for (; i < repayConsideration.length;) {
-                consideration[j] = repayConsideration[i];
+            for (; j < repayConsideration.length;) {
+                consideration[j] = repayConsideration[j];
                 unchecked {
-                    ++i;
                     ++j;
                 }
             }
@@ -82,20 +78,10 @@ abstract contract ConduitHelper {
         if (additionalConsiderations.length > 0) {
             uint256 i = 0;
             for (; i < additionalConsiderations.length;) {
-                if (
-                    consideration[i].recipient == additionalConsiderations[i].recipient
-                        && consideration[i].token == additionalConsiderations[i].token
-                ) {
-                    consideration[i].amount += additionalConsiderations[i].amount;
-                    unchecked {
-                        ++i;
-                    }
-                } else {
-                    consideration[j] = additionalConsiderations[i];
-                    unchecked {
-                        ++i;
-                        ++j;
-                    }
+                consideration[j] = additionalConsiderations[i];
+                unchecked {
+                    ++i;
+                    ++j;
                 }
             }
         }
