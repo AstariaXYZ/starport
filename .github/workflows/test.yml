@@ -24,12 +24,24 @@ jobs:
 
       - uses: onbjerg/foundry-toolchain@v1
 
-      - name: lint
-        run: forge fmt --check
+      - name: Format
+        run: forge fmt 
   
-      - name: test
+      - name: Test
         run: forge test --ffi -vvv
 
-      - name: snapshot
+      - name: Snapshot
         run: forge snapshot
+
+      - name: Document
+        run: forge doc --build 
+
+      - uses: stefanzweifel/git-auto-commit-action@v4 
+        with: 
+            commit_message: "style, document & snapshot"
+
+
+
+
+
 
