@@ -1,5 +1,5 @@
 # AstariaV1Pricing
-[Git Source](https://github.com/AstariaXYZ/starport/blob/75a84b0e30f9e2164d22fbf3939027de06a1ea1a/src/pricing/AstariaV1Pricing.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/e51acaefbeb55ecb95b59095c9d800c6e8ce36a5/src/pricing/AstariaV1Pricing.sol)
 
 **Inherits:**
 [CompoundInterestPricing](/src/pricing/CompoundInterestPricing.sol/abstract.CompoundInterestPricing.md)
