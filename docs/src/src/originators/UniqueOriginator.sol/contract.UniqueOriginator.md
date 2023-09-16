@@ -1,5 +1,5 @@
 # UniqueOriginator
-[Git Source](https://github.com/AstariaXYZ/starport/blob/e51acaefbeb55ecb95b59095c9d800c6e8ce36a5/src/originators/UniqueOriginator.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/3b5262d09059b9ae5a2377a67d883d25f8ae5aab/src/originators/UniqueOriginator.sol)
 
 **Inherits:**
 [Originator](/src/originators/Originator.sol/abstract.Originator.md)
