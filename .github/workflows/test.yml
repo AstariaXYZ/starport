@@ -24,22 +24,12 @@ jobs:
 
       - uses: onbjerg/foundry-toolchain@v1
 
-      - run: forge test --ffi -vvv
+      - name: lint
+        run: forge fmt --check
+  
+      - name: test
+        run: forge test --ffi -vvv
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+      - name: snapshot
+        run: forge snapshot
 
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - run: yarn
-
-      - uses: onbjerg/foundry-toolchain@v1
-
-      - run: forge fmt --check
