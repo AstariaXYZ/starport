@@ -36,11 +36,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-<<<<<<< HEAD
           path: './docs/book/'
-=======
-          path: 'docs/book/'
->>>>>>> c083ed2f2590b6e0aa4de47c66e1ccacb25d6514
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
