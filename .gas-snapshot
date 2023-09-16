@@ -6,6 +6,6 @@ TestNewLoan:testNewLoanERC721CollateralDefaultTerms2():((uint256,address,address
 TestNewLoan:testNewLoanERC721CollateralDefaultTermsRefinance() (gas: 648498)
 TestNewLoan:testNewLoanERC721CollateralDefaultTermsWithMerkleProof():((uint256,address,address,address,address,(uint8,address,uint256,uint256)[],(uint8,address,uint256,uint256)[],(address,bytes,address,bytes,address,bytes))) (gas: 581604)
 TestNewLoan:testSettleLoan() (gas: 1260468)
-TestRepayLoan:testRepayLoan() (gas: 718985)
+TestRepayLoan:testRepayLoan() (gas: 0)
 TestStarLiteUtils:testEncodeReceivedWithRecipient() (gas: 17955)
 TestStarLiteUtils:testSpentToReceived() (gas: 17796)

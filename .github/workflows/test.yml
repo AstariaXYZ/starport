@@ -24,12 +24,18 @@ jobs:
 
       - uses: onbjerg/foundry-toolchain@v1
 
-      - name: lint
-        run: forge fmt --check
+      - name: format
+        run: forge fmt 
   
       - name: test
         run: forge test --ffi -vvv
 
       - name: snapshot
         run: forge snapshot
+
+      - uses: stefanzweifel/git-auto-commit-action@v4 
+        with: 
+            commit_user_name: justinbram
+            commit_message: "style & snapshot"
+
 
