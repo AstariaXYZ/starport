@@ -6,28 +6,23 @@ import "forge-std/console.sol";
 import "seaport/lib/seaport-sol/src/lib/ReceivedItemLib.sol";
 
 abstract contract Pricing {
-  LoanManager LM;
-  error InvalidRefinance();
+    LoanManager LM;
 
-  constructor(LoanManager LM_) {
-    LM = LM_;
-  }
+    error InvalidRefinance();
 
-  function getPaymentConsideration(
-    LoanManager.Loan memory loan
-  ) public view virtual returns (ReceivedItem[] memory, ReceivedItem[] memory);
+    constructor(LoanManager LM_) {
+        LM = LM_;
+    }
 
-  function isValidRefinance(
-    LoanManager.Loan memory loan,
-    bytes memory newPricingData,
-    address caller
-  )
-    external
-    view
-    virtual
-    returns (
-      ReceivedItem[] memory,
-      ReceivedItem[] memory,
-      ReceivedItem[] memory
-    );
+    function getPaymentConsideration(LoanManager.Loan memory loan)
+        public
+        view
+        virtual
+        returns (ReceivedItem[] memory, ReceivedItem[] memory);
+
+    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+        external
+        view
+        virtual
+        returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory);
 }
