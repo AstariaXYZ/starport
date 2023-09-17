@@ -35,6 +35,13 @@ abstract contract Originator {
 
     event CounterUpdated();
 
+    modifier onlyLoanManager() {
+        if (msg.sender != address(LM)) {
+            revert InvalidCaller();
+        }
+        _;
+    }
+
     error InvalidCaller();
     error InvalidCustodian();
     error InvalidDeadline();
@@ -158,10 +165,4 @@ abstract contract Originator {
             revert InvalidSigner();
         }
     }
-
-    function getFeeConsideration(LoanManager.Loan calldata loan)
-        external
-        view
-        virtual
-        returns (ReceivedItem[] memory consideration);
 }

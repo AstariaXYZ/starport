@@ -281,8 +281,27 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
-        consideration = maximumSpent.toReceivedItems(obligation.custodian);
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        ) internal view returns (SpentItem[] memory, ReceivedItem[] memory) fn;
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        )
+        internal
+        returns (
+            SpentItem[] memory,
+            ReceivedItem[] memory
+        ) fn2 = _fillObligationAndVerify;
+        assembly {
+            fn := fn2
+        }
+        (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
     }
 
     /**
@@ -299,9 +318,19 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
 
     function _fillObligationAndVerify(
         address fulfiller,
-        LoanManager.Obligation memory obligation,
-        SpentItem[] calldata maximumSpentFromBorrower
-    ) internal returns (SpentItem[] memory offer) {
+        SpentItem[] calldata maximumSpentFromBorrower,
+        bytes calldata context,
+        bool withEffects
+    ) internal returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
+
+        if (obligation.debt.length == 0) {
+            revert InvalidDebtEmpty();
+        }
+        if (maximumSpentFromBorrower.length == 0) {
+            revert InvalidMaximumSpentEmpty();
+        }
+        consideration = maximumSpentFromBorrower.toReceivedItems(obligation.custodian);
         address receiver = obligation.borrower;
         bool enforceCaveats = fulfiller != receiver || obligation.caveats.length > 0;
         if (enforceCaveats) {
@@ -348,7 +377,9 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
             offer = _setOffer(loan.debt, caveatHash);
         }
 
-        _issueLoanManager(loan, response.issuer.code.length > 0);
+        if (withEffects) {
+            _issueLoanManager(loan, response.issuer.code.length > 0);
+        }
     }
 
     function _issueLoanManager(Loan memory loan, bool mint) internal {
@@ -378,17 +409,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
-        consideration = maximumSpent.toReceivedItems(obligation.custodian);
-
-        if (obligation.debt.length == 0) {
-            revert InvalidDebtEmpty();
-        }
-
-        if (maximumSpent.length == 0) {
-            revert InvalidMaximumSpentEmpty();
-        }
-        offer = _fillObligationAndVerify(fulfiller, obligation, maximumSpent);
+        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context, true);
     }
 
     function _setDebtApprovals(SpentItem memory debt) internal {

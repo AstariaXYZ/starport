@@ -93,13 +93,4 @@ contract MerkleOriginator is Originator {
         //    }
         //    if (keccak256(request.collateral))
     }
-
-    function getFeeConsideration(LoanManager.Loan calldata loan)
-        external
-        view
-        override
-        returns (ReceivedItem[] memory consideration)
-    {
-        consideration;
-    }
 }
