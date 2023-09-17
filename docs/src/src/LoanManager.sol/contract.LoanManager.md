@@ -1,5 +1,5 @@
 # LoanManager
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/LoanManager.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/LoanManager.sol)
 
 **Inherits:**
 ERC721, ContractOffererInterface, [ConduitHelper](/src/ConduitHelper.sol/abstract.ConduitHelper.md)
@@ -38,7 +38,7 @@ bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 cha
 
 ```solidity
 bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-    keccak256("IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)");
+  keccak256("IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)");
 ```
 
 
@@ -83,10 +83,10 @@ constructor();
 
 ```solidity
 function encodeWithSaltAndBorrowerCounter(address borrower, bytes32 salt, bytes32 caveatHash)
-    public
-    view
-    virtual
-    returns (bytes memory);
+  public
+  view
+  virtual
+  returns (bytes memory);
 ```
 
 ### name
@@ -178,10 +178,10 @@ function _settle(Loan memory loan) internal;
 
 ```solidity
 function _callCustody(
-    ReceivedItem[] calldata consideration,
-    bytes32[] calldata orderHashes,
-    uint256 contractNonce,
-    bytes calldata context
+  ReceivedItem[] calldata consideration,
+  bytes32[] calldata orderHashes,
+  uint256 contractNonce,
+  bytes calldata context
 ) internal returns (bytes4 selector);
 ```
 
@@ -192,11 +192,11 @@ function _callCustody(
 
 ```solidity
 function previewOrder(
-    address caller,
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
+  address caller,
+  address fulfiller,
+  SpentItem[] calldata minimumReceived,
+  SpentItem[] calldata maximumSpent,
+  bytes calldata context
 ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
 ```
 **Parameters**
@@ -238,9 +238,9 @@ function getSeaportMetadata() external pure returns (string memory, Schema[] mem
 
 ```solidity
 function _fillObligationAndVerify(
-    address fulfiller,
-    LoanManager.Obligation memory obligation,
-    SpentItem[] calldata maximumSpentFromBorrower
+  address fulfiller,
+  LoanManager.Obligation memory obligation,
+  SpentItem[] calldata maximumSpentFromBorrower
 ) internal returns (SpentItem[] memory offer);
 ```
 
@@ -258,10 +258,10 @@ function _issueLoanManager(Loan memory loan, bool mint) internal;
 
 ```solidity
 function generateOrder(
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
+  address fulfiller,
+  SpentItem[] calldata minimumReceived,
+  SpentItem[] calldata maximumSpent,
+  bytes calldata context
 ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
 ```
 **Parameters**
@@ -316,11 +316,11 @@ function safeTransferFrom(address from, address to, uint256 tokenId, bytes calld
 
 ```solidity
 function ratifyOrder(
-    SpentItem[] calldata offer,
-    ReceivedItem[] calldata consideration,
-    bytes calldata context,
-    bytes32[] calldata orderHashes,
-    uint256 contractNonce
+  SpentItem[] calldata offer,
+  ReceivedItem[] calldata consideration,
+  bytes calldata context,
+  bytes32[] calldata orderHashes,
+  uint256 contractNonce
 ) external onlySeaport returns (bytes4 ratifyOrderMagicValue);
 ```
 **Parameters**
@@ -345,11 +345,11 @@ function ratifyOrder(
 
 ```solidity
 function supportsInterface(bytes4 interfaceId)
-    public
-    view
-    virtual
-    override(ERC721, ContractOffererInterface)
-    returns (bool);
+  public
+  view
+  virtual
+  override(ERC721, ContractOffererInterface)
+  returns (bool);
 ```
 
 ### refinance
@@ -474,12 +474,12 @@ error InvalidNoRefinanceConsideration();
 
 ```solidity
 struct Terms {
-    address hook;
-    bytes hookData;
-    address pricing;
-    bytes pricingData;
-    address handler;
-    bytes handlerData;
+  address hook;
+  bytes hookData;
+  address pricing;
+  bytes pricingData;
+  address handler;
+  bytes handlerData;
 }
 ```
 
@@ -487,14 +487,14 @@ struct Terms {
 
 ```solidity
 struct Loan {
-    uint256 start;
-    address custodian;
-    address borrower;
-    address issuer;
-    address originator;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    Terms terms;
+  uint256 start;
+  address custodian;
+  address borrower;
+  address issuer;
+  address originator;
+  SpentItem[] collateral;
+  SpentItem[] debt;
+  Terms terms;
 }
 ```
 
@@ -502,8 +502,8 @@ struct Loan {
 
 ```solidity
 struct Caveat {
-    address enforcer;
-    bytes terms;
+  address enforcer;
+  bytes terms;
 }
 ```
 
@@ -511,14 +511,14 @@ struct Caveat {
 
 ```solidity
 struct Obligation {
-    address custodian;
-    address originator;
-    address borrower;
-    bytes32 salt;
-    SpentItem[] debt;
-    Caveat[] caveats;
-    bytes details;
-    bytes signature;
+  address custodian;
+  address originator;
+  address borrower;
+  bytes32 salt;
+  SpentItem[] debt;
+  Caveat[] caveats;
+  bytes details;
+  bytes signature;
 }
 ```
 
@@ -527,9 +527,9 @@ struct Obligation {
 
 ```solidity
 enum FieldFlags {
-    INITIALIZED,
-    ACTIVE,
-    INACTIVE
+  INITIALIZED,
+  ACTIVE,
+  INACTIVE
 }
 ```
 
@@ -537,16 +537,16 @@ enum FieldFlags {
 
 ```solidity
 enum ContextErrors {
-    BAD_ORIGINATION,
-    INVALID_PAYMENT,
-    LENGTH_MISMATCH,
-    BORROWER_MISMATCH,
-    COLLATERAL,
-    ZERO_ADDRESS,
-    INVALID_LOAN,
-    INVALID_CONDUIT,
-    INVALID_RESOLVER,
-    INVALID_COLLATERAL
+  BAD_ORIGINATION,
+  INVALID_PAYMENT,
+  LENGTH_MISMATCH,
+  BORROWER_MISMATCH,
+  COLLATERAL,
+  ZERO_ADDRESS,
+  INVALID_LOAN,
+  INVALID_CONDUIT,
+  INVALID_RESOLVER,
+  INVALID_COLLATERAL
 }
 ```
 

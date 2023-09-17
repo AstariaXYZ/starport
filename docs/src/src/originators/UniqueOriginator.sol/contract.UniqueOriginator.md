@@ -1,5 +1,5 @@
 # UniqueOriginator
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/originators/UniqueOriginator.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/originators/UniqueOriginator.sol)
 
 **Inherits:**
 [Originator](/src/originators/Originator.sol/abstract.Originator.md)
@@ -46,10 +46,10 @@ function _validateAsk(Request calldata request, Details memory details) internal
 
 ```solidity
 function getFeeConsideration(LoanManager.Loan calldata loan)
-    external
-    view
-    override
-    returns (ReceivedItem[] memory consideration);
+  external
+  view
+  override
+  returns (ReceivedItem[] memory consideration);
 ```
 
 ## Structs
@@ -57,13 +57,13 @@ function getFeeConsideration(LoanManager.Loan calldata loan)
 
 ```solidity
 struct Details {
-    address custodian;
-    address conduit;
-    address issuer;
-    uint256 deadline;
-    LoanManager.Terms terms;
-    SpentItem[] collateral;
-    SpentItem[] debt;
+  address custodian;
+  address conduit;
+  address issuer;
+  uint256 deadline;
+  LoanManager.Terms terms;
+  SpentItem[] collateral;
+  SpentItem[] debt;
 }
 ```
 

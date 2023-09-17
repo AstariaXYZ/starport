@@ -1,5 +1,5 @@
 # AstariaV1SettlementHandler
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/handlers/AstariaV1SettlementHandler.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/handlers/AstariaV1SettlementHandler.sol)
 
 **Inherits:**
 [DutchAuctionHandler](/src/handlers/DutchAuctionHandler.sol/contract.DutchAuctionHandler.md)
@@ -18,11 +18,11 @@ constructor(LoanManager LM_) DutchAuctionHandler(LM_);
 
 ```solidity
 function getSettlement(LoanManager.Loan memory loan)
-    external
-    view
-    virtual
-    override
-    returns (ReceivedItem[] memory, address restricted);
+  external
+  view
+  virtual
+  override
+  returns (ReceivedItem[] memory, address restricted);
 ```
 
 ### validate

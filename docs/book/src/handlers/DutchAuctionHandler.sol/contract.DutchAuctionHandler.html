@@ -171,7 +171,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="dutchauctionhandler"><a class="header" href="#dutchauctionhandler">DutchAuctionHandler</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/handlers/DutchAuctionHandler.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/handlers/DutchAuctionHandler.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 <a href="/src/handlers/SettlementHandler.sol/abstract.SettlementHandler.html">SettlementHandler</a>, AmountDeriver, <a href="/src/ConduitHelper.sol/abstract.ConduitHelper.html">ConduitHelper</a></p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
@@ -180,11 +180,11 @@
 </code></pre>
 <h3 id="getsettlement"><a class="header" href="#getsettlement">getSettlement</a></h3>
 <pre><code class="language-solidity">function getSettlement(LoanManager.Loan memory loan)
-    external
-    view
-    virtual
-    override
-    returns (ReceivedItem[] memory consideration, address restricted);
+  external
+  view
+  virtual
+  override
+  returns (ReceivedItem[] memory consideration, address restricted);
 </code></pre>
 <h3 id="validate"><a class="header" href="#validate">validate</a></h3>
 <pre><code class="language-solidity">function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool);
@@ -196,9 +196,9 @@
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="details"><a class="header" href="#details">Details</a></h3>
 <pre><code class="language-solidity">struct Details {
-    uint256 startingPrice;
-    uint256 endingPrice;
-    uint256 window;
+  uint256 startingPrice;
+  uint256 endingPrice;
+  uint256 window;
 }
 </code></pre>
 

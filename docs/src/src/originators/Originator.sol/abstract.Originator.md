@@ -1,5 +1,5 @@
 # Originator
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/originators/Originator.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/originators/Originator.sol)
 
 
 ## State Variables
@@ -21,7 +21,7 @@ bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 cha
 
 ```solidity
 bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-    keccak256("OriginatorDetails(address originator,uint256 nonce,bytes32 hash)");
+  keccak256("OriginatorDetails(address originator,uint256 nonce,bytes32 hash)");
 ```
 
 
@@ -73,9 +73,9 @@ constructor(LoanManager LM_, address strategist_, uint256 fee_);
 
 ```solidity
 function _packageTransfers(SpentItem[] memory loan, address borrower, address issuer)
-    internal
-    pure
-    returns (ConduitTransfer[] memory transfers);
+  internal
+  pure
+  returns (ConduitTransfer[] memory transfers);
 ```
 
 ### terms
@@ -139,10 +139,10 @@ function _validateSignature(bytes32 hash, bytes calldata signature) internal vie
 
 ```solidity
 function getFeeConsideration(LoanManager.Loan calldata loan)
-    external
-    view
-    virtual
-    returns (ReceivedItem[] memory consideration);
+  external
+  view
+  virtual
+  returns (ReceivedItem[] memory consideration);
 ```
 
 ## Events
@@ -254,8 +254,8 @@ error ConduitTransferError();
 
 ```solidity
 struct Response {
-    LoanManager.Terms terms;
-    address issuer;
+  LoanManager.Terms terms;
+  address issuer;
 }
 ```
 
@@ -263,12 +263,12 @@ struct Response {
 
 ```solidity
 struct Request {
-    address custodian;
-    address receiver;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    bytes details;
-    bytes signature;
+  address custodian;
+  address receiver;
+  SpentItem[] collateral;
+  SpentItem[] debt;
+  bytes details;
+  bytes signature;
 }
 ```
 
@@ -277,8 +277,8 @@ struct Request {
 
 ```solidity
 enum State {
-    INITIALIZED,
-    CLOSED
+  INITIALIZED,
+  CLOSED
 }
 ```
 

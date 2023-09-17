@@ -171,7 +171,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="loanmanager"><a class="header" href="#loanmanager">LoanManager</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/LoanManager.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/LoanManager.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.ConduitHelper.html">ConduitHelper</a></p>
 <h2 id="state-variables"><a class="header" href="#state-variables">State Variables</a></h2>
@@ -189,7 +189,7 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 </code></pre>
 <h3 id="intent_origination_typehash"><a class="header" href="#intent_origination_typehash">INTENT_ORIGINATION_TYPEHASH</a></h3>
 <pre><code class="language-solidity">bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-    keccak256(&quot;IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)&quot;);
+  keccak256(&quot;IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)&quot;);
 </code></pre>
 <h3 id="version"><a class="header" href="#version">VERSION</a></h3>
 <pre><code class="language-solidity">bytes32 constant VERSION = keccak256(&quot;0&quot;);
@@ -209,10 +209,10 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 </code></pre>
 <h3 id="encodewithsaltandborrowercounter"><a class="header" href="#encodewithsaltandborrowercounter">encodeWithSaltAndBorrowerCounter</a></h3>
 <pre><code class="language-solidity">function encodeWithSaltAndBorrowerCounter(address borrower, bytes32 salt, bytes32 caveatHash)
-    public
-    view
-    virtual
-    returns (bytes memory);
+  public
+  view
+  virtual
+  returns (bytes memory);
 </code></pre>
 <h3 id="name"><a class="header" href="#name">name</a></h3>
 <pre><code class="language-solidity">function name() public pure override returns (string memory);
@@ -252,20 +252,20 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 </code></pre>
 <h3 id="_callcustody"><a class="header" href="#_callcustody">_callCustody</a></h3>
 <pre><code class="language-solidity">function _callCustody(
-    ReceivedItem[] calldata consideration,
-    bytes32[] calldata orderHashes,
-    uint256 contractNonce,
-    bytes calldata context
+  ReceivedItem[] calldata consideration,
+  bytes32[] calldata orderHashes,
+  uint256 contractNonce,
+  bytes calldata context
 ) internal returns (bytes4 selector);
 </code></pre>
 <h3 id="previeworder"><a class="header" href="#previeworder">previewOrder</a></h3>
 <p><em>previews the order for this contract offerer.</em></p>
 <pre><code class="language-solidity">function previewOrder(
-    address caller,
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
+  address caller,
+  address fulfiller,
+  SpentItem[] calldata minimumReceived,
+  SpentItem[] calldata maximumSpent,
+  bytes calldata context
 ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
 </code></pre>
 <p><strong>Parameters</strong></p>
@@ -295,9 +295,9 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 </div>
 <h3 id="_fillobligationandverify"><a class="header" href="#_fillobligationandverify">_fillObligationAndVerify</a></h3>
 <pre><code class="language-solidity">function _fillObligationAndVerify(
-    address fulfiller,
-    LoanManager.Obligation memory obligation,
-    SpentItem[] calldata maximumSpentFromBorrower
+  address fulfiller,
+  LoanManager.Obligation memory obligation,
+  SpentItem[] calldata maximumSpentFromBorrower
 ) internal returns (SpentItem[] memory offer);
 </code></pre>
 <h3 id="_issueloanmanager"><a class="header" href="#_issueloanmanager">_issueLoanManager</a></h3>
@@ -306,10 +306,10 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 <h3 id="generateorder"><a class="header" href="#generateorder">generateOrder</a></h3>
 <p><em>Generates the order for this contract offerer.</em></p>
 <pre><code class="language-solidity">function generateOrder(
-    address fulfiller,
-    SpentItem[] calldata minimumReceived,
-    SpentItem[] calldata maximumSpent,
-    bytes calldata context
+  address fulfiller,
+  SpentItem[] calldata minimumReceived,
+  SpentItem[] calldata maximumSpent,
+  bytes calldata context
 ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
 </code></pre>
 <p><strong>Parameters</strong></p>
@@ -341,11 +341,11 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 <h3 id="ratifyorder"><a class="header" href="#ratifyorder">ratifyOrder</a></h3>
 <p><em>Generates the order for this contract offerer.</em></p>
 <pre><code class="language-solidity">function ratifyOrder(
-    SpentItem[] calldata offer,
-    ReceivedItem[] calldata consideration,
-    bytes calldata context,
-    bytes32[] calldata orderHashes,
-    uint256 contractNonce
+  SpentItem[] calldata offer,
+  ReceivedItem[] calldata consideration,
+  bytes calldata context,
+  bytes32[] calldata orderHashes,
+  uint256 contractNonce
 ) external onlySeaport returns (bytes4 ratifyOrderMagicValue);
 </code></pre>
 <p><strong>Parameters</strong></p>
@@ -364,11 +364,11 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 </div>
 <h3 id="supportsinterface"><a class="header" href="#supportsinterface">supportsInterface</a></h3>
 <pre><code class="language-solidity">function supportsInterface(bytes4 interfaceId)
-    public
-    view
-    virtual
-    override(ERC721, ContractOffererInterface)
-    returns (bool);
+  public
+  view
+  virtual
+  override(ERC721, ContractOffererInterface)
+  returns (bool);
 </code></pre>
 <h3 id="refinance"><a class="header" href="#refinance">refinance</a></h3>
 <pre><code class="language-solidity">function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external;
@@ -432,64 +432,64 @@ ERC721, ContractOffererInterface, <a href="/src/ConduitHelper.sol/abstract.Condu
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="terms"><a class="header" href="#terms">Terms</a></h3>
 <pre><code class="language-solidity">struct Terms {
-    address hook;
-    bytes hookData;
-    address pricing;
-    bytes pricingData;
-    address handler;
-    bytes handlerData;
+  address hook;
+  bytes hookData;
+  address pricing;
+  bytes pricingData;
+  address handler;
+  bytes handlerData;
 }
 </code></pre>
 <h3 id="loan"><a class="header" href="#loan">Loan</a></h3>
 <pre><code class="language-solidity">struct Loan {
-    uint256 start;
-    address custodian;
-    address borrower;
-    address issuer;
-    address originator;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    Terms terms;
+  uint256 start;
+  address custodian;
+  address borrower;
+  address issuer;
+  address originator;
+  SpentItem[] collateral;
+  SpentItem[] debt;
+  Terms terms;
 }
 </code></pre>
 <h3 id="caveat"><a class="header" href="#caveat">Caveat</a></h3>
 <pre><code class="language-solidity">struct Caveat {
-    address enforcer;
-    bytes terms;
+  address enforcer;
+  bytes terms;
 }
 </code></pre>
 <h3 id="obligation"><a class="header" href="#obligation">Obligation</a></h3>
 <pre><code class="language-solidity">struct Obligation {
-    address custodian;
-    address originator;
-    address borrower;
-    bytes32 salt;
-    SpentItem[] debt;
-    Caveat[] caveats;
-    bytes details;
-    bytes signature;
+  address custodian;
+  address originator;
+  address borrower;
+  bytes32 salt;
+  SpentItem[] debt;
+  Caveat[] caveats;
+  bytes details;
+  bytes signature;
 }
 </code></pre>
 <h2 id="enums"><a class="header" href="#enums">Enums</a></h2>
 <h3 id="fieldflags"><a class="header" href="#fieldflags">FieldFlags</a></h3>
 <pre><code class="language-solidity">enum FieldFlags {
-    INITIALIZED,
-    ACTIVE,
-    INACTIVE
+  INITIALIZED,
+  ACTIVE,
+  INACTIVE
 }
 </code></pre>
 <h3 id="contexterrors"><a class="header" href="#contexterrors">ContextErrors</a></h3>
 <pre><code class="language-solidity">enum ContextErrors {
-    BAD_ORIGINATION,
-    INVALID_PAYMENT,
-    LENGTH_MISMATCH,
-    BORROWER_MISMATCH,
-    COLLATERAL,
-    ZERO_ADDRESS,
-    INVALID_LOAN,
-    INVALID_CONDUIT,
-    INVALID_RESOLVER,
-    INVALID_COLLATERAL
+  BAD_ORIGINATION,
+  INVALID_PAYMENT,
+  LENGTH_MISMATCH,
+  BORROWER_MISMATCH,
+  COLLATERAL,
+  ZERO_ADDRESS,
+  INVALID_LOAN,
+  INVALID_CONDUIT,
+  INVALID_RESOLVER,
+  INVALID_COLLATERAL
 }
 </code></pre>
 

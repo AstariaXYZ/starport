@@ -1,5 +1,5 @@
 # FixedTermHook
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/hooks/FixedTermHook.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/hooks/FixedTermHook.sol)
 
 **Inherits:**
 [SettlementHook](/src/hooks/SettlementHook.sol/abstract.SettlementHook.md)
@@ -18,7 +18,7 @@ function isActive(LoanManager.Loan calldata loan) external view override returns
 
 ```solidity
 struct Details {
-    uint256 loanDuration;
+  uint256 loanDuration;
 }
 ```
 

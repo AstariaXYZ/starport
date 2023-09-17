@@ -171,7 +171,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="originator"><a class="header" href="#originator">Originator</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/originators/Originator.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/originators/Originator.sol">Git Source</a></p>
 <h2 id="state-variables"><a class="header" href="#state-variables">State Variables</a></h2>
 <h3 id="lm"><a class="header" href="#lm">LM</a></h3>
 <pre><code class="language-solidity">LoanManager public immutable LM;
@@ -181,7 +181,7 @@
 </code></pre>
 <h3 id="originator_details_typehash"><a class="header" href="#originator_details_typehash">ORIGINATOR_DETAILS_TYPEHASH</a></h3>
 <pre><code class="language-solidity">bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-    keccak256(&quot;OriginatorDetails(address originator,uint256 nonce,bytes32 hash)&quot;);
+  keccak256(&quot;OriginatorDetails(address originator,uint256 nonce,bytes32 hash)&quot;);
 </code></pre>
 <h3 id="version"><a class="header" href="#version">VERSION</a></h3>
 <pre><code class="language-solidity">bytes32 constant VERSION = keccak256(&quot;0&quot;);
@@ -204,9 +204,9 @@
 </code></pre>
 <h3 id="_packagetransfers"><a class="header" href="#_packagetransfers">_packageTransfers</a></h3>
 <pre><code class="language-solidity">function _packageTransfers(SpentItem[] memory loan, address borrower, address issuer)
-    internal
-    pure
-    returns (ConduitTransfer[] memory transfers);
+  internal
+  pure
+  returns (ConduitTransfer[] memory transfers);
 </code></pre>
 <h3 id="terms"><a class="header" href="#terms">terms</a></h3>
 <pre><code class="language-solidity">function terms(bytes calldata) external view virtual returns (LoanManager.Terms memory);
@@ -234,10 +234,10 @@
 </code></pre>
 <h3 id="getfeeconsideration"><a class="header" href="#getfeeconsideration">getFeeConsideration</a></h3>
 <pre><code class="language-solidity">function getFeeConsideration(LoanManager.Loan calldata loan)
-    external
-    view
-    virtual
-    returns (ReceivedItem[] memory consideration);
+  external
+  view
+  virtual
+  returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h2 id="events"><a class="header" href="#events">Events</a></h2>
 <h3 id="origination"><a class="header" href="#origination">Origination</a></h3>
@@ -295,25 +295,25 @@
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="response"><a class="header" href="#response">Response</a></h3>
 <pre><code class="language-solidity">struct Response {
-    LoanManager.Terms terms;
-    address issuer;
+  LoanManager.Terms terms;
+  address issuer;
 }
 </code></pre>
 <h3 id="request"><a class="header" href="#request">Request</a></h3>
 <pre><code class="language-solidity">struct Request {
-    address custodian;
-    address receiver;
-    SpentItem[] collateral;
-    SpentItem[] debt;
-    bytes details;
-    bytes signature;
+  address custodian;
+  address receiver;
+  SpentItem[] collateral;
+  SpentItem[] debt;
+  bytes details;
+  bytes signature;
 }
 </code></pre>
 <h2 id="enums"><a class="header" href="#enums">Enums</a></h2>
 <h3 id="state"><a class="header" href="#state">State</a></h3>
 <pre><code class="language-solidity">enum State {
-    INITIALIZED,
-    CLOSED
+  INITIALIZED,
+  CLOSED
 }
 </code></pre>
 

@@ -171,7 +171,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="uniqueoriginator"><a class="header" href="#uniqueoriginator">UniqueOriginator</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/originators/UniqueOriginator.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/originators/UniqueOriginator.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 <a href="/src/originators/Originator.sol/abstract.Originator.html">Originator</a></p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
@@ -192,21 +192,21 @@
 </code></pre>
 <h3 id="getfeeconsideration"><a class="header" href="#getfeeconsideration">getFeeConsideration</a></h3>
 <pre><code class="language-solidity">function getFeeConsideration(LoanManager.Loan calldata loan)
-    external
-    view
-    override
-    returns (ReceivedItem[] memory consideration);
+  external
+  view
+  override
+  returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="details"><a class="header" href="#details">Details</a></h3>
 <pre><code class="language-solidity">struct Details {
-    address custodian;
-    address conduit;
-    address issuer;
-    uint256 deadline;
-    LoanManager.Terms terms;
-    SpentItem[] collateral;
-    SpentItem[] debt;
+  address custodian;
+  address conduit;
+  address issuer;
+  uint256 deadline;
+  LoanManager.Terms terms;
+  SpentItem[] collateral;
+  SpentItem[] debt;
 }
 </code></pre>
 

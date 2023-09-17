@@ -171,7 +171,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="baserecall"><a class="header" href="#baserecall">BaseRecall</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/hooks/BaseRecall.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/hooks/BaseRecall.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 <a href="/src/ConduitHelper.sol/abstract.ConduitHelper.html">ConduitHelper</a></p>
 <h2 id="state-variables"><a class="header" href="#state-variables">State Variables</a></h2>
@@ -199,23 +199,23 @@
 </code></pre>
 <h3 id="_getrecallstake"><a class="header" href="#_getrecallstake">_getRecallStake</a></h3>
 <pre><code class="language-solidity">function _getRecallStake(LoanManager.Loan memory loan, uint256 start, uint256 end)
-    internal
-    view
-    returns (uint256[] memory recallStake);
+  internal
+  view
+  returns (uint256[] memory recallStake);
 </code></pre>
 <h3 id="generaterecallconsideration"><a class="header" href="#generaterecallconsideration">generateRecallConsideration</a></h3>
 <pre><code class="language-solidity">function generateRecallConsideration(LoanManager.Loan memory loan, uint256 proportion, address payable receiver)
-    external
-    view
-    returns (ReceivedItem[] memory consideration);
+  external
+  view
+  returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h3 id="_generaterecallconsideration"><a class="header" href="#_generaterecallconsideration">_generateRecallConsideration</a></h3>
 <pre><code class="language-solidity">function _generateRecallConsideration(
-    LoanManager.Loan memory loan,
-    uint256 start,
-    uint256 end,
-    uint256 proportion,
-    address payable receiver
+  LoanManager.Loan memory loan,
+  uint256 start,
+  uint256 end,
+  uint256 proportion,
+  address payable receiver
 ) internal view returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h2 id="events"><a class="header" href="#events">Events</a></h2>
@@ -253,16 +253,16 @@
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="details"><a class="header" href="#details">Details</a></h3>
 <pre><code class="language-solidity">struct Details {
-    uint256 honeymoon;
-    uint256 recallWindow;
-    uint256 recallStakeDuration;
-    uint256 recallMax;
+  uint256 honeymoon;
+  uint256 recallWindow;
+  uint256 recallStakeDuration;
+  uint256 recallMax;
 }
 </code></pre>
 <h3 id="recall-1"><a class="header" href="#recall-1">Recall</a></h3>
 <pre><code class="language-solidity">struct Recall {
-    address payable recaller;
-    uint64 start;
+  address payable recaller;
+  uint64 start;
 }
 </code></pre>
 

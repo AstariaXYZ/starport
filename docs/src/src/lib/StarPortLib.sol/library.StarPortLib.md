@@ -1,5 +1,5 @@
 # StarPortLib
-[Git Source](https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/lib/StarPortLib.sol)
+[Git Source](https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/lib/StarPortLib.sol)
 
 
 ## Functions
@@ -15,9 +15,9 @@ function getId(LoanManager.Loan memory loan) internal pure returns (uint256 loan
 
 ```solidity
 function toReceivedItems(SpentItem[] calldata spentItems, address recipient)
-    internal
-    pure
-    returns (ReceivedItem[] memory result);
+  internal
+  pure
+  returns (ReceivedItem[] memory result);
 ```
 
 ### encodeWithRecipient
@@ -25,8 +25,8 @@ function toReceivedItems(SpentItem[] calldata spentItems, address recipient)
 
 ```solidity
 function encodeWithRecipient(ReceivedItem[] calldata receivedItems, address recipient)
-    internal
-    pure
-    returns (ReceivedItem[] memory result);
+  internal
+  pure
+  returns (ReceivedItem[] memory result);
 ```
 

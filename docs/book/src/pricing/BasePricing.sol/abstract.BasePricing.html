@@ -171,59 +171,59 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="basepricing"><a class="header" href="#basepricing">BasePricing</a></h1>
-<p><a href="https://github.com/AstariaXYZ/starport/blob/22f00b954c780c3e2d90e9d0a8f83c4a2a3060ff/src/pricing/BasePricing.sol">Git Source</a></p>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/62254f50a959b2db00a7aa352d8f4d9e5269a8bb/src/pricing/BasePricing.sol">Git Source</a></p>
 <p><strong>Inherits:</strong>
 <a href="/src/pricing/Pricing.sol/abstract.Pricing.html">Pricing</a></p>
 <h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
 <h3 id="getpaymentconsideration"><a class="header" href="#getpaymentconsideration">getPaymentConsideration</a></h3>
 <pre><code class="language-solidity">function getPaymentConsideration(LoanManager.Loan memory loan)
-    public
-    view
-    virtual
-    override
-    returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration);
+  public
+  view
+  virtual
+  override
+  returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration);
 </code></pre>
 <h3 id="getowed"><a class="header" href="#getowed">getOwed</a></h3>
 <pre><code class="language-solidity">function getOwed(LoanManager.Loan memory loan) public view returns (uint256[] memory);
 </code></pre>
 <h3 id="_getowedcarry"><a class="header" href="#_getowedcarry">_getOwedCarry</a></h3>
 <pre><code class="language-solidity">function _getOwedCarry(LoanManager.Loan memory loan, Details memory details, uint256 timestamp)
-    internal
-    view
-    returns (uint256[] memory carryOwed);
+  internal
+  view
+  returns (uint256[] memory carryOwed);
 </code></pre>
 <h3 id="_getowed"><a class="header" href="#_getowed">_getOwed</a></h3>
 <pre><code class="language-solidity">function _getOwed(LoanManager.Loan memory loan, Details memory details, uint256 start, uint256 end)
-    internal
-    view
-    returns (uint256[] memory updatedDebt);
+  internal
+  view
+  returns (uint256[] memory updatedDebt);
 </code></pre>
 <h3 id="getinterest"><a class="header" href="#getinterest">getInterest</a></h3>
 <pre><code class="language-solidity">function getInterest(LoanManager.Loan memory loan, Details memory details, uint256 start, uint256 end, uint256 index)
-    public
-    view
-    returns (uint256);
+  public
+  view
+  returns (uint256);
 </code></pre>
 <h3 id="calculateinterest"><a class="header" href="#calculateinterest">calculateInterest</a></h3>
 <pre><code class="language-solidity">function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate) public pure virtual returns (uint256);
 </code></pre>
 <h3 id="_generaterepayconsideration"><a class="header" href="#_generaterepayconsideration">_generateRepayConsideration</a></h3>
 <pre><code class="language-solidity">function _generateRepayConsideration(LoanManager.Loan memory loan)
-    internal
-    view
-    returns (ReceivedItem[] memory consideration);
+  internal
+  view
+  returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h3 id="_generaterepaycarryconsideration"><a class="header" href="#_generaterepaycarryconsideration">_generateRepayCarryConsideration</a></h3>
 <pre><code class="language-solidity">function _generateRepayCarryConsideration(LoanManager.Loan memory loan)
-    internal
-    view
-    returns (ReceivedItem[] memory consideration);
+  internal
+  view
+  returns (ReceivedItem[] memory consideration);
 </code></pre>
 <h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
 <h3 id="details"><a class="header" href="#details">Details</a></h3>
 <pre><code class="language-solidity">struct Details {
-    uint256 rate;
-    uint256 carryRate;
+  uint256 rate;
+  uint256 carryRate;
 }
 </code></pre>
 
