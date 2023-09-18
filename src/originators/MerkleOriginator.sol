@@ -2,11 +2,11 @@ pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
 
-import "src/originators/Originator.sol";
+import "src/originators/BaseOriginator.sol";
 import {MerkleProofLib} from "solady/src/utils/MerkleProofLib.sol";
 import "forge-std/console.sol";
 
-contract MerkleOriginator is Originator {
+contract MerkleOriginator is BaseOriginator {
   error InvalidMerkleProof();
 
   constructor(

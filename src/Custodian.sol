@@ -29,8 +29,8 @@ import {StarPortLib} from "src/lib/StarPortLib.sol";
 
 contract Custodian is
   ContractOffererInterface,
-  TokenReceiverInterface,
-  ConduitHelper
+  ConduitHelper,
+  TokenReceiverInterface
 {
   using {StarPortLib.getId} for LoanManager.Loan;
   LoanManager public immutable LM;

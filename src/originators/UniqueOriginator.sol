@@ -2,9 +2,9 @@ pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
 
-import "src/originators/Originator.sol";
+import "src/originators/BaseOriginator.sol";
 
-contract UniqueOriginator is Originator {
+contract UniqueOriginator is BaseOriginator {
   constructor(
     LoanManager LM_,
     address strategist_,
