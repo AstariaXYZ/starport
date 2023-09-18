@@ -64,6 +64,7 @@ contract SwapHandler is SettlementHandler {
 
     function getSettlement(LoanManager.Loan memory loan)
         external
+        view
         override
         returns (ReceivedItem[] memory consideration, address restricted)
     {

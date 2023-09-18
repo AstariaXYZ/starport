@@ -16,7 +16,6 @@ import {Pricing} from "src/pricing/Pricing.sol";
 
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
-import "forge-std/console2.sol";
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
@@ -33,7 +32,7 @@ abstract contract ConduitHelper {
         ReceivedItem[] memory repayConsideration,
         ReceivedItem[] memory carryConsideration,
         ReceivedItem[] memory additionalConsiderations
-    ) internal returns (ReceivedItem[] memory consideration) {
+    ) internal view returns (ReceivedItem[] memory consideration) {
         if (carryConsideration.length == 0 && additionalConsiderations.length == 0) {
             return repayConsideration;
         }

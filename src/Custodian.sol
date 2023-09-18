@@ -14,7 +14,6 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
-import "forge-std/console.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
@@ -99,6 +98,52 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         selector = Custodian.custody.selector;
     }
 
+    function _fillObligationAndVerify(
+        address fulfiller,
+        SpentItem[] calldata maximumSpent,
+        bytes calldata context,
+        bool withEffects
+    ) internal returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+        offer = loan.collateral;
+
+        if (SettlementHook(loan.terms.hook).isActive(loan)) {
+            if (fulfiller != _getBorrower(loan)) {
+                revert InvalidSender();
+            }
+
+            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+
+            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            consideration = _removeZeroAmounts(consideration);
+
+            //if a callback is needed for the issuer do it here
+            if (withEffects) {
+                _settleLoan(loan);
+            }
+        } else {
+            address restricted;
+            //add in originator fee
+            if (withEffects) {
+                _beforeSettlementHandlerHook(loan);
+                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+                _afterSettlementHandlerHook(loan);
+            } else {
+                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            }
+
+            if (restricted != address(0) && fulfiller != restricted) {
+                revert InvalidSender();
+            }
+        }
+
+        if (offer.length > 0 && withEffects) {
+            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+            _setOfferApprovals(offer, seaport);
+        }
+    }
+
     /**
      * @dev Generates the order for this contract offerer.
      *
@@ -114,37 +159,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        offer = loan.collateral;
-
-        if (SettlementHook(loan.terms.hook).isActive(loan)) {
-            if (fulfiller != _getBorrower(loan)) {
-                revert InvalidSender();
-            }
-
-            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
-                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
-            //if a callback is needed for the issuer do it here
-            _settleLoan(loan);
-        } else {
-            address restricted;
-            //add in originator fee
-            _beforeSettlementHandlerHook(loan);
-            (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
-            _afterSettlementHandlerHook(loan);
-
-            if (restricted != address(0) && fulfiller != restricted) {
-                revert InvalidSender();
-            }
-        }
-
-        if (offer.length > 0) {
-            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-            _setOfferApprovals(offer, seaport);
-        }
+        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context, true);
     }
 
     function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
@@ -195,7 +210,28 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        //TODO: move this into generate order and then do a view only version that doesnt call settle
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        ) internal view returns (SpentItem[] memory, ReceivedItem[] memory) fn;
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        )
+        internal
+        returns (
+            SpentItem[] memory,
+            ReceivedItem[] memory
+        ) fn2 = _fillObligationAndVerify;
+        assembly {
+            fn := fn2
+        }
+
+        (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
     }
 
     //todo work with seaport
