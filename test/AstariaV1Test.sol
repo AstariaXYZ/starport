@@ -43,7 +43,7 @@ contract AstariaV1Test is StarPortTest {
             BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
         );
 
-        defaultHandlerData = new bytes(0);
+        // defaultHandlerData = new bytes(0);
 
         defaultHookData = abi.encode(
             BaseRecall.Details({
@@ -51,7 +51,9 @@ contract AstariaV1Test is StarPortTest {
                 recallWindow: 3 days,
                 recallStakeDuration: 30 days,
                 // 1000% APR
-                recallMax: (uint256(1e16) * 1000) / (365 * 1 days)
+                recallMax: (uint256(1e16) * 1000) / (365 * 1 days),
+                // 10%, 0.1
+                recallerRewardRatio: uint256(1e16) * 10
             })
         );
     }

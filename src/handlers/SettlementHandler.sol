@@ -18,7 +18,7 @@ abstract contract SettlementHandler {
     function validate(LoanManager.Loan calldata loan) external view virtual returns (bool);
 
     function getSettlement(LoanManager.Loan memory loan)
-        external
+        public
         view
         virtual
         returns (ReceivedItem[] memory consideration, address restricted);
