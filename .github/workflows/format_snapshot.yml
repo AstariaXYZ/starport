@@ -6,7 +6,7 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  Resolve-CI:
+  CI:
     name: Format, Snapshot
     runs-on: ubuntu-latest
     steps:
