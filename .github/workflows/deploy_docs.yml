@@ -38,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: './docs/book/'
+          path: 'book/'
 
       - name: Deploy to GitHub Pages
         id: deployment
