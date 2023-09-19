@@ -38,7 +38,7 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
 
       - name: Document
-        run: forge doc --build && rm docs/.gitignore
+        run: forge doc --build && mkdir book && mv docs/book/* book/ 
 
       - uses: stefanzweifel/git-auto-commit-action@v4 
         with: 
