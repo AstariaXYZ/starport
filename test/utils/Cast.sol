@@ -24,29 +24,13 @@ library Cast {
         }
     }
 
-    function toStorage(ConsiderationItem memory a, ConsiderationItem storage b) internal {
-        b.itemType = a.itemType;
-        b.startAmount = a.startAmount;
-        b.endAmount = a.endAmount;
-        b.identifierOrCriteria = a.identifierOrCriteria;
-        b.token = a.token;
-        b.recipient = a.recipient;
-    }
-
     function toStorage(ConsiderationItem[] memory a, ConsiderationItem[] storage b) internal {
         assembly {
             sstore(b.slot, mload(a))
         }
         for (uint256 i; i < a.length; i++) {
-            toStorage(a[i], b[i]);
+            b[i] = a[i];
         }
-    }
-
-    function toStorage(SpentItem memory a, SpentItem storage b) internal {
-        b.itemType = a.itemType;
-        b.token = a.token;
-        b.amount = a.amount;
-        b.identifier = a.identifier;
     }
 
     function toStorage(SpentItem[] memory a, SpentItem[] storage b) internal {
@@ -55,7 +39,7 @@ library Cast {
         }
 
         for (uint256 i; i < a.length; i++) {
-            toStorage(a[i], b[i]);
+            b[i] = a[i];
         }
     }
 
@@ -70,17 +54,10 @@ library Cast {
         toStorage(a.debt, b.debt);
     }
 
-    function toMemory(SpentItem storage a, SpentItem memory b) internal view {
-        b.itemType = a.itemType;
-        b.token = a.token;
-        b.amount = a.amount;
-        b.identifier = a.identifier;
-    }
-
     function toMemory(SpentItem[] storage a) internal view returns (SpentItem[] memory) {
         SpentItem[] memory b = new SpentItem[](a.length);
         for (uint256 i; i < a.length; i++) {
-            toMemory(a[i], b[i]);
+            b[i] = a[i];
         }
         return b;
     }
