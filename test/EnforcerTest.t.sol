@@ -23,12 +23,12 @@ contract EnforcerTest is StarPortTest {
         TermEnforcer TE = new TermEnforcer();
 
         TermEnforcer.Details memory TEDetails =
-        TermEnforcer.Details({pricing: address(pricing), hook: address(hook), handler: address(handler)});
+            TermEnforcer.Details({pricing: address(pricing), hook: address(hook), handler: address(handler)});
 
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-    LoanManager.Loan memory loan = _createLoanWithCaveat({
+        LoanManager.Loan memory loan = _createLoanWithCaveat({
             lender: lender.addr,
             terms: terms,
             collateralItem: ConsiderationItem({
@@ -73,8 +73,10 @@ contract EnforcerTest is StarPortTest {
 
         FixedRateEnforcer RE = new FixedRateEnforcer();
 
-        FixedRateEnforcer.Details memory REDetails =
-        FixedRateEnforcer.Details({maxRate: ((uint256(1e16) * 150) / (365 * 1 days)) * 2, maxCarryRate: (uint256(1e16) * 10) * 2});
+        FixedRateEnforcer.Details memory REDetails = FixedRateEnforcer.Details({
+            maxRate: ((uint256(1e16) * 150) / (365 * 1 days)) * 2,
+            maxCarryRate: (uint256(1e16) * 10) * 2
+        });
 
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
@@ -83,13 +85,13 @@ contract EnforcerTest is StarPortTest {
             lender: lender.addr,
             terms: terms,
             collateralItem: ConsiderationItem({
-            token: address(erc721s[0]),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 1,
-            itemType: ItemType.ERC721,
-            recipient: payable(address(custodian))
-        }),
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
             debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
             caveats: caveats
         });
@@ -112,8 +114,10 @@ contract EnforcerTest is StarPortTest {
 
         FixedRateEnforcer RE = new FixedRateEnforcer();
 
-        FixedRateEnforcer.Details memory REDetails =
-        FixedRateEnforcer.Details({maxRate: (uint256(1e16) * 150) / (365 * 1 days), maxCarryRate: (uint256(1e16) * 10) * 2}); // maxRate == defaultPricingData.carryRate
+        FixedRateEnforcer.Details memory REDetails = FixedRateEnforcer.Details({
+            maxRate: (uint256(1e16) * 150) / (365 * 1 days),
+            maxCarryRate: (uint256(1e16) * 10) * 2
+        }); // maxRate == defaultPricingData.carryRate
 
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
@@ -122,13 +126,13 @@ contract EnforcerTest is StarPortTest {
             lender: lender.addr,
             terms: terms,
             collateralItem: ConsiderationItem({
-            token: address(erc721s[0]),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 1,
-            itemType: ItemType.ERC721,
-            recipient: payable(address(custodian))
-        }),
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
             debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
             caveats: caveats
         });
@@ -151,11 +155,140 @@ contract EnforcerTest is StarPortTest {
 
         FixedRateEnforcer RE = new FixedRateEnforcer();
 
-        FixedRateEnforcer.Details memory REDetails =
-        FixedRateEnforcer.Details({maxRate: ((uint256(1e16) * 150) / (365 * 1 days)) * 2, maxCarryRate: (uint256(1e16) * 10)}); // maxCarryRate == defaultPricingData.rate
+        FixedRateEnforcer.Details memory REDetails = FixedRateEnforcer.Details({
+            maxRate: ((uint256(1e16) * 150) / (365 * 1 days)) * 2,
+            maxCarryRate: (uint256(1e16) * 10)
+        }); // maxCarryRate == defaultPricingData.rate
 
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+
+        LoanManager.Loan memory loan = _createLoanWithCaveat({
+            lender: lender.addr,
+            terms: terms,
+            collateralItem: ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
+            debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
+            caveats: caveats
+        });
+    }
+
+    function testFailRateEnforcerMaxRateAndMaxCarryRate() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+        FixedRateEnforcer RE = new FixedRateEnforcer();
+
+        FixedRateEnforcer.Details memory REDetails = FixedRateEnforcer.Details({
+            maxRate: (uint256(1e16) * 150) / (365 * 1 days),
+            maxCarryRate: (uint256(1e16) * 10)
+        }); // maxCarryRate == defaultPricingData.rate
+
+        LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+        caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+
+        LoanManager.Loan memory loan = _createLoanWithCaveat({
+            lender: lender.addr,
+            terms: terms,
+            collateralItem: ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
+            debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
+            caveats: caveats
+        });
+    }
+
+    function testCollateralEnforcer() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+        CollateralEnforcer CE = new CollateralEnforcer();
+
+        SpentItem[] memory CECollateral = new SpentItem[](1);
+
+        CECollateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), amount: 1, identifier: 1});
+
+        CollateralEnforcer.Details memory CEDetails =
+            CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
+
+        LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+        caveats[0] = LoanManager.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
+
+        LoanManager.Loan memory loan = _createLoanWithCaveat({
+            lender: lender.addr,
+            terms: terms,
+            collateralItem: ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
+            debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
+            caveats: caveats
+        });
+    }
+
+    function testFailCollateralEnforcerDifferentCollateral() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+        CollateralEnforcer CE = new CollateralEnforcer();
+
+        SpentItem[] memory CECollateral = new SpentItem[](1);
+
+        CECollateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[1]), amount: 1, identifier: 1});
+
+        CollateralEnforcer.Details memory CEDetails =
+        CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
+
+        LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+        caveats[0] = LoanManager.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
 
         LoanManager.Loan memory loan = _createLoanWithCaveat({
             lender: lender.addr,
@@ -172,5 +305,4 @@ contract EnforcerTest is StarPortTest {
             caveats: caveats
         });
     }
-
 }

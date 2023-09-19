@@ -54,6 +54,7 @@ import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 
 import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
 import {FixedRateEnforcer} from "src/enforcers/RateEnforcer.sol";
+import {CollateralEnforcer} from "src/enforcers/CollateralEnforcer.sol";
 
 interface IWETH9 {
     function deposit() external payable;
