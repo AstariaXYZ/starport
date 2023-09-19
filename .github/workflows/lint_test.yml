@@ -1,4 +1,4 @@
-name: test
+name: "lint, test"
 
 on:
   workflow_dispatch:
@@ -8,7 +8,8 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  test:
+  CI:
+    name: Lint, Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -22,23 +23,17 @@ jobs:
 
       - run: yarn
 
-      - uses: onbjerg/foundry-toolchain@v1
+      - uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Format
-        run: forge fmt 
+      - name: Lint
+        run: forge fmt --check
   
       - name: Test
-        run: forge test --ffi -vvv
+        run: forge test -vvv
 
       - name: Snapshot
-        run: forge snapshot
+        run: forge snapshot --check
 
-      - name: Document
-        run: forge doc --build 
-
-      - uses: stefanzweifel/git-auto-commit-action@v4 
-        with: 
-            commit_message: "style, document & snapshot"
 
 
 

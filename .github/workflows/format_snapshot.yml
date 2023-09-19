@@ -1,0 +1,36 @@
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  Resolve-CI:
+    name: Format, Snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - run: yarn
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Format
+        run: forge fmt 
+  
+      - name: Snapshot
+        run: forge snapshot
+
+      - name: Test
+        run: forge test -vvv
+
+      - uses: stefanzweifel/git-auto-commit-action@v4 
+        with: 
+            commit_message: "format & snapshot"
+
+
+
