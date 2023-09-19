@@ -38,8 +38,8 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
 
       - name: Document
-        run: forge doc --build && mkdir book && mv docs/book/* book/ 
-
+        run: forge doc --build && mkdir ../book && mv docs/book/* ../book/ && rm -rf * && mv ../book/* .
+ 
       - uses: stefanzweifel/git-auto-commit-action@v4 
         with: 
             commit_message: "document"
