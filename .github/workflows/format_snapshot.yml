@@ -1,8 +1,12 @@
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  Resolve-CI:
+  CI:
     name: Format, Snapshot
     runs-on: ubuntu-latest
     steps:
