@@ -42,6 +42,7 @@ import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
 import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
 import {Merkle} from "seaport/lib/murky/src/Merkle.sol";
+import {LoanManager} from "src/LoanManager.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
@@ -52,6 +53,7 @@ import "../src/custodians/AAVEPoolCustodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 
 import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
+import {FixedRateEnforcer} from "src/enforcers/RateEnforcer.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -719,6 +721,37 @@ contract StarPortTest is BaseOrderTest {
             NewLoanData({
                 custodian: address(custodian),
                 caveats: new LoanManager.Caveat[](0), // TODO check
+                details: abi.encode(loanDetails)
+            }),
+            Originator(UO),
+            selectedCollateral
+        );
+    }
+
+    function _createLoanWithCaveat(
+        address lender,
+        LoanManager.Terms memory terms,
+        ConsiderationItem memory collateralItem,
+        SpentItem memory debtItem,
+        LoanManager.Caveat[] memory caveats
+    ) internal returns (LoanManager.Loan memory loan) {
+        selectedCollateral.push(collateralItem);
+        debt.push(debtItem);
+
+        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custodian),
+            issuer: lender,
+            deadline: block.timestamp + 100,
+            terms: terms,
+            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+            debt: debt
+        });
+
+        loan = newLoan(
+            NewLoanData({
+                custodian: address(custodian),
+                caveats: caveats, // TODO check
                 details: abi.encode(loanDetails)
             }),
             Originator(UO),
