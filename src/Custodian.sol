@@ -14,7 +14,6 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {LoanManager} from "src/LoanManager.sol";
-import "forge-std/console.sol";
 import {ConduitHelper} from "src/ConduitHelper.sol";
 import {StarPortLib} from "src/lib/StarPortLib.sol";
 
@@ -26,21 +25,16 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     event SeaportCompatibleContractDeployed();
 
+    error InvalidSender();
+    error InvalidHandler();
+
     constructor(LoanManager LM_, address seaport_) {
         seaport = seaport_;
         LM = LM_;
         emit SeaportCompatibleContractDeployed();
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ContractOffererInterface)
-        returns (bool)
-    {
-        return interfaceId == type(ContractOffererInterface).interfaceId;
-    }
+    //MODIFIERS
 
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
@@ -49,8 +43,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         _;
     }
 
-    error InvalidSender();
-    error InvalidHandler();
+    //EXTERNAL FUNCTIONS
 
     /**
      * @dev Generates the order for this contract offerer.
@@ -90,15 +83,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
-    function custody(
-        ReceivedItem[] calldata consideration,
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce,
-        bytes calldata context
-    ) external virtual returns (bytes4 selector) {
-        selector = Custodian.custody.selector;
-    }
-
     /**
      * @dev Generates the order for this contract offerer.
      *
@@ -114,68 +98,29 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        offer = loan.collateral;
-
-        if (SettlementHook(loan.terms.hook).isActive(loan)) {
-            if (fulfiller != _getBorrower(loan)) {
-                revert InvalidSender();
-            }
-
-            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
-                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
-            //if a callback is needed for the issuer do it here
-            _settleLoan(loan);
-        } else {
-            address restricted;
-            //add in originator fee
-            _beforeSettlementHandlerHook(loan);
-            (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
-            _afterSettlementHandlerHook(loan);
-
-            if (restricted != address(0) && fulfiller != restricted) {
-                revert InvalidSender();
-            }
-        }
-
-        if (offer.length > 0) {
-            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-            _setOfferApprovals(offer, seaport);
-        }
+        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context, true);
     }
 
-    function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
-        internal
-        virtual
-    {}
-
-    function _beforeSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
-
-    function _afterSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
-
-    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
-
-    function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
-
-    function _setOfferApprovals(SpentItem[] memory offer, address target) internal {
-        for (uint256 i = 0; i < offer.length; i++) {
-            //approve consideration based on item type
-            if (offer[i].itemType == ItemType.ERC1155) {
-                ERC1155(offer[i].token).setApprovalForAll(target, true);
-            } else if (offer[i].itemType == ItemType.ERC721) {
-                ERC721(offer[i].token).setApprovalForAll(target, true);
-            } else if (offer[i].itemType == ItemType.ERC20) {
-                uint256 allowance = ERC20(offer[i].token).allowance(address(this), target);
-                if (allowance != 0) {
-                    ERC20(offer[i].token).approve(target, 0);
-                }
-                ERC20(offer[i].token).approve(target, offer[i].amount);
-            }
-        }
+    function custody(
+        ReceivedItem[] calldata consideration,
+        bytes32[] calldata orderHashes,
+        uint256 contractNonce,
+        bytes calldata context
+    ) external virtual returns (bytes4 selector) {
+        selector = Custodian.custody.selector;
     }
+
+    //todo work with seaport
+    function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
+        //adhere to sip data, how to encode the context and what it is
+        //TODO: add in the context for the loan
+        //you need to parse LM Open events for the loan and abi encode it
+        schemas = new Schema[](1);
+        schemas[0] = Schema(8, "");
+        return ("Loans", schemas);
+    }
+
+    // PUBLIC FUNCTIONS
 
     /**
      * @dev previews the order for this contract offerer.
@@ -195,20 +140,44 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        //TODO: move this into generate order and then do a view only version that doesnt call settle
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        ) internal view returns (SpentItem[] memory, ReceivedItem[] memory) fn;
+        function(
+            address,
+            SpentItem[] calldata,
+            bytes calldata,
+            bool
+        )
+        internal
+        returns (
+            SpentItem[] memory,
+            ReceivedItem[] memory
+        ) fn2 = _fillObligationAndVerify;
+        assembly {
+            fn := fn2
+        }
+
+        (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
     }
 
-    //todo work with seaport
-    function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
-        //adhere to sip data, how to encode the context and what it is
-        //TODO: add in the context for the loan
-        //you need to parse LM Open events for the loan and abi encode it
-        schemas = new Schema[](1);
-        schemas[0] = Schema(8, "");
-        return ("Loans", schemas);
+    function getBorrower(LoanManager.Loan memory loan) public view virtual returns (address) {
+        return loan.borrower;
     }
 
-    // PUBLIC FUNCTIONS
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ContractOffererInterface)
+        returns (bool)
+    {
+        return interfaceId == type(ContractOffererInterface).interfaceId;
+    }
+
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         public
         pure
@@ -219,7 +188,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata)
-        external
+        public
         pure
         virtual
         returns (bytes4)
@@ -228,7 +197,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     }
 
     function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
-        external
+        public
         pure
         virtual
         returns (bytes4)
@@ -236,8 +205,70 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         return TokenReceiverInterface.onERC1155BatchReceived.selector;
     }
 
-    function _getBorrower(LoanManager.Loan memory loan) internal view virtual returns (address) {
-        return loan.borrower;
+    //INTERNAL FUNCTIONS
+
+    function _fillObligationAndVerify(
+        address fulfiller,
+        SpentItem[] calldata maximumSpent,
+        bytes calldata context,
+        bool withEffects
+    ) internal returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+        offer = loan.collateral;
+
+        if (SettlementHook(loan.terms.hook).isActive(loan)) {
+            if (fulfiller != loan.borrower) {
+                revert InvalidSender();
+            }
+
+            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+
+            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            consideration = _removeZeroAmounts(consideration);
+
+            //if a callback is needed for the issuer do it here
+            if (withEffects) {
+                _settleLoan(loan);
+            }
+        } else {
+            address restricted;
+            //add in originator fee
+            if (withEffects) {
+                _beforeSettlementHandlerHook(loan);
+                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+                _afterSettlementHandlerHook(loan);
+            } else {
+                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            }
+
+            //TODO: remove and revert in get settlement if needed
+            if (restricted != address(0) && fulfiller != restricted) {
+                revert InvalidSender();
+            }
+        }
+
+        if (offer.length > 0 && withEffects) {
+            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+            _setOfferApprovals(offer, seaport);
+        }
+    }
+
+    function _setOfferApprovals(SpentItem[] memory offer, address target) internal {
+        for (uint256 i = 0; i < offer.length; i++) {
+            //approve consideration based on item type
+            if (offer[i].itemType == ItemType.ERC1155) {
+                ERC1155(offer[i].token).setApprovalForAll(target, true);
+            } else if (offer[i].itemType == ItemType.ERC721) {
+                ERC721(offer[i].token).setApprovalForAll(target, true);
+            } else if (offer[i].itemType == ItemType.ERC20) {
+                uint256 allowance = ERC20(offer[i].token).allowance(address(this), target);
+                if (allowance != 0) {
+                    ERC20(offer[i].token).approve(target, 0);
+                }
+                ERC20(offer[i].token).approve(target, offer[i].amount);
+            }
+        }
     }
 
     function _settleLoan(LoanManager.Loan memory loan) internal virtual {
@@ -245,4 +276,17 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         LM.settle(loan);
         _afterSettleLoanHook(loan);
     }
+
+    function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
+        internal
+        virtual
+    {}
+
+    function _beforeSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
+
+    function _afterSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
+
+    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
+
+    function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 }

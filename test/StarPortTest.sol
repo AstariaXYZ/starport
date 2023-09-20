@@ -55,6 +55,7 @@ import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
 import {FixedRateEnforcer} from "src/enforcers/RateEnforcer.sol";
 import {CollateralEnforcer} from "src/enforcers/CollateralEnforcer.sol";
+import {Cast} from "test/utils/Cast.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -63,6 +64,8 @@ interface IWETH9 {
 }
 
 contract StarPortTest is BaseOrderTest {
+    using Cast for *;
+
     SettlementHook fixedTermHook;
     SettlementHook astariaSettlementHook;
 
@@ -113,6 +116,7 @@ contract StarPortTest is BaseOrderTest {
         conduitController = new ConduitController();
 
         consideration = new Consideration(address(conduitController));
+        seaportAddr = address(seaport);
     }
 
     function setUp() public virtual override {
@@ -143,7 +147,7 @@ contract StarPortTest is BaseOrderTest {
         refinancer = makeAndAllocateAccount("refinancer");
 
         LM = new LoanManager();
-        custodian = new Custodian(LM, address(consideration));
+        custodian = new Custodian(LM, seaportAddr);
         UO = new UniqueOriginator(LM, strategist.addr, 1e16);
         MO = new MerkleOriginator(LM, strategist.addr, 1e16);
         CP = new CapitalPool(address(erc20s[0]), conduitController, address(MO));
@@ -758,5 +762,25 @@ contract StarPortTest is BaseOrderTest {
             Originator(UO),
             selectedCollateral
         );
+    }
+
+    function _getERC20SpentItem(TestERC20 token, uint256 amount) internal view returns (SpentItem memory) {
+        return SpentItem({
+            itemType: ItemType.ERC20,
+            token: address(token),
+            amount: amount,
+            identifier: 0 // 0 for ERC20
+        });
+    }
+
+    function _getERC721Consideration(TestERC721 token) internal view returns (ConsiderationItem memory) {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: 1,
+            itemType: ItemType.ERC721,
+            recipient: payable(address(custodian))
+        });
     }
 }

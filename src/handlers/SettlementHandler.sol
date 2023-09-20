@@ -19,10 +19,7 @@ abstract contract SettlementHandler {
 
     function getSettlement(LoanManager.Loan memory loan)
         external
+        view
         virtual
-        returns (
-            //    view
-            ReceivedItem[] memory consideration,
-            address restricted
-        );
+        returns (ReceivedItem[] memory consideration, address restricted);
 }
