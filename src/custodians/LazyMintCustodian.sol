@@ -6,7 +6,7 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 contract LazyMintCustodian is Custodian, ERC721 {
     constructor(LoanManager LM_, address seaport_) Custodian(LM_, seaport_) {}
 
-    function _getBorrower(LoanManager.Loan memory loan) internal view override returns (address) {
+    function getBorrower(LoanManager.Loan memory loan) public view override returns (address) {
         uint256 loanId = uint256(keccak256(abi.encode(loan)));
         return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
     }
