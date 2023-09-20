@@ -26,7 +26,7 @@ contract UniqueOriginator is Originator {
         response = Response({terms: details.terms, issuer: details.issuer});
     }
 
-    function execute(Request calldata params) external override returns (Response memory response) {
+    function execute(Request calldata params) external override onlyLoanManager returns (Response memory response) {
         bytes32 contextHash = keccak256(params.details);
 
         _validateSignature(keccak256(encodeWithAccountCounter(strategist, contextHash)), params.signature);
@@ -52,24 +52,8 @@ contract UniqueOriginator is Originator {
     }
 
     function _validateAsk(Request calldata request, Details memory details) internal {
-        //        if (request.borrower == address(0)) {
-        //          revert InvalidBorrower();
-        //        }
         if (request.custodian != details.custodian) {
             revert InvalidCustodian();
         }
-        //    if (request.details.length > 0) {
-        //      revert InvalidDetails();
-        //    }
-        //    if (keccak256(request.collateral))
-    }
-
-    function getFeeConsideration(LoanManager.Loan calldata loan)
-        external
-        view
-        override
-        returns (ReceivedItem[] memory consideration)
-    {
-        consideration;
     }
 }

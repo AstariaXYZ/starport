@@ -35,7 +35,6 @@ contract TestNewLoan is StarPortTest {
             collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
             debt: debt
         });
-        bool isTrusted = true;
 
         TermEnforcer TE = new TermEnforcer();
 
@@ -83,7 +82,6 @@ contract TestNewLoan is StarPortTest {
             collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
             debt: debt
         });
-        bool isTrusted = true;
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),

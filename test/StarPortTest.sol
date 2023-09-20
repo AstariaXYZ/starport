@@ -189,10 +189,10 @@ contract StarPortTest is BaseOrderTest {
 
         dutchAuctionHandler = new DutchAuctionHandler(LM);
         englishAuctionHandler = new EnglishAuctionHandler({
-      LM_: LM,
-      consideration_: seaport,
-      EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
-    });
+          LM_: LM,
+          consideration_: seaport,
+          EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
+        });
         astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
 
         simpleInterestPricing = new SimpleInterestPricing(LM);

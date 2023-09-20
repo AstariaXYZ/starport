@@ -41,7 +41,6 @@ contract TestRepayLoan is StarPortTest {
             collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
             debt: debt
         });
-        bool isTrusted = false;
 
         LoanManager.Loan memory activeLoan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),

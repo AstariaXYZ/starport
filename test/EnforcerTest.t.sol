@@ -285,7 +285,7 @@ contract EnforcerTest is StarPortTest {
         CECollateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[1]), amount: 1, identifier: 1});
 
         CollateralEnforcer.Details memory CEDetails =
-        CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
+            CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
 
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
@@ -294,13 +294,13 @@ contract EnforcerTest is StarPortTest {
             lender: lender.addr,
             terms: terms,
             collateralItem: ConsiderationItem({
-            token: address(erc721s[0]),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 1,
-            itemType: ItemType.ERC721,
-            recipient: payable(address(custodian))
-        }),
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custodian))
+            }),
             debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
             caveats: caveats
         });
