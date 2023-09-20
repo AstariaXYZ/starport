@@ -8,7 +8,7 @@ import {ItemType, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.so
 contract CollateralEnforcer is CaveatEnforcer {
     struct Details {
         SpentItem[] collateral;
-        bool isAny;
+        bool isAny; // TODO delete?
     }
 
     function enforceCaveat(bytes calldata terms, LoanManager.Loan memory loan)
