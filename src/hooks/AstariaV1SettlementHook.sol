@@ -14,7 +14,8 @@ contract AstariaV1SettlementHook is BaseHook, BaseRecall {
     function isActive(LoanManager.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
         uint256 tokenId = loan.getId();
-        return !(uint256(recalls[tokenId].start) + details.recallWindow > block.timestamp);
+        uint64 start = recalls[tokenId].start;
+        return !(start > 0 && start + details.recallWindow < block.timestamp);
     }
 
     function isRecalled(LoanManager.Loan calldata loan) external view override returns (bool) {

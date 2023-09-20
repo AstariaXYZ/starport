@@ -52,6 +52,8 @@ abstract contract BaseRecall is ConduitHelper {
         uint256 recallStakeDuration;
         // maximum rate of the recall before failure
         uint256 recallMax;
+        // ratio the recaller gets at liquidation (1e18, 100%, 1.0)
+        uint256 recallerRewardRatio;
     }
 
     struct Recall {

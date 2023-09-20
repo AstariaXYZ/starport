@@ -38,6 +38,7 @@ import {BasePricing} from "src/pricing/BasePricing.sol";
 import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
 import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
+import {FixedTermDutchAuctionHandler} from "src/handlers/FixedTermDutchAuctionHandler.sol";
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
 import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
@@ -152,7 +153,7 @@ contract StarPortTest is BaseOrderTest {
         MO = new MerkleOriginator(LM, strategist.addr, 1e16);
         CP = new CapitalPool(address(erc20s[0]), conduitController, address(MO));
         pricing = new SimpleInterestPricing(LM);
-        handler = new DutchAuctionHandler(LM);
+        handler = new FixedTermDutchAuctionHandler(LM);
         hook = new FixedTermHook();
         vm.label(address(erc721s[0]), "Collateral NFT");
         vm.label(address(erc721s[1]), "Collateral2 NFT");
@@ -191,7 +192,7 @@ contract StarPortTest is BaseOrderTest {
         fixedTermHook = new FixedTermHook();
         astariaSettlementHook = new AstariaV1SettlementHook(LM);
 
-        dutchAuctionHandler = new DutchAuctionHandler(LM);
+        dutchAuctionHandler = new FixedTermDutchAuctionHandler(LM);
         englishAuctionHandler = new EnglishAuctionHandler({
           LM_: LM,
           consideration_: seaport,

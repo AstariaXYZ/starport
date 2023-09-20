@@ -15,9 +15,9 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LoanManager, SettlementHandler} from "src/handlers/SettlementHandler.sol";
 
 import {ConduitHelper} from "src/ConduitHelper.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
-contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
+abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
     constructor(LoanManager LM_) SettlementHandler(LM_) {
         LM = LM_;
     }
@@ -32,8 +32,10 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper 
         uint256 window;
     }
 
+    function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual returns (uint256);
+
     function getSettlement(LoanManager.Loan memory loan)
-        external
+        public
         view
         virtual
         override
@@ -42,41 +44,33 @@ contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper 
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
         uint256 settlementPrice;
 
+        uint256 start = _getAuctionStart(loan);
+
+        // DutchAuction has failed
+        if (start + details.window < block.timestamp) {
+            return (new ReceivedItem[](0), loan.issuer);
+        }
+
         settlementPrice = _locateCurrentAmount({
             startAmount: details.startingPrice,
             endAmount: details.endingPrice,
-            startTime: block.timestamp,
-            endTime: block.timestamp + details.window,
+            startTime: start,
+            endTime: start + details.window,
             roundUp: true
         });
 
         (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
             Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-        consideration = new ReceivedItem[](
-      paymentConsiderations.length + carryFeeConsideration.length
-    );
-
-        //loop the payment considerations and add them to the consideration array
-
-        uint256 i = 0;
-        for (; i < paymentConsiderations.length;) {
-            consideration[i] = paymentConsiderations[i];
-            unchecked {
-                ++i;
-            }
+        if (paymentConsiderations[0].amount <= settlementPrice) {
+            carryFeeConsideration = new ReceivedItem[](0);
+        } else {
+            carryFeeConsideration[0].amount =
+                settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
         }
-        uint256 j = 0;
-        i = paymentConsiderations.length;
-        //loop fee considerations and add them to the consideration array
-        for (; j < carryFeeConsideration.length;) {
-            if (carryFeeConsideration[j].amount > 0) {
-                consideration[i + j] = carryFeeConsideration[j];
-            }
-            unchecked {
-                ++j;
-            }
-        }
+        paymentConsiderations[0].amount = settlementPrice;
+
+        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
         consideration = _removeZeroAmounts(consideration);
     }
 

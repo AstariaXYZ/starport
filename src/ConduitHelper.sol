@@ -32,7 +32,7 @@ abstract contract ConduitHelper {
         ReceivedItem[] memory repayConsideration,
         ReceivedItem[] memory carryConsideration,
         ReceivedItem[] memory additionalConsiderations
-    ) internal view returns (ReceivedItem[] memory consideration) {
+    ) internal pure returns (ReceivedItem[] memory consideration) {
         if (carryConsideration.length == 0 && additionalConsiderations.length == 0) {
             return repayConsideration;
         }
