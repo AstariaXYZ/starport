@@ -4,7 +4,7 @@ import "forge-std/console2.sol";
 
 import "./StarPortTest.sol";
 
-import {AstariaV1Pricing} from "starport-core/"pricing/AstariaV1Pricing.sol";
+import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
