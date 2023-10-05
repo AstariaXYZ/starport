@@ -2,4 +2,5 @@ solady/=lib/solady/
 seaport/=lib/seaport/
 seaport-types/=lib/seaport/lib/seaport-types/
 seaport-core/=lib/seaport/lib/seaport-core/
+starport-core/=src
 @chainlink/contracts/=node_modules/@chainlink/contracts/
