@@ -12,7 +12,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
 import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract TestStarLiteUtils is Test {
     TestContract testContract;

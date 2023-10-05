@@ -1,7 +1,7 @@
 pragma solidity =0.8.17;
 
 import {CaveatEnforcer} from "./CaveatEnforcer.sol";
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 
 import {ItemType, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 

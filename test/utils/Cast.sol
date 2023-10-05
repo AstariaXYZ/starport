@@ -3,7 +3,7 @@ pragma solidity =0.8.17;
 import {ItemType, SpentItem, ReceivedItem, ConsiderationItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import "test/utils/FuzzStructs.sol" as Fuzz;
 import "forge-std/Test.sol";
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 
 library Cast {
     function toUint(uint8 input) internal pure returns (uint256 ret) {

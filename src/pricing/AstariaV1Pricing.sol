@@ -1,15 +1,15 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
-import {BasePricing} from "src/pricing/BasePricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
+import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
 
-import {BaseRecall} from "src/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;

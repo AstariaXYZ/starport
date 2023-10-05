@@ -1,7 +1,7 @@
 //pragma solidity =0.8.17;
-//import "src/originators/Originator.sol";
+//import "starport-core/originators/Originator.sol";
 //
-//import {LoanManager} from "src/LoanManager.sol";
+//import {LoanManager} from "starport-core/LoanManager.sol";
 //import {ERC4626} from "solady/src/tokens/ERC4626.sol";
 //
 //contract PoolOriginator is Originator {

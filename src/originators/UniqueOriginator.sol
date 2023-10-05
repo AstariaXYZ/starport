@@ -1,8 +1,8 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 
-import "src/originators/Originator.sol";
+import "starport-core/originators/Originator.sol";
 
 contract UniqueOriginator is Originator {
     constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_) {}

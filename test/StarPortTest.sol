@@ -2,9 +2,9 @@ pragma solidity =0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {LoanManager} from "src/LoanManager.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
-import {Originator} from "src/originators/Originator.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
 import {
     ItemType,
     ReceivedItem,
@@ -29,39 +29,39 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //import {
 //  ReferenceConsideration as Consideration
 //} from "seaport/reference/ReferenceConsideration.sol";
-import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
+import {UniqueOriginator} from "starport-core/originators/UniqueOriginator.sol";
 
-import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
-import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
-import {BasePricing} from "src/pricing/BasePricing.sol";
-import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
-import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
-import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
-import {FixedTermDutchAuctionHandler} from "src/handlers/FixedTermDutchAuctionHandler.sol";
-import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
-import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
-import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
+import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
+import {FixedTermHook} from "starport-core/hooks/FixedTermHook.sol";
+import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
+import {FixedTermDutchAuctionHandler} from "starport-core/handlers/FixedTermDutchAuctionHandler.sol";
+import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
+import {EnglishAuctionHandler} from "starport-core/handlers/EnglishAuctionHandler.sol";
+import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
 
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
-import {AAVEPoolCustodian} from "src/custodians/AAVEPoolCustodian.sol";
-import {Custodian} from "src/Custodian.sol";
+import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
+import {Custodian} from "starport-core/Custodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
-import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
-import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
-import {FixedRateEnforcer} from "src/enforcers/RateEnforcer.sol";
-import {CollateralEnforcer} from "src/enforcers/CollateralEnforcer.sol";
+import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {TermEnforcer} from "starport-core/enforcers/TermEnforcer.sol";
+import {FixedRateEnforcer} from "starport-core/enforcers/RateEnforcer.sol";
+import {CollateralEnforcer} from "starport-core/enforcers/CollateralEnforcer.sol";
 import {Cast} from "test/utils/Cast.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {TokenReceiverInterface} from "src/interfaces/TokenReceiverInterface.sol";
+import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 interface IWETH9 {
     function deposit() external payable;
 

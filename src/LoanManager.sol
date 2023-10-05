@@ -28,21 +28,21 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Originator} from "src/originators/Originator.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
-import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
+import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
-import {Custodian} from "src/Custodian.sol";
+import {Custodian} from "starport-core/Custodian.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {ConduitHelper} from "src/ConduitHelper.sol";
+import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 
 contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable {
     using FixedPointMathLib for uint256;

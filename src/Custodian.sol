@@ -7,15 +7,15 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {TokenReceiverInterface} from "src/interfaces/TokenReceiverInterface.sol";
+import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Originator} from "src/originators/Originator.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
-import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
-import {LoanManager} from "src/LoanManager.sol";
-import {ConduitHelper} from "src/ConduitHelper.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
+import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {ConduitHelper} from "starport-core/ConduitHelper.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper {
     using {StarPortLib.getId} for LoanManager.Loan;

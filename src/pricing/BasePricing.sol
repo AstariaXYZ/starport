@@ -1,14 +1,14 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 
-import {BaseHook} from "src/hooks/BaseHook.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {BaseHook} from "starport-core/hooks/BaseHook.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 abstract contract BasePricing is Pricing {
     using FixedPointMathLib for uint256;

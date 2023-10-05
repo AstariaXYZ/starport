@@ -2,7 +2,7 @@ import "./StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 import "forge-std/console.sol";
 

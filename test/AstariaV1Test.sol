@@ -4,14 +4,14 @@ import "forge-std/console2.sol";
 
 import "./StarPortTest.sol";
 
-import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
+import {AstariaV1Pricing} from "starport-core/"pricing/AstariaV1Pricing.sol";
 
-import {BasePricing} from "src/pricing/BasePricing.sol";
-import {AstariaV1SettlementHook} from "src/hooks/AstariaV1SettlementHook.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
 
-import {BaseRecall} from "src/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 
-import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
+import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
 // import "forge-std/console2.sol";
 
 contract AstariaV1Test is StarPortTest {

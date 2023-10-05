@@ -1,7 +1,7 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 
 contract FixedTermHook is SettlementHook {
     struct Details {

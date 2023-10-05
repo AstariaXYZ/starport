@@ -1,10 +1,10 @@
 import "./AstariaV1Test.sol";
 
-import {BaseRecall} from "src/hooks/BaseRecall.sol";
-// import {Base} from "src/pricing/CompoundInterestPricing.sol";
-// import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
+import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+// import {Base} from "starport-core/pricing/CompoundInterestPricing.sol";
+// import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import "forge-std/console2.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;

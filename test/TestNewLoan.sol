@@ -1,5 +1,5 @@
 import "./StarPortTest.sol";
-import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
+import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 
 contract TestNewLoan is StarPortTest {
     function testNewLoanERC721CollateralDefaultTerms2() public returns (LoanManager.Loan memory) {

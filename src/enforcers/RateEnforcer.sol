@@ -1,8 +1,8 @@
 pragma solidity =0.8.17;
 
-import {CaveatEnforcer} from "src/enforcers/CaveatEnforcer.sol";
-import {BasePricing} from "src/pricing/BasePricing.sol";
-import {LoanManager} from "src/LoanManager.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 
 contract FixedRateEnforcer is CaveatEnforcer {
     struct Details {

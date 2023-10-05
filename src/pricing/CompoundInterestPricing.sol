@@ -1,9 +1,9 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-import {BasePricing} from "src/pricing/BasePricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {BaseRecallPricing} from "src/pricing/BaseRecallPricing.sol";
+import {BaseRecallPricing} from "starport-core/pricing/BaseRecallPricing.sol";
 
 abstract contract CompoundInterestPricing is BaseRecallPricing {
     using FixedPointMathLib for uint256;

@@ -1,10 +1,10 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
-import {BaseRecall} from "src/hooks/BaseRecall.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
-import {BaseHook} from "src/hooks/BaseHook.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {BaseHook} from "starport-core/hooks/BaseHook.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract AstariaV1SettlementHook is BaseHook, BaseRecall {
     using {StarPortLib.getId} for LoanManager.Loan;

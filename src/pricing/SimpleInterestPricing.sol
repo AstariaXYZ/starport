@@ -1,9 +1,9 @@
 pragma solidity =0.8.17;
 
-import {ReceivedItem, BasePricing} from "src/pricing/BasePricing.sol";
+import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {LoanManager} from "src/LoanManager.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;

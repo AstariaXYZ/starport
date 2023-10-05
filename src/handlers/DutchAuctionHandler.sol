@@ -8,13 +8,13 @@ import {
     OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Originator} from "src/originators/Originator.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {LoanManager, SettlementHandler} from "src/handlers/SettlementHandler.sol";
+import {LoanManager, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 
-import {ConduitHelper} from "src/ConduitHelper.sol";
+import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import "forge-std/console2.sol";
 
 abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {

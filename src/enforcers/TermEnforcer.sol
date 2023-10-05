@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 import {CaveatEnforcer} from "./CaveatEnforcer.sol";
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 import "forge-std/console.sol";
 
 contract TermEnforcer is CaveatEnforcer {

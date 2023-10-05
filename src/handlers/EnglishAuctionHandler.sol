@@ -1,6 +1,6 @@
 pragma solidity =0.8.17;
 
-import {LoanManager} from "src/LoanManager.sol";
+import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
@@ -15,7 +15,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
+import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {
     ConsiderationItem,
@@ -24,7 +24,7 @@ import {
     CriteriaResolver,
     OrderType
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 
 contract EnglishAuctionHandler is SettlementHandler {
     using FixedPointMathLib for uint256;

@@ -1,10 +1,10 @@
 pragma solidity =0.8.17;
 
-import {LoanManager, SpentItem, ReceivedItem, SettlementHandler} from "src/handlers/SettlementHandler.sol";
-import {BaseHook} from "src/hooks/BaseHook.sol";
-import {FixedTermHook} from "src/hooks/FixedTermHook.sol";
-import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {LoanManager, SpentItem, ReceivedItem, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {BaseHook} from "starport-core/hooks/BaseHook.sol";
+import {FixedTermHook} from "starport-core/hooks/FixedTermHook.sol";
+import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract FixedTermDutchAuctionHandler is DutchAuctionHandler {

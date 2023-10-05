@@ -1,13 +1,13 @@
 pragma solidity =0.8.17;
 
-import {LoanManager, SpentItem, ReceivedItem, SettlementHandler} from "src/handlers/SettlementHandler.sol";
-import {BaseHook} from "src/hooks/BaseHook.sol";
-import {BaseRecall} from "src/hooks/BaseRecall.sol";
-import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
-import {StarPortLib} from "src/lib/StarPortLib.sol";
+import {LoanManager, SpentItem, ReceivedItem, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {BaseHook} from "starport-core/hooks/BaseHook.sol";
+import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
-import {Pricing} from "src/pricing/Pricing.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
     using {StarPortLib.getId} for LoanManager.Loan;
