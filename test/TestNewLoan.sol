@@ -97,69 +97,6 @@ contract TestNewLoan is StarPortTest {
         vm.stopPrank();
     }
 
-    function testNewLoanERC721CollateralDefaultTermsWithMerkleProof() public returns (LoanManager.Loan memory) {
-        Custodian custody = Custodian(LM.defaultCustodian());
-
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-
-        selectedCollateral.push(
-            ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custody))
-            })
-        );
-
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        //need to add1
-        //address custodian;
-        //    address conduit;
-        //    address issuer;
-        //    uint256 deadline;
-        //    LoanManager.Terms terms;
-        //    SpentItem[] collateral;
-        //    SpentItem[] debt;
-        //    bytes validator;
-        MerkleOriginator.Details memory loanDetails = MerkleOriginator.Details({
-            custodian: address(custody),
-            conduit: address(CP.conduit()),
-            issuer: address(CP),
-            deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt,
-            validator: bytes("0x")
-        });
-        bytes32 leafHash = keccak256(
-            abi.encode(
-                loanDetails.custodian,
-                loanDetails.conduit,
-                loanDetails.issuer,
-                loanDetails.deadline,
-                loanDetails.terms,
-                loanDetails.collateral,
-                loanDetails.debt
-            )
-        );
-        loanDetails.validator = abi.encode(MerkleOriginator.MerkleProof({root: leafHash, proof: new bytes32[](0)}));
-
-        return newLoanWithMerkleProof(
-            NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(MO),
-            selectedCollateral
-        );
-    }
-
     function testBuyNowPayLater() public {
         ConsiderationItem[] memory want = new ConsiderationItem[](1);
         want[0] = ConsiderationItem({

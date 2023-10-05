@@ -34,7 +34,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
 
     function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual returns (uint256);
 
-    function getSettlement(LoanManager.Loan memory loan)
+    function getSettlement(LoanManager.Loan calldata loan)
         public
         view
         virtual

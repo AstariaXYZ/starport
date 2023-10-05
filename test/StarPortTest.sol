@@ -2,7 +2,6 @@ pragma solidity =0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {CapitalPool} from "src/CapitalPool.sol";
 import {LoanManager} from "src/LoanManager.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 import {Originator} from "src/originators/Originator.sol";
@@ -31,7 +30,7 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //  ReferenceConsideration as Consideration
 //} from "seaport/reference/ReferenceConsideration.sol";
 import {UniqueOriginator} from "src/originators/UniqueOriginator.sol";
-import {MerkleOriginator} from "src/originators/MerkleOriginator.sol";
+
 import {SimpleInterestPricing} from "src/pricing/SimpleInterestPricing.sol";
 import {CompoundInterestPricing} from "src/pricing/CompoundInterestPricing.sol";
 import {BasePricing} from "src/pricing/BasePricing.sol";
@@ -42,22 +41,27 @@ import {FixedTermDutchAuctionHandler} from "src/handlers/FixedTermDutchAuctionHa
 import {DutchAuctionHandler} from "src/handlers/DutchAuctionHandler.sol";
 import {EnglishAuctionHandler} from "src/handlers/EnglishAuctionHandler.sol";
 import {AstariaV1SettlementHandler} from "src/handlers/AstariaV1SettlementHandler.sol";
-import {Merkle} from "seaport/lib/murky/src/Merkle.sol";
+
 import {LoanManager} from "src/LoanManager.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
+import {AAVEPoolCustodian} from "src/custodians/AAVEPoolCustodian.sol";
 import {Custodian} from "src/Custodian.sol";
-import "../src/custodians/AAVEPoolCustodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
-
+import {SettlementHook} from "src/hooks/SettlementHook.sol";
+import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
+import {Pricing} from "src/pricing/Pricing.sol";
 import {TermEnforcer} from "src/enforcers/TermEnforcer.sol";
 import {FixedRateEnforcer} from "src/enforcers/RateEnforcer.sol";
 import {CollateralEnforcer} from "src/enforcers/CollateralEnforcer.sol";
 import {Cast} from "test/utils/Cast.sol";
-
+import {ERC20} from "solady/src/tokens/ERC20.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
+import {TokenReceiverInterface} from "src/interfaces/TokenReceiverInterface.sol";
 interface IWETH9 {
     function deposit() external payable;
 
@@ -107,9 +111,6 @@ contract StarPortTest is BaseOrderTest {
     LoanManager LM;
     Custodian custodian;
     UniqueOriginator UO;
-    MerkleOriginator MO;
-
-    CapitalPool CP;
 
     bytes32 conduitKeyRefinancer;
 
@@ -147,11 +148,9 @@ contract StarPortTest is BaseOrderTest {
         seller = makeAndAllocateAccount("seller");
         refinancer = makeAndAllocateAccount("refinancer");
 
-        LM = new LoanManager();
+        LM = new LoanManager(consideration);
         custodian = new Custodian(LM, seaportAddr);
         UO = new UniqueOriginator(LM, strategist.addr, 1e16);
-        MO = new MerkleOriginator(LM, strategist.addr, 1e16);
-        CP = new CapitalPool(address(erc20s[0]), conduitController, address(MO));
         pricing = new SimpleInterestPricing(LM);
         handler = new FixedTermDutchAuctionHandler(LM);
         hook = new FixedTermHook();
@@ -172,12 +171,9 @@ contract StarPortTest is BaseOrderTest {
         conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
 
         vm.startPrank(lender.addr);
-        erc20s[0].approve(address(CP), 10 ether);
-        CP.deposit(10 ether, lender.addr);
         lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
 
         conduitController.updateChannel(lenderConduit, address(UO), true);
-        conduitController.updateChannel(lenderConduit, address(MO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
         vm.stopPrank();
         vm.startPrank(refinancer.addr);
@@ -194,9 +190,9 @@ contract StarPortTest is BaseOrderTest {
 
         dutchAuctionHandler = new FixedTermDutchAuctionHandler(LM);
         englishAuctionHandler = new EnglishAuctionHandler({
-          LM_: LM,
-          consideration_: seaport,
-          EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
+            LM_: LM,
+            consideration_: seaport,
+            EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
         });
         astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
 
@@ -229,11 +225,9 @@ contract StarPortTest is BaseOrderTest {
     {
         bool isTrusted = loanData.caveats.length == 0;
         {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-                strategist.key,
-                keccak256(originator.encodeWithAccountCounter(strategist.addr, keccak256(loanData.details)))
-            );
-
+            bytes32 detailsHash =
+                keccak256(originator.encodeWithAccountCounter(strategist.addr, keccak256(loanData.details)));
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
             LoanManager.Loan memory loan = LoanManager.Loan({
                 custodian: address(loanData.custodian),
                 issuer: address(0),
@@ -251,47 +245,7 @@ contract StarPortTest is BaseOrderTest {
                     debt: debt,
                     salt: bytes32(0),
                     details: loanData.details,
-                    signature: abi.encodePacked(r, s, v),
-                    caveats: loanData.caveats,
-                    originator: address(originator)
-                }),
-                collateral // for building contract offer
-            );
-        }
-    }
-
-    function newLoanWithMerkleProof(
-        NewLoanData memory loanData,
-        Originator originator,
-        ConsiderationItem[] storage collateral
-    ) internal returns (LoanManager.Loan memory) {
-        bool isTrusted = loanData.caveats.length == 0;
-        {
-            MerkleOriginator.Details memory details = abi.decode(loanData.details, (MerkleOriginator.Details));
-            MerkleOriginator.MerkleProof memory merkleData =
-                abi.decode(details.validator, (MerkleOriginator.MerkleProof));
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-                strategist.key, keccak256(originator.encodeWithAccountCounter(strategist.addr, merkleData.root))
-            );
-
-            LoanManager.Loan memory loan = LoanManager.Loan({
-                custodian: address(loanData.custodian),
-                issuer: address(0),
-                borrower: borrower.addr,
-                originator: isTrusted ? address(originator) : address(0),
-                terms: originator.terms(loanData.details),
-                debt: debt,
-                collateral: ConsiderationItemLib.toSpentItemArray(collateral),
-                start: uint256(0)
-            });
-            return _executeNLR(
-                LoanManager.Obligation({
-                    custodian: address(loanData.custodian),
-                    borrower: borrower.addr,
-                    debt: debt,
-                    salt: bytes32(0),
-                    details: loanData.details,
-                    signature: abi.encodePacked(r, s, v),
+                    approval: abi.encodePacked(r, s, v),
                     caveats: loanData.caveats,
                     originator: address(originator)
                 }),
@@ -329,7 +283,7 @@ contract StarPortTest is BaseOrderTest {
                 debt: debt,
                 details: loanData.details,
                 salt: bytes32(0),
-                signature: abi.encodePacked(r, s, v),
+                approval: abi.encodePacked(r, s, v),
                 caveats: loanData.caveats,
                 originator: address(originator)
             }),
@@ -362,8 +316,8 @@ contract StarPortTest is BaseOrderTest {
             Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
         uint256 i = 0;
         ConsiderationItem[] memory consider = new ConsiderationItem[](
-      loanPayment.length + carryPayment.length
-    );
+            loanPayment.length + carryPayment.length
+        );
         for (; i < loanPayment.length;) {
             consider[i].token = loanPayment[i].token;
             consider[i].itemType = loanPayment[i].itemType;
@@ -390,8 +344,8 @@ contract StarPortTest is BaseOrderTest {
         }
 
         OfferItem[] memory repayOffering = new OfferItem[](
-      activeLoan.collateral.length
-    );
+            activeLoan.collateral.length
+        );
         i = 0;
         for (; i < activeLoan.collateral.length;) {
             repayOffering[i] = OfferItem({
@@ -440,7 +394,7 @@ contract StarPortTest is BaseOrderTest {
         //use murky to create a tree that is good
 
         bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
+            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
@@ -562,7 +516,7 @@ contract StarPortTest is BaseOrderTest {
         returns (LoanManager.Loan memory loan)
     {
         bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
+            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
@@ -592,7 +546,12 @@ contract StarPortTest is BaseOrderTest {
         AdvancedOrder memory x =
             AdvancedOrder({parameters: op, numerator: 1, denominator: 1, signature: "0x", extraData: abi.encode(nlr)});
 
-        uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
+        uint256 balanceBefore;
+        if (debt[0].token == address(0)) {
+            balanceBefore = borrower.addr.balance;
+        } else {
+            balanceBefore = ERC20(debt[0].token).balanceOf(borrower.addr);
+        }
         vm.recordLogs();
         vm.startPrank(borrower.addr);
         consideration.fulfillAdvancedOrder({
@@ -613,7 +572,12 @@ contract StarPortTest is BaseOrderTest {
             }
         }
 
-        uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
+        uint256 balanceAfter;
+        if (debt[0].token == address(0)) {
+            balanceAfter = borrower.addr.balance;
+        } else {
+            balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
+        }
 
         assertEq(balanceAfter - balanceBefore, debt[0].amount);
         vm.stopPrank();

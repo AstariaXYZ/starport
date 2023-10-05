@@ -59,7 +59,7 @@ contract EnglishAuctionHandler is SettlementHandler {
         selector = SettlementHandler.execute.selector;
     }
 
-    function getSettlement(LoanManager.Loan memory loan)
+    function getSettlement(LoanManager.Loan calldata loan)
         public
         view
         override

@@ -17,7 +17,7 @@ abstract contract SettlementHandler {
 
     function validate(LoanManager.Loan calldata loan) external view virtual returns (bool);
 
-    function getSettlement(LoanManager.Loan memory loan)
+    function getSettlement(LoanManager.Loan calldata loan)
         public
         view
         virtual

@@ -1,3 +1,23 @@
+// SPDX-License-Identifier: BUSL-1.1
+/**
+ *                                                                                                                           ,--,
+ *                                                                                                                        ,---.'|
+ *      ,----..    ,---,                                                                            ,-.                   |   | :
+ *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
+ *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
+ *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
+ *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
+ *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
+ *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
+ *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
+ *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
+ *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
+ *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
+ *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
+ *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
+ *
+ * Chainworks Labs
+ */
 pragma solidity =0.8.17;
 
 import {LoanManager} from "src/LoanManager.sol";
@@ -28,7 +48,14 @@ abstract contract Originator {
         SpentItem[] collateral;
         SpentItem[] debt;
         bytes details;
-        bytes signature;
+        bytes approval;
+    }
+
+    struct Offer {
+        bytes32 salt; //can be bytes32(0) if so do not invalidate the hash
+        LoanManager.Terms terms;
+        SpentItem[] collateral;
+        SpentItem[] debt;
     }
 
     event Origination(uint256 indexed loanId, address indexed issuer, bytes nlrDetails);
@@ -160,7 +187,11 @@ abstract contract Originator {
         return _DOMAIN_SEPARATOR;
     }
 
-    function _validateSignature(bytes32 hash, bytes calldata signature) internal view virtual {
+    function _validateOffer(Request calldata params) internal virtual {
+        _validateSignature(keccak256(encodeWithAccountCounter(strategist, keccak256(params.details))), params.approval);
+    }
+
+    function _validateSignature(bytes32 hash, bytes memory signature) internal view virtual {
         if (!SignatureCheckerLib.isValidSignatureNow(strategist, hash, signature)) {
             revert InvalidSigner();
         }

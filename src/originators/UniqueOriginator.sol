@@ -29,7 +29,7 @@ contract UniqueOriginator is Originator {
     function execute(Request calldata params) external override onlyLoanManager returns (Response memory response) {
         bytes32 contextHash = keccak256(params.details);
 
-        _validateSignature(keccak256(encodeWithAccountCounter(strategist, contextHash)), params.signature);
+        _validateSignature(keccak256(encodeWithAccountCounter(strategist, contextHash)), params.approval);
         Details memory details = abi.decode(params.details, (Details));
 
         if (block.timestamp > details.deadline) {

@@ -21,7 +21,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
         return start + details.recallWindow + 1;
     }
 
-    function getSettlement(LoanManager.Loan memory loan)
+    function getSettlement(LoanManager.Loan calldata loan)
         public
         view
         virtual
