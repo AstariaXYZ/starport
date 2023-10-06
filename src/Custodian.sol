@@ -4,9 +4,9 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
-import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport/lib/seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
+import {ContractOffererInterface} from "seaport/lib/seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
@@ -23,6 +23,14 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     LoanManager public immutable LM;
     address public immutable seaport;
 
+    mapping(address => mapping(address => bool)) public repayApproval;
+
+    function setRepayApproval(address payer, bool approved) external {
+        repayApproval[msg.sender][payer] = approved;
+        emit RepayApproval(msg.sender, payer, approved);
+    }
+
+    event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
     error InvalidSender();
@@ -43,7 +51,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
         if (loan.custodian != address(this) || !LM.issued(loanId)) {
-            revert("Custodian: Invalid loan");//setup with proper error
+            revert("Custodian: Invalid loan"); //setup with proper error
         }
 
         _safeMint(loan.issuer, loanId, encodedLoan);
@@ -51,16 +59,20 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         if (!_exists(tokenId)) {
-            revert ("Custodian: Invalid token id");
+            revert("Custodian: Invalid token id");
         }
-        return string('');
+        return string("");
     }
 
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ContractOffererInterface) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ContractOffererInterface)
+        returns (bool)
+    {
         return interfaceId == type(ERC721).interfaceId || interfaceId == type(ContractOffererInterface).interfaceId
             || super.supportsInterface(interfaceId);
     }
-
 
     function name() public pure override returns (string memory) {
         return "Starport Custodian Token";
@@ -200,7 +212,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
     }
 
-
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         public
         pure
@@ -240,7 +251,8 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         offer = loan.collateral;
 
         if (SettlementHook(loan.terms.hook).isActive(loan)) {
-            if (fulfiller != loan.borrower) {
+            address borrower = getBorrower(loan);
+            if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidSender();
             }
 
@@ -314,7 +326,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             _burn(uint256(keccak256(abi.encode(loan))));
         }
     }
-
 
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 }
