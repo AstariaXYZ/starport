@@ -237,7 +237,7 @@ abstract contract Originator is Ownable {
         }
     }
 
-    function _execute(Request calldata request, Details memory details) internal virtual returns (Response memory response) {
+    function _execute(Request calldata request, Details memory details) internal virtual {
         _validateAsk(request, details);
 
         if (
@@ -246,8 +246,6 @@ abstract contract Originator is Ownable {
         ) {
             revert ConduitTransferError();
         }
-
-        response = _buildResponse(request, details);
     }
 
     function _validateAsk(Request calldata request, Details memory details) internal view {
