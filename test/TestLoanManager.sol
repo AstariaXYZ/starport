@@ -1,7 +1,7 @@
 import "./StarPortTest.sol";
 
 contract MockOriginator is Originator, TokenReceiverInterface {
-    constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_) {}
+    constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_, msg.sender) {}
 
     // PUBLIC FUNCTIONS
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
@@ -42,11 +42,9 @@ contract MockOriginator is Originator, TokenReceiverInterface {
         });
     }
 
-    function execute(Request calldata request) external override returns (Response memory) {
+    function execute(Request calldata request) external override returns (Response memory response) {
         return Response({terms: terms(request.details), issuer: address(this)});
     }
-
-    function _validateOffer(Request calldata) internal view virtual override {}
 }
 
 contract TestLoanManager is StarPortTest {

@@ -22,14 +22,17 @@ contract TestCustodian is StarPortTest {
 
         debt.push(_getERC20SpentItem(erc20s[0], borrowAmount));
 
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         LoanManager.Loan memory loan = newLoan(

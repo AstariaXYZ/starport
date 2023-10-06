@@ -29,18 +29,22 @@ import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.so
 
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
-abstract contract Originator {
+abstract contract Originator is Ownable {
     enum State {
         INITIALIZED,
         CLOSED
     }
-
+    error InvalidDebt();
+    error InvalidOffer();
     struct Response {
         LoanManager.Terms terms;
         address issuer;
     }
+    event StrategistTransferred(address newStrategist);
+    mapping(bytes32 => bool) public usedHashes;
 
     struct Request {
         address custodian;
@@ -49,6 +53,15 @@ abstract contract Originator {
         SpentItem[] debt;
         bytes details;
         bytes approval;
+    }
+
+    struct Details {
+//        uint16 offerType;
+        address custodian;
+        address conduit;
+        address issuer;
+        uint256 deadline;
+        Offer offer;
     }
 
     struct Offer {
@@ -90,7 +103,7 @@ abstract contract Originator {
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-        keccak256("OriginatorDetails(address originator,uint256 nonce,bytes32 hash)");
+        keccak256("Origination(address originator,uint256 nonce,bytes32 hash)");
     bytes32 constant VERSION = keccak256("0");
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -100,7 +113,8 @@ abstract contract Originator {
     uint256 public strategistFee;
     uint256 private _counter;
 
-    constructor(LoanManager LM_, address strategist_, uint256 fee_) {
+    constructor(LoanManager LM_, address strategist_, uint256 fee_, address owner) {
+        _initializeOwner(owner);
         strategist = strategist_;
         strategistFee = fee_;
         LM = LM_;
@@ -112,6 +126,11 @@ abstract contract Originator {
                 address(this)
             )
         );
+    }
+
+    function setStrategist(address newStrategist) external onlyOwner {
+        strategist = newStrategist;
+        emit StrategistTransferred(newStrategist);
     }
 
     function _packageTransfers(SpentItem[] memory loan, address borrower, address issuer)
@@ -147,10 +166,25 @@ abstract contract Originator {
         }
     }
 
-    function terms(bytes calldata) external view virtual returns (LoanManager.Terms memory);
+    function terms(bytes calldata details) public view virtual returns (LoanManager.Terms memory) {
+        return abi.decode(details, (Details)).offer.terms;
+    }
 
-    // Abstract function to execute the loan, to be overridden in child contracts
-    function execute(Request calldata) external virtual returns (Response memory);
+    function execute(Request calldata params)
+    external
+    virtual
+    onlyLoanManager
+    returns (Response memory response)
+    {
+        Details memory details = abi.decode(params.details, (Details));
+        _validateOffer(params, details);
+        _execute(params, details);
+        response = _buildResponse(params, details);
+    }
+
+    function _buildResponse(Request calldata params, Details memory details) internal virtual returns (Response memory response) {
+        response = Response({terms: details.offer.terms, issuer: details.issuer});
+    }
 
     // Encode the data with the account's nonce for generating a signature
     function encodeWithAccountCounter(address account, bytes32 contextHash)
@@ -187,8 +221,45 @@ abstract contract Originator {
         return _DOMAIN_SEPARATOR;
     }
 
-    function _validateOffer(Request calldata params) internal virtual {
+    function _validateOffer(Request calldata params, Details memory details) internal virtual {
+        bytes32 contextHash = keccak256(params.details);
         _validateSignature(keccak256(encodeWithAccountCounter(strategist, keccak256(params.details))), params.approval);
+
+        if (details.offer.salt != bytes32(0)) {
+            if (!usedHashes[contextHash]) {
+                usedHashes[contextHash] = true;
+            } else {
+                revert InvalidOffer();
+            }
+        }
+        if (block.timestamp > details.deadline) {
+            revert InvalidDeadline();
+        }
+    }
+
+    function _execute(Request calldata request, Details memory details) internal virtual returns (Response memory response) {
+        _validateAsk(request, details);
+
+        if (
+            ConduitInterface(details.conduit).execute(_packageTransfers(request.debt, request.receiver, details.issuer))
+            != ConduitInterface.execute.selector
+        ) {
+            revert ConduitTransferError();
+        }
+
+        response = _buildResponse(request, details);
+    }
+
+    function _validateAsk(Request calldata request, Details memory details) internal view {
+        if (request.custodian != details.custodian) {
+            revert InvalidCustodian();
+        }
+        if (block.timestamp > details.deadline) {
+            revert InvalidDeadline();
+        }
+        if (request.debt.length > 1) {
+            revert InvalidDebtLength();
+        }
     }
 
     function _validateSignature(bytes32 hash, bytes memory signature) internal view virtual {

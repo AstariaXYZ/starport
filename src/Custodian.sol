@@ -17,7 +17,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper {
+contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper, ERC721 {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;
@@ -32,6 +32,42 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         seaport = seaport_;
         LM = LM_;
         emit SeaportCompatibleContractDeployed();
+    }
+
+    function getBorrower(LoanManager.Loan memory loan) public view returns (address) {
+        uint256 loanId = uint256(keccak256(abi.encode(loan)));
+        return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
+    }
+
+    function mint(LoanManager.Loan calldata loan) external {
+        bytes memory encodedLoan = abi.encode(loan);
+        uint256 loanId = uint256(keccak256(encodedLoan));
+        if (loan.custodian != address(this) || !LM.issued(loanId)) {
+            revert("Custodian: Invalid loan");//setup with proper error
+        }
+
+        _safeMint(loan.issuer, loanId, encodedLoan);
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        if (!_exists(tokenId)) {
+            revert ("Custodian: Invalid token id");
+        }
+        return string('');
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, ContractOffererInterface) returns (bool) {
+        return interfaceId == type(ERC721).interfaceId || interfaceId == type(ContractOffererInterface).interfaceId
+            || super.supportsInterface(interfaceId);
+    }
+
+
+    function name() public pure override returns (string memory) {
+        return "Starport Custodian Token";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "SCT";
     }
 
     //MODIFIERS
@@ -164,19 +200,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
     }
 
-    function getBorrower(LoanManager.Loan memory loan) public view virtual returns (address) {
-        return loan.borrower;
-    }
-
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ContractOffererInterface)
-        returns (bool)
-    {
-        return interfaceId == type(ContractOffererInterface).interfaceId;
-    }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         public
@@ -262,8 +285,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             } else if (offer[i].itemType == ItemType.ERC721) {
                 ERC721(offer[i].token).setApprovalForAll(target, true);
             } else if (offer[i].itemType == ItemType.ERC20) {
-                uint256 allowance = ERC20(offer[i].token).allowance(address(this), target);
-                if (allowance != 0) {
+                if (ERC20(offer[i].token).allowance(address(this), target) != 0) {
                     ERC20(offer[i].token).approve(target, 0);
                 }
                 ERC20(offer[i].token).approve(target, offer[i].amount);
@@ -286,7 +308,13 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     function _afterSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
 
-    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
+    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal {
+        uint256 loanId = uint256(keccak256(abi.encode(loan)));
+        if (_exists(loanId)) {
+            _burn(uint256(keccak256(abi.encode(loan))));
+        }
+    }
+
 
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 }

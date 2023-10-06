@@ -62,6 +62,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
+
 interface IWETH9 {
     function deposit() external payable;
 
@@ -677,14 +678,17 @@ contract StarPortTest is BaseOrderTest {
         selectedCollateral.push(collateralItem);
         debt.push(debtItem);
 
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: lender,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         loan = newLoan(
@@ -708,14 +712,17 @@ contract StarPortTest is BaseOrderTest {
         selectedCollateral.push(collateralItem);
         debt.push(debtItem);
 
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: lender,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         loan = newLoan(

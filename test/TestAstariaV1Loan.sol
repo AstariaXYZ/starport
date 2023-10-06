@@ -33,14 +33,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         LoanManager.Loan memory loan = newLoan(
@@ -199,14 +202,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         LoanManager.Loan memory loan = newLoan(
@@ -337,14 +343,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        UniqueOriginator.Details memory loanDetails = UniqueOriginator.Details({
+        Originator.Details memory loanDetails = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            terms: terms,
-            collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-            debt: debt
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
         });
 
         LoanManager.Loan memory loan = newLoan(
