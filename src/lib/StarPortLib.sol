@@ -5,6 +5,10 @@ import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/Considera
 import {LoanManager} from "starport-core/LoanManager.sol";
 
 library StarPortLib {
+    error InvalidSalt();
+
+    uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
+
     function getId(LoanManager.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
     }
@@ -86,6 +90,46 @@ library StarPortLib {
                 mstore(ptr, o) //store offset
                 mstore(r, recipient) //set recipient
             }
+        }
+    }
+
+    function validateSaltRef(
+        mapping(address => mapping(bytes32 => bool)) storage usedSalts,
+        address borrower,
+        bytes32 salt
+    ) internal {
+        if (usedSalts[borrower][salt]) {
+            revert InvalidSalt();
+        }
+        usedSalts[borrower][salt] = true;
+    }
+
+    function validateSalt(
+        mapping(address => mapping(bytes32 => bool)) storage usedSalts,
+        address borrower,
+        bytes32 salt
+    ) internal {
+        assembly {
+            mstore(0x0, borrower)
+            mstore(0x20, usedSalts.slot)
+
+            //usedSalts[borrower]
+            let loc := keccak256(0x0, 0x40)
+
+            mstore(0x0, salt)
+            mstore(0x20, loc)
+
+            //usedSalts[borrower][salt]
+            loc := keccak256(0x0, 0x40)
+
+            //if (usedSalts[borrower][salt] == true)
+            if iszero(iszero(sload(loc))) {
+                //revert InvalidSalt()
+                mstore(0x0, _INVALID_SALT)
+                revert(0x0, 0x04)
+            }
+
+            sstore(loc, 1)
         }
     }
 }

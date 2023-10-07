@@ -49,6 +49,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
     using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
     ConsiderationInterface public immutable seaport;
     //  ConsiderationInterface public constant seaport =
@@ -63,7 +64,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         keccak256("IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)");
     bytes32 constant VERSION = keccak256("0");
 
-    mapping(bytes32 => bool) public usedHashes;
+    mapping(address => mapping(bytes32 => bool)) public usedSalts;
     mapping(address => uint256) public borrowerNonce; //needs to be invalidated
 
     address public feeTo;
@@ -325,11 +326,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         exoticFee[exotic] = fee;
     }
 
-    function getExoticFee(SpentItem memory exotic) public returns (Fee memory fee) {
+    function getExoticFee(SpentItem memory exotic) public view returns (Fee memory fee) {
         return exoticFee[exotic.token];
     }
 
-    function _feeRake(SpentItem[] memory debt) internal returns (ReceivedItem[] memory feeConsideration) {
+    function _feeRake(SpentItem[] memory debt) internal view returns (ReceivedItem[] memory feeConsideration) {
         uint256 i = 0;
         feeConsideration = new ReceivedItem[](debt.length);
         for (; i < debt.length;) {
@@ -421,13 +422,14 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         if (enforceCaveats) {
             bytes32 caveatHash = keccak256(
                 encodeWithSaltAndBorrowerCounter(
-                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation))
+                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation.caveats))
                 )
             );
-            //prevent replay on the hash
-            usedHashes[caveatHash] = true;
-            uint256 i = 0;
-            for (; i < obligation.caveats.length;) {
+
+            //prevent replay on the salt
+            usedSalts.validateSalt(obligation.borrower, obligation.salt);
+
+            for (uint256 i = 0; i < obligation.caveats.length;) {
                 if (!CaveatEnforcer(obligation.caveats[i].enforcer).enforceCaveat(obligation.caveats[i].terms, loan)) {
                     revert InvalidOrigination();
                 }
