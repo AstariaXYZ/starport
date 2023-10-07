@@ -23,24 +23,22 @@ contract TestStarLiteUtils is Test {
     }
 
     function testValidateSaltRef(address user, bytes32 salt) public {
+        StarPortLib.validateSaltRef(usedSalts, user, salt);
 
-      StarPortLib.validateSaltRef(usedSalts, user, salt);
+        assert(usedSalts[user][salt]);
+        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
 
-      assert(usedSalts[user][salt]);
-      vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
-
-      StarPortLib.validateSaltRef(usedSalts, user, salt);
+        StarPortLib.validateSaltRef(usedSalts, user, salt);
     }
 
     function testValidateSaltOpt(address user, bytes32 salt) public {
-      StarPortLib.validateSalt(usedSalts, user, salt);
+        StarPortLib.validateSalt(usedSalts, user, salt);
 
-      assert(usedSalts[user][salt]);
+        assert(usedSalts[user][salt]);
 
-      vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
-      StarPortLib.validateSalt(usedSalts, user, salt);
+        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
+        StarPortLib.validateSalt(usedSalts, user, salt);
     }
-
 
     function testSpentToReceived() public {
         SpentItem[] memory spentItems = new SpentItem[](2);

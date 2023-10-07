@@ -63,10 +63,10 @@ contract SwapHandler is SettlementHandler {
     }
 
     function getSettlement(LoanManager.Loan calldata loan)
-    public
-    view
-    override
-    returns (ReceivedItem[] memory consideration, address restricted)
+        public
+        view
+        override
+        returns (ReceivedItem[] memory consideration, address restricted)
     {
         return (new ReceivedItem[](0), address(0));
     }
@@ -76,19 +76,19 @@ contract SwapPricing is Pricing {
     constructor(LoanManager LM_) Pricing(LM_) {}
 
     function getPaymentConsideration(LoanManager.Loan memory loan)
-    public
-    view
-    override
-    returns (ReceivedItem[] memory, ReceivedItem[] memory)
+        public
+        view
+        override
+        returns (ReceivedItem[] memory, ReceivedItem[] memory)
     {
         return (new ReceivedItem[](0), new ReceivedItem[](0));
     }
 
     function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
-    external
-    view
-    override
-    returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory)
+        external
+        view
+        override
+        returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory)
     {
         return (new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0));
     }
