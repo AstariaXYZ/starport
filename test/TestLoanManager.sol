@@ -5,28 +5,28 @@ contract MockOriginator is Originator, TokenReceiverInterface {
 
     // PUBLIC FUNCTIONS
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-    public
-    pure
-    virtual
-    returns (bytes4)
+        public
+        pure
+        virtual
+        returns (bytes4)
     {
         return TokenReceiverInterface.onERC721Received.selector;
     }
 
     function onERC1155Received(address, address, uint256, uint256, bytes calldata)
-    external
-    pure
-    virtual
-    returns (bytes4)
+        external
+        pure
+        virtual
+        returns (bytes4)
     {
         return TokenReceiverInterface.onERC1155Received.selector;
     }
 
     function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
-    external
-    pure
-    virtual
-    returns (bytes4)
+        external
+        pure
+        virtual
+        returns (bytes4)
     {
         return TokenReceiverInterface.onERC1155BatchReceived.selector;
     }
@@ -81,7 +81,7 @@ contract TestLoanManager is StarPortTest {
         //        OrderParameters memory op = _buildContractOrder(address(LM), new OfferItem[](0), selectedCollateral);
         vm.startPrank(seaport);
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-                            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(O));
+            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(O));
         //TODO:: validate return data matches request
         //        assertEq(keccak256(abi.encode(consideration)), keccak256(abi.encode(maxSpent)));
     }

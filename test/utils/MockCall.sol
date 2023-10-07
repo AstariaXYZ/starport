@@ -4,7 +4,6 @@ import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
 
 abstract contract MockCall is TestBase {
-
     function mockHookCall(address hook, bool status) public {
         vm.mockCall(hook, abi.encodeWithSelector(SettlementHook.isActive.selector), abi.encode(status));
     }
