@@ -37,13 +37,17 @@ abstract contract Originator is Ownable {
         INITIALIZED,
         CLOSED
     }
+
     error InvalidDebt();
     error InvalidOffer();
+
     struct Response {
         LoanManager.Terms terms;
         address issuer;
     }
+
     event StrategistTransferred(address newStrategist);
+
     mapping(bytes32 => bool) public usedHashes;
 
     struct Request {
@@ -56,7 +60,7 @@ abstract contract Originator is Ownable {
     }
 
     struct Details {
-//        uint16 offerType;
+        //        uint16 offerType;
         address custodian;
         address conduit;
         address issuer;
@@ -170,19 +174,18 @@ abstract contract Originator is Ownable {
         return abi.decode(details, (Details)).offer.terms;
     }
 
-    function execute(Request calldata params)
-    external
-    virtual
-    onlyLoanManager
-    returns (Response memory response)
-    {
+    function execute(Request calldata params) external virtual onlyLoanManager returns (Response memory response) {
         Details memory details = abi.decode(params.details, (Details));
         _validateOffer(params, details);
         _execute(params, details);
         response = _buildResponse(params, details);
     }
 
-    function _buildResponse(Request calldata params, Details memory details) internal virtual returns (Response memory response) {
+    function _buildResponse(Request calldata params, Details memory details)
+        internal
+        virtual
+        returns (Response memory response)
+    {
         response = Response({terms: details.offer.terms, issuer: details.issuer});
     }
 
@@ -242,7 +245,7 @@ abstract contract Originator is Ownable {
 
         if (
             ConduitInterface(details.conduit).execute(_packageTransfers(request.debt, request.receiver, details.issuer))
-            != ConduitInterface.execute.selector
+                != ConduitInterface.execute.selector
         ) {
             revert ConduitTransferError();
         }

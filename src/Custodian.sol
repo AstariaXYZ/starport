@@ -33,7 +33,9 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
-    error InvalidSender();
+    error NotSeaport();
+    error InvalidRepayer();
+    error InvalidFulfiller();
     error InvalidHandler();
 
     constructor(LoanManager LM_, address seaport_) {
@@ -86,7 +88,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
-            revert InvalidSender();
+            revert NotSeaport();
         }
         _;
     }
@@ -253,7 +255,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         if (SettlementHook(loan.terms.hook).isActive(loan)) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
-                revert InvalidSender();
+                revert InvalidRepayer();
             }
 
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
@@ -267,19 +269,19 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
                 _settleLoan(loan);
             }
         } else {
-            address restricted;
+            address authorized;
             //add in originator fee
             if (withEffects) {
                 _beforeSettlementHandlerHook(loan);
-                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+                (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
                 _afterSettlementHandlerHook(loan);
             } else {
-                (consideration, restricted) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+                (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
             }
 
             //TODO: remove and revert in get settlement if needed
-            if (restricted != address(0) && fulfiller != restricted) {
-                revert InvalidSender();
+            if (authorized != address(0) && fulfiller != authorized) {
+                revert InvalidFulfiller();
             }
         }
 
