@@ -26,6 +26,7 @@ contract TestStarLiteUtils is Test {
 
       StarPortLib.validateSaltRef(usedSalts, user, salt);
 
+      assert(usedSalts[user][salt]);
       vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
 
       StarPortLib.validateSaltRef(usedSalts, user, salt);
@@ -34,8 +35,9 @@ contract TestStarLiteUtils is Test {
     function testValidateSaltOpt(address user, bytes32 salt) public {
       StarPortLib.validateSalt(usedSalts, user, salt);
 
-      vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
+      assert(usedSalts[user][salt]);
 
+      vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
       StarPortLib.validateSalt(usedSalts, user, salt);
     }
 

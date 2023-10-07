@@ -395,7 +395,7 @@ contract StarPortTest is BaseOrderTest {
         //use murky to create a tree that is good
 
         bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr))));
+            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
@@ -517,7 +517,7 @@ contract StarPortTest is BaseOrderTest {
         returns (LoanManager.Loan memory loan)
     {
         bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr))));
+            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
