@@ -16,9 +16,28 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract TestStarLiteUtils is Test {
     TestContract testContract;
+    mapping(address => mapping(bytes32 => bool)) usedSalts;
 
     function setUp() public {
         testContract = new TestContract();
+    }
+
+    function testValidateSaltRef(address user, bytes32 salt) public {
+        StarPortLib.validateSaltRef(usedSalts, user, salt);
+
+        assert(usedSalts[user][salt]);
+        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
+
+        StarPortLib.validateSaltRef(usedSalts, user, salt);
+    }
+
+    function testValidateSaltOpt(address user, bytes32 salt) public {
+        StarPortLib.validateSalt(usedSalts, user, salt);
+
+        assert(usedSalts[user][salt]);
+
+        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
+        StarPortLib.validateSalt(usedSalts, user, salt);
     }
 
     function testSpentToReceived() public {
