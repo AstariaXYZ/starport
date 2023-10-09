@@ -86,12 +86,13 @@ abstract contract Originator is Ownable {
 
     error NotLoanManager();
     error NotStrategist();
-    error InvalidCustodian();
-    error InvalidDeadline();
-    error InvalidCollateral();
-    error InvalidSigner();
     error InvalidDebtLength();
     error InvalidDebtAmount();
+    error InvalidCustodian();
+    error InvalidCollateral();
+    error InvalidDeadline();
+    error InvalidOffer();
+    error InvalidSigner();
     error ConduitTransferError();
 
     LoanManager public immutable LM;
