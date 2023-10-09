@@ -38,8 +38,6 @@ abstract contract Originator is Ownable {
         CLOSED
     }
 
-
-
     struct Response {
         LoanManager.Terms terms;
         address issuer;
