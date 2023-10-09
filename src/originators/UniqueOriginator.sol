@@ -7,7 +7,13 @@ import "starport-core/originators/Originator.sol";
 contract UniqueOriginator is Originator {
     constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_, msg.sender) {}
 
-    function execute(Request calldata params) external virtual override onlyLoanManager returns (Response memory response) {
+    function execute(Request calldata params)
+        external
+        virtual
+        override
+        onlyLoanManager
+        returns (Response memory response)
+    {
         Details memory details = abi.decode(params.details, (Details));
         _validateOffer(params, details);
         _execute(params, details);

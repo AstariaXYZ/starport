@@ -80,23 +80,16 @@ abstract contract Originator is Ownable {
 
     modifier onlyLoanManager() {
         if (msg.sender != address(LM)) {
-            revert InvalidCaller();
+            revert NotLoanManager();
         }
         _;
     }
 
-    error InvalidCaller();
+    error NotLoanManager();
     error InvalidCustodian();
     error InvalidDeadline();
-    error InvalidOriginator();
     error InvalidCollateral();
-    error InvalidBorrowAmount();
-    error InvalidAmount();
-    error InvalidDebtToken();
-    error InvalidRate();
     error InvalidSigner();
-    error InvalidLoan();
-    error InvalidTerms();
     error InvalidDebtLength();
     error InvalidDebtAmount();
     error ConduitTransferError();
@@ -218,13 +211,13 @@ abstract contract Originator is Ownable {
         return _DOMAIN_SEPARATOR;
     }
 
+    function _validateAsk(Request calldata request, Details memory details) internal virtual {}
 
-
-    function _validateAsk(Request calldata request, Details memory details) internal virtual {
-    }
     function _validateOffer(Request calldata request, Details memory details) internal virtual {
         bytes32 contextHash = keccak256(request.details);
-        _validateSignature(keccak256(encodeWithAccountCounter(strategist, keccak256(request.details))), request.approval);
+        _validateSignature(
+            keccak256(encodeWithAccountCounter(strategist, keccak256(request.details))), request.approval
+        );
         if (request.custodian != details.custodian) {
             revert InvalidCustodian();
         }
@@ -246,7 +239,6 @@ abstract contract Originator is Ownable {
     }
 
     function _execute(Request calldata request, Details memory details) internal virtual {
-
         if (
             ConduitInterface(details.conduit).execute(_packageTransfers(request.debt, request.receiver, details.issuer))
                 != ConduitInterface.execute.selector
