@@ -311,10 +311,10 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     struct Fee {
         ItemType itemType;
         address token;
-        uint96 rake;
+        uint88 rake;
     }
 
-    function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
@@ -327,7 +327,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         return exoticFee[exotic.token];
     }
 
-    function _feeRake(SpentItem[] memory debt) internal view returns (ReceivedItem[] memory feeConsideration) {
+    function _feeRake(SpentItem[] memory debt) internal pure returns (ReceivedItem[] memory feeConsideration) {
         uint256 i = 0;
         feeConsideration = new ReceivedItem[](debt.length);
         for (; i < debt.length;) {
@@ -343,7 +343,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
                 Fee memory fee = getExoticFee(debt[i]);
                 feeConsideration[i].itemType = fee.itemType;
                 feeConsideration[i].token = fee.token;
-                feeConsideration[i].amount = fee.rake;
+                feeConsideration[i].amount = fee.rake; //flat fee
             }
             unchecked {
                 ++i;
