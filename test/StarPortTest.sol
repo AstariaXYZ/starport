@@ -505,7 +505,15 @@ contract StarPortTest is BaseOrderTest {
 
         consideration.matchAdvancedOrders(orders, new CriteriaResolver[](0), fill, address(borrower.addr));
 
-        (, loan) = abi.decode(vm.getRecordedLogs()[debt.length + 1].data, (uint256, LoanManager.Loan));
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        //    console.logBytes32(logs[logs.length - 4].topics[0]);
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
+                (, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                break;
+            }
+        }
 
         assertEq(erc721s[1].ownerOf(1), address(nlr.custodian));
         assertEq(erc20s[0].balanceOf(seller.addr), balanceBefore + x.parameters.consideration[0].startAmount);

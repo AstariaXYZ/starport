@@ -276,27 +276,24 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        function(
-            address,
-            SpentItem[] calldata,
-            bytes calldata,
-            bool
-        ) internal view returns (SpentItem[] memory, ReceivedItem[] memory) fn;
-        function(
-            address,
-            SpentItem[] calldata,
-            bytes calldata,
-            bool
-        )
-        internal
-        returns (
-            SpentItem[] memory,
-            ReceivedItem[] memory
-        ) fn2 = _fillObligationAndVerify;
-        assembly {
-            fn := fn2
+        LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
+
+        if (obligation.debt.length == 0) {
+            revert InvalidDebt();
         }
-        (offer, consideration) = fn(fulfiller, maximumSpent, context, false);
+        if (maximumSpentFromBorrower.length == 0) {
+            revert InvalidMaximumSpentEmpty();
+        }
+        consideration = maximumSpentFromBorrower.toReceivedItems(obligation.custodian);
+        if (feeTo != address(0)) {
+            consideration = _mergeFees(consideration, _feeRake(obligation.debt));
+        }
+        address receiver = obligation.borrower;
+
+        // we settle via seaport channels if caveats are present
+        if (fulfiller != receiver || obligation.caveats.length > 0) {
+            offer = _setOffer(obligation.debt, caveatHash, withEffects);
+        }
     }
 
     /**
@@ -378,8 +375,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     function _fillObligationAndVerify(
         address fulfiller,
         SpentItem[] calldata maximumSpentFromBorrower,
-        bytes calldata context,
-        bool withEffects
+        bytes calldata context
     ) internal returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
 
@@ -418,18 +414,18 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             debt: obligation.debt,
             terms: response.terms
         });
+        _issueLoanManager(loan, response.issuer.code.length > 0);
         // we settle via seaport channels if caveats are present
+
         if (enforceCaveats) {
             bytes32 caveatHash = keccak256(
                 encodeWithSaltAndBorrowerCounter(
-                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation.caveats))
+                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation))
                 )
             );
-
-            //prevent replay on the salt
             usedSalts.validateSalt(obligation.borrower, obligation.salt);
-
-            for (uint256 i = 0; i < obligation.caveats.length;) {
+            uint256 i = 0;
+            for (; i < obligation.caveats.length;) {
                 if (!CaveatEnforcer(obligation.caveats[i].enforcer).enforceCaveat(obligation.caveats[i].terms, loan)) {
                     revert InvalidOrigination();
                 }
@@ -437,11 +433,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
                     ++i;
                 }
             }
-            offer = _setOffer(loan.debt, caveatHash);
-        }
-
-        if (withEffects) {
-            _issueLoanManager(loan, response.issuer.code.length > 0);
+            offer = _setOffer(loan.debt, caveatHash, withEffects);
         }
     }
 
@@ -472,7 +464,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context, true);
+        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context);
     }
 
     function _enableDebtWithSeaport(SpentItem memory debt) internal {
@@ -490,12 +482,17 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         }
     }
 
-    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash) internal returns (SpentItem[] memory offer) {
+    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash, bool withEffects)
+        internal
+        returns (SpentItem[] memory offer)
+    {
         offer = new SpentItem[](debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
             offer[i] = debt[i];
-            _enableDebtWithSeaport(debt[i]);
+            if (withEffects) {
+                _enableDebtWithSeaport(debt[i]);
+            }
             unchecked {
                 ++i;
             }

@@ -60,7 +60,6 @@ abstract contract Originator is Ownable {
     }
 
     struct Details {
-        //        uint16 offerType;
         address custodian;
         address conduit;
         address issuer;

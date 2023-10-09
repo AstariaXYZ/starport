@@ -114,7 +114,7 @@ contract TestNewLoan is StarPortTest {
             recipient: payable(seller.addr)
         });
 
-        //order 1, which lets is the selller, they have something that we can borrower againt (ERC721)
+        //order 1, which lets is the seller, they have something that we can borrower againt (ERC721)
         //order 2 which is the
 
         OfferItem[] memory sellingNFT = new OfferItem[](1);

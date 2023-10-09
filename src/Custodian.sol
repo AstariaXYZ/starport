@@ -4,9 +4,9 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
-import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport/lib/seaport-types/src/lib/ConsiderationStructs.sol";
+import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {ContractOffererInterface} from "seaport/lib/seaport-types/src/interfaces/ContractOffererInterface.sol";
+import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
@@ -23,14 +23,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     LoanManager public immutable LM;
     address public immutable seaport;
 
-    mapping(address => mapping(address => bool)) public repayApproval;
-
-    function setRepayApproval(address payer, bool approved) external {
-        repayApproval[msg.sender][payer] = approved;
-        emit RepayApproval(msg.sender, payer, approved);
-    }
-
-    event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
     error NotSeaport();
