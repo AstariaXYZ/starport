@@ -23,6 +23,9 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     LoanManager public immutable LM;
     address public immutable seaport;
 
+    mapping(address => mapping(address => bool)) public repayApproval;
+
+    event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
     error NotSeaport();
@@ -39,16 +42,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     function getBorrower(LoanManager.Loan memory loan) public view returns (address) {
         uint256 loanId = uint256(keccak256(abi.encode(loan)));
         return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
-    }
-
-    function mint(LoanManager.Loan calldata loan) external {
-        bytes memory encodedLoan = abi.encode(loan);
-        uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !LM.issued(loanId)) {
-            revert("Custodian: Invalid loan"); //setup with proper error
-        }
-
-        _safeMint(loan.issuer, loanId, encodedLoan);
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -86,6 +79,21 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     }
 
     //EXTERNAL FUNCTIONS
+
+    function mint(LoanManager.Loan calldata loan) external {
+        bytes memory encodedLoan = abi.encode(loan);
+        uint256 loanId = uint256(keccak256(encodedLoan));
+        if (loan.custodian != address(this) || !LM.issued(loanId)) {
+            revert("Custodian: Invalid loan"); //setup with proper error
+        }
+
+        _safeMint(loan.issuer, loanId, encodedLoan);
+    }
+
+    function setRepayApproval(address payer, bool approved) external {
+        repayApproval[msg.sender][payer] = approved;
+        emit RepayApproval(msg.sender, payer, approved);
+    }
 
     /**
      * @dev Generates the order for this contract offerer.

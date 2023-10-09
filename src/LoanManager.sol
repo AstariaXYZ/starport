@@ -263,8 +263,8 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
      *
      * @param caller        The address of the contract fulfiller.
      * @param fulfiller        The address of the contract fulfiller.
-     * @param minimumReceived  The minimum the fulfiller must receive.
-     * @param maximumSpent     The most a fulfiller will spend
+     * @param minimumReceivedFromBorrower  The minimum the fulfiller must receive.
+     * @param maximumSpentFromBorrower     The most a fulfiller will spend
      * @param context          The context of the order.
      * @return offer     The items spent by the order.
      * @return consideration  The items received by the order.
@@ -272,8 +272,8 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     function previewOrder(
         address caller,
         address fulfiller,
-        SpentItem[] calldata minimumReceived,
-        SpentItem[] calldata maximumSpent,
+        SpentItem[] calldata minimumReceivedFromBorrower,
+        SpentItem[] calldata maximumSpentFromBorrower,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
@@ -292,7 +292,22 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
         // we settle via seaport channels if caveats are present
         if (fulfiller != receiver || obligation.caveats.length > 0) {
-            offer = _setOffer(obligation.debt, caveatHash, withEffects);
+            SpentItem[] memory debt = obligation.debt;
+            offer = new SpentItem[](debt.length + 1);
+
+            for (uint256 i; i < debt.length;) {
+                offer[i] = debt[i];
+                unchecked {
+                    ++i;
+                }
+            }
+
+            offer[debt.length] = SpentItem({
+                itemType: ItemType.ERC721,
+                token: address(this),
+                identifier: uint256(keccak256(abi.encode(obligation.caveats))),
+                amount: 1
+            });
         }
     }
 
@@ -327,7 +342,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         return exoticFee[exotic.token];
     }
 
-    function _feeRake(SpentItem[] memory debt) internal pure returns (ReceivedItem[] memory feeConsideration) {
+    function _feeRake(SpentItem[] memory debt) internal view returns (ReceivedItem[] memory feeConsideration) {
         uint256 i = 0;
         feeConsideration = new ReceivedItem[](debt.length);
         for (; i < debt.length;) {
@@ -414,13 +429,13 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             debt: obligation.debt,
             terms: response.terms
         });
-        _issueLoanManager(loan, response.issuer.code.length > 0);
+
         // we settle via seaport channels if caveats are present
 
         if (enforceCaveats) {
             bytes32 caveatHash = keccak256(
                 encodeWithSaltAndBorrowerCounter(
-                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation))
+                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation.caveats))
                 )
             );
             usedSalts.validateSalt(obligation.borrower, obligation.salt);
@@ -433,8 +448,9 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
                     ++i;
                 }
             }
-            offer = _setOffer(loan.debt, caveatHash, withEffects);
+            offer = _setOffer(loan.debt, caveatHash);
         }
+        _issueLoanManager(loan, response.issuer.code.length > 0);
     }
 
     function _issueLoanManager(Loan memory loan, bool mint) internal {
@@ -482,17 +498,12 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         }
     }
 
-    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash, bool withEffects)
-        internal
-        returns (SpentItem[] memory offer)
-    {
+    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash) internal returns (SpentItem[] memory offer) {
         offer = new SpentItem[](debt.length + 1);
 
         for (uint256 i; i < debt.length;) {
             offer[i] = debt[i];
-            if (withEffects) {
-                _enableDebtWithSeaport(debt[i]);
-            }
+            _enableDebtWithSeaport(debt[i]);
             unchecked {
                 ++i;
             }
