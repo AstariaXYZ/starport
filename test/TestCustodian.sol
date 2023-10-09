@@ -1,6 +1,6 @@
 import "./StarPortTest.sol";
-import {DeepEq} from "test/utils/DeepEq.sol";
-import {MockCall} from "test/utils/MockCall.sol";
+import {DeepEq} from "starport-test/utils/DeepEq.sol";
+import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 
 contract TestCustodian is StarPortTest, DeepEq, MockCall {
