@@ -38,8 +38,7 @@ abstract contract Originator is Ownable {
         CLOSED
     }
 
-    error InvalidDebt();
-    error InvalidOffer();
+
 
     struct Response {
         LoanManager.Terms terms;
@@ -86,6 +85,7 @@ abstract contract Originator is Ownable {
     }
 
     error NotLoanManager();
+    error NotStrategist();
     error InvalidCustodian();
     error InvalidDeadline();
     error InvalidCollateral();
@@ -197,10 +197,9 @@ abstract contract Originator is Ownable {
         return _counter;
     }
 
-    // Function to increment the nonce of the sender
     function incrementCounter() external {
         if (msg.sender != strategist) {
-            revert InvalidCaller();
+            revert NotStrategist();
         }
         _counter += uint256(blockhash(block.number - 1) << 0x80);
         emit CounterUpdated();
