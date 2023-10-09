@@ -13,3 +13,4 @@ solady/=lib/solady/
 solarray/=lib/seaport/lib/solarray/src/
 solmate/=lib/solmate/src/
 starport-core/=src/
+starport-test/=test/

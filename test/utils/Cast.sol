@@ -1,7 +1,7 @@
 pragma solidity =0.8.17;
 
 import {ItemType, SpentItem, ReceivedItem, ConsiderationItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import "test/utils/FuzzStructs.sol" as Fuzz;
+import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 import "forge-std/Test.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 

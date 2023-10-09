@@ -173,12 +173,7 @@ abstract contract Originator is Ownable {
         return abi.decode(details, (Details)).offer.terms;
     }
 
-    function execute(Request calldata params) external virtual onlyLoanManager returns (Response memory response) {
-        Details memory details = abi.decode(params.details, (Details));
-        _validateOffer(params, details);
-        _execute(params, details);
-        response = _buildResponse(params, details);
-    }
+    function execute(Request calldata params) external virtual returns (Response memory response);
 
     function _buildResponse(Request calldata params, Details memory details)
         internal
@@ -223,9 +218,20 @@ abstract contract Originator is Ownable {
         return _DOMAIN_SEPARATOR;
     }
 
-    function _validateOffer(Request calldata params, Details memory details) internal virtual {
-        bytes32 contextHash = keccak256(params.details);
-        _validateSignature(keccak256(encodeWithAccountCounter(strategist, keccak256(params.details))), params.approval);
+
+
+    function _validateAsk(Request calldata request, Details memory details) internal virtual {
+    }
+    function _validateOffer(Request calldata request, Details memory details) internal virtual {
+        bytes32 contextHash = keccak256(request.details);
+        _validateSignature(keccak256(encodeWithAccountCounter(strategist, keccak256(request.details))), request.approval);
+        if (request.custodian != details.custodian) {
+            revert InvalidCustodian();
+        }
+        if (request.debt.length != details.offer.debt.length) {
+            revert InvalidDebtLength();
+        }
+        _validateAsk(request, details);
 
         if (details.offer.salt != bytes32(0)) {
             if (!usedHashes[contextHash]) {
@@ -240,25 +246,12 @@ abstract contract Originator is Ownable {
     }
 
     function _execute(Request calldata request, Details memory details) internal virtual {
-        _validateAsk(request, details);
 
         if (
             ConduitInterface(details.conduit).execute(_packageTransfers(request.debt, request.receiver, details.issuer))
                 != ConduitInterface.execute.selector
         ) {
             revert ConduitTransferError();
-        }
-    }
-
-    function _validateAsk(Request calldata request, Details memory details) internal view {
-        if (request.custodian != details.custodian) {
-            revert InvalidCustodian();
-        }
-        if (block.timestamp > details.deadline) {
-            revert InvalidDeadline();
-        }
-        if (request.debt.length > 1) {
-            revert InvalidDebtLength();
         }
     }
 

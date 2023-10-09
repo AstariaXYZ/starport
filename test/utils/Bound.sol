@@ -1,8 +1,8 @@
 pragma solidity =0.8.17;
 
 import {ItemType, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {Cast} from "test/utils/Cast.sol";
-import "test/utils/FuzzStructs.sol" as Fuzz;
+import {Cast} from "starport-test/utils/Cast.sol";
+import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 import "forge-std/Test.sol";
 
 abstract contract Bound is StdUtils {

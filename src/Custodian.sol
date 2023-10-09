@@ -90,9 +90,9 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         _safeMint(loan.issuer, loanId, encodedLoan);
     }
 
-    function setRepayApproval(address payer, bool approved) external {
-        repayApproval[msg.sender][payer] = approved;
-        emit RepayApproval(msg.sender, payer, approved);
+    function setRepayApproval(address who, bool approved) external {
+        repayApproval[msg.sender][who] = approved;
+        emit RepayApproval(msg.sender, who, approved);
     }
 
     /**
