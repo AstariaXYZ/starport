@@ -332,7 +332,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {
         if (loan.issuer.code.length > 0) {
-            try LoanSettledCallback(loan.issuer).onLoanSettled(loan) {} catch(bytes memory error) {}
+            try LoanSettledCallback(loan.issuer).onLoanSettled(loan) {} catch (bytes memory error) {}
         }
     }
 }

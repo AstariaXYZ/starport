@@ -176,12 +176,7 @@ abstract contract Originator is Ownable {
     }
 
     // Encode the data with the account's nonce for generating a signature
-    function encodeWithAccountCounter(bytes32 contextHash)
-        public
-        view
-        virtual
-        returns (bytes memory)
-    {
+    function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory) {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, address(this), _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
@@ -213,9 +208,7 @@ abstract contract Originator is Ownable {
 
     function _validateOffer(Request calldata request, Details memory details) internal virtual {
         bytes32 contextHash = keccak256(request.details);
-        _validateSignature(
-            keccak256(encodeWithAccountCounter(keccak256(request.details))), request.approval
-        );
+        _validateSignature(keccak256(encodeWithAccountCounter(keccak256(request.details))), request.approval);
         if (request.custodian != details.custodian) {
             revert InvalidCustodian();
         }

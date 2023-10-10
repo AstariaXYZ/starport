@@ -24,7 +24,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             hookData: defaultHookData
         });
 
-
         bytes32 conduitKey = bytes32(uint256(uint160(address(this))) << 96);
 
         address testHelperConduit = conduitController.createConduit(conduitKey, address(this));

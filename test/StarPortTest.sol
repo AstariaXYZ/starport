@@ -226,8 +226,7 @@ contract StarPortTest is BaseOrderTest {
     {
         bool isTrusted = loanData.caveats.length == 0;
         {
-            bytes32 detailsHash =
-                keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
+            bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
             LoanManager.Loan memory loan = LoanManager.Loan({
                 custodian: address(loanData.custodian),
@@ -261,9 +260,8 @@ contract StarPortTest is BaseOrderTest {
         Originator originator,
         ConsiderationItem[] storage collateral
     ) internal {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
-            strategist.key, keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)))
-        );
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(strategist.key, keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details))));
 
         LoanManager.Loan memory loan = LoanManager.Loan({
             custodian: address(loanData.custodian),
