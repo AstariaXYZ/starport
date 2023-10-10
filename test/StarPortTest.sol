@@ -232,16 +232,6 @@ contract StarPortTest is BaseOrderTest {
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
-            LoanManager.Loan memory loan = LoanManager.Loan({
-                custodian: address(loanData.custodian),
-                issuer: address(0),
-                borrower: borrower.addr,
-                originator: isTrusted ? address(originator) : address(0),
-                terms: originator.terms(loanData.details),
-                debt: debt,
-                collateral: ConsiderationItemLib.toSpentItemArray(collateral),
-                start: uint256(0)
-            });
             return _executeNLR(
                 LoanManager.Obligation({
                     custodian: address(loanData.custodian),

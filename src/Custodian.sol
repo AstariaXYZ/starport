@@ -37,7 +37,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     error InvalidFulfiller();
     error InvalidHandlerExecution();
     error InvalidLoan();
-    error InvalidAsset();
 
     constructor(LoanManager LM_, address seaport_) {
         seaport = seaport_;
@@ -296,8 +295,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             ERC1155(offer.token).setApprovalForAll(address(seaport), true);
         } else if (offer.itemType == ItemType.ERC20) {
             ERC20(offer.token).approve(address(seaport), offer.amount);
-        } else {
-            revert InvalidAsset();
         }
     }
 
@@ -331,11 +328,11 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
 
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {
         if (loan.issuer.code.length > 0) {
-            try LoanSettledCallback(loan.issuer).onLoanSettled(loan) {} catch (bytes memory error) {}
+            loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
         }
     }
 
-    fallback() external payable {}
+    fallback() external payable onlySeaport {}
 
-    receive() external payable {}
+    receive() external payable onlySeaport {}
 }

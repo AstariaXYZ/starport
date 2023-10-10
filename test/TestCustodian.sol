@@ -3,6 +3,37 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {LoanSettledCallback} from "starport-core/Custodian.sol";
+
+contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
+    function onLoanSettled(LoanManager.Loan memory loan) external {}
+
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        override
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
+    }
+
+    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
+        external
+        override
+        returns (bytes4)
+    {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+}
 
 contract TestCustodian is StarPortTest, DeepEq, MockCall {
     using Cast for *;
@@ -14,17 +45,19 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     event RepayApproval(address borrower, address repayer, bool approved);
 
     uint256 public borrowAmount = 100;
+    MockIssuer public issuer;
 
     function setUp() public override {
         super.setUp();
 
-        bytes32 conduitKey = bytes32(uint256(uint160(address(this))) << 96);
-
-        address testHelperConduit = conduitController.createConduit(conduitKey, address(this));
-
-        conduitController.updateChannel(testHelperConduit, address(UO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
+        issuer = new MockIssuer();
+        vm.label(address(issuer), "MockIssuer");
+        conduitKey = bytes32(uint256(uint160(address(issuer))) << 96);
 
+        erc20s[0].mint(address(issuer), 100000);
+        vm.prank(address(issuer));
+        erc20s[0].approve(address(lenderConduit), 100000);
         Originator.Details memory loanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
@@ -42,7 +75,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     function _generateOriginationDetails(
         ConsiderationItem memory collateral,
         SpentItem memory debtRequested,
-        address issuer
+        address incomingIssuer
     ) internal returns (Originator.Details memory details) {
         delete selectedCollateral;
         delete debt;
@@ -59,7 +92,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         details = Originator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
-            issuer: issuer,
+            issuer: incomingIssuer,
             deadline: block.timestamp + 100,
             offer: Originator.Offer({
                 salt: bytes32(0),
@@ -71,8 +104,15 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testPayableFunctions() public {
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(bytes4(keccak256("hello()"))));
+        vm.deal(seaportAddr, 2 ether);
+        vm.prank(seaportAddr);
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
+        vm.prank(seaportAddr);
+        payable(address(custodian)).call{value: 1 ether}("");
 
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
         payable(address(custodian)).call{value: 1 ether}("");
     }
 
@@ -203,6 +243,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
     function testSupportsInterface() public {
         assertTrue(custodian.supportsInterface(type(ContractOffererInterface).interfaceId));
+        assertTrue(custodian.supportsInterface(type(ERC721).interfaceId));
+        assertTrue(custodian.supportsInterface(bytes4(0x5b5e139f)));
+        assertTrue(custodian.supportsInterface(bytes4(0x01ffc9a7)));
     }
 
     function testOnlySeaport() public {
@@ -255,10 +298,41 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
     //TODO: add assertions
 
+    function testGenerateOrderRepayAsRepayApprovedBorrower() public {
+        vm.prank(activeLoan.borrower);
+        custodian.setRepayApproval(address(this), true);
+        vm.prank(seaportAddr);
+        custodian.generateOrder(address(this), new SpentItem[](0), debt, abi.encode(activeLoan));
+    }
+    //TODO: add assertions
+
+    function testGenerateOrderRepayERC1155WithRevert() public {
+        //1155
+        Originator.Details memory loanDetails = _generateOriginationDetails(
+            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
+        );
+
+        LoanManager.Loan memory loan = newLoan(
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            Originator(UO),
+            selectedCollateral
+        );
+
+        loan.toStorage(activeLoan);
+        vm.prank(seaportAddr);
+        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
+        vm.mockCallRevert(
+            address(issuer),
+            abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, abi.encode(activeLoan)),
+            new bytes(0)
+        );
+        custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+    }
+
     function testGenerateOrderRepayERC1155AndERC20AndNative() public {
         //1155
         Originator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
+            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
         LoanManager.Loan memory loan = newLoan(
@@ -386,13 +460,37 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         _deepEq(receivedCosideration, expectedConsideration);
     }
 
-    function testPreviewOrderSettlementInvalidFufiller() public {
+    function testGenerateOrderRepayInvalidHookAddress() public {
+        vm.prank(seaportAddr);
+
+        destroyAccount(activeLoan.terms.hook, address(0));
+
+        vm.expectRevert();
+        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) =
+            custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+    }
+
+    function testGenerateOrderRepayInvalidHookReturnType() public {
+        vm.prank(seaportAddr);
+
+        vm.mockCall(
+            activeLoan.terms.hook,
+            abi.encodeWithSelector(SettlementHook.isActive.selector),
+            abi.encode(string("hello world"))
+        );
+
+        vm.expectRevert();
+        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) =
+            custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+    }
+
+    function testPreviewOrderSettlementInvalidFufliller() public {
         vm.prank(seaportAddr);
 
         mockHookCall(activeLoan.terms.hook, false);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(1));
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidFulfiller.selector));
-        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) =
+        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedConsideration) =
             custodian.previewOrder(alice, alice, new SpentItem[](0), debt, abi.encode(activeLoan));
     }
 
