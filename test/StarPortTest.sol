@@ -46,6 +46,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
+import {TestERC1155} from "seaport/contracts/test/TestERC1155.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
 import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
@@ -157,8 +158,10 @@ contract StarPortTest is BaseOrderTest {
         hook = new FixedTermHook();
         vm.label(address(erc721s[0]), "Collateral NFT");
         vm.label(address(erc721s[1]), "Collateral2 NFT");
-        vm.label(address(erc20s[0]), "Debt Token");
-        vm.label(address(erc20s[1]), "Collateral Token");
+        vm.label(address(erc20s[0]), "Debt ERC20");
+        vm.label(address(erc20s[1]), "Collateral ERC20");
+        vm.label(address(erc1155s[0]), "Collateral 1155");
+        vm.label(address(erc1155s[1]), "Debt 1155 ");
         {
             vm.startPrank(borrower.addr);
             erc721s[1].mint(seller.addr, 1);
@@ -166,6 +169,7 @@ contract StarPortTest is BaseOrderTest {
             erc721s[0].mint(borrower.addr, 2);
             erc721s[0].mint(borrower.addr, 3);
             erc20s[1].mint(borrower.addr, 10000);
+            erc1155s[0].mint(borrower.addr, 1, 1);
             vm.stopPrank();
         }
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
@@ -561,12 +565,21 @@ contract StarPortTest is BaseOrderTest {
         }
         vm.recordLogs();
         vm.startPrank(borrower.addr);
-        consideration.fulfillAdvancedOrder({
-            advancedOrder: x,
-            criteriaResolvers: new CriteriaResolver[](0),
-            fulfillerConduitKey: bytes32(0),
-            recipient: address(borrower.addr)
-        });
+        if (collateral[0].itemType == ItemType.NATIVE) {
+            consideration.fulfillAdvancedOrder{value: collateral[0].endAmount}({
+                advancedOrder: x,
+                criteriaResolvers: new CriteriaResolver[](0),
+                fulfillerConduitKey: bytes32(0),
+                recipient: address(borrower.addr)
+            });
+        } else {
+            consideration.fulfillAdvancedOrder({
+                advancedOrder: x,
+                criteriaResolvers: new CriteriaResolver[](0),
+                fulfillerConduitKey: bytes32(0),
+                recipient: address(borrower.addr)
+            });
+        }
         Vm.Log[] memory logs = vm.getRecordedLogs();
         uint256 loanId;
 
@@ -758,6 +771,39 @@ contract StarPortTest is BaseOrderTest {
             endAmount: 1,
             identifierOrCriteria: 1,
             itemType: ItemType.ERC721,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getERC1155Consideration(TestERC1155 token) internal view returns (ConsiderationItem memory) {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: 1,
+            itemType: ItemType.ERC1155,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getERC20Consideration(TestERC20 token) internal view returns (ConsiderationItem memory) {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: 0,
+            itemType: ItemType.ERC20,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getNativeConsideration() internal view returns (ConsiderationItem memory) {
+        return ConsiderationItem({
+            token: address(0),
+            startAmount: 100 wei,
+            endAmount: 100 wei,
+            identifierOrCriteria: 0,
+            itemType: ItemType.NATIVE,
             recipient: payable(address(custodian))
         });
     }

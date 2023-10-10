@@ -35,7 +35,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     error NotSeaport();
     error InvalidRepayer();
     error InvalidFulfiller();
-    error InvalidHandler();
+    error InvalidHandlerExecution();
     error InvalidLoan();
     error InvalidAsset();
 
@@ -127,7 +127,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         uint256 loanId = loan.getId();
         if (LM.active(loanId)) {
             if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
-                revert InvalidHandler();
+                revert InvalidHandlerExecution();
             }
             _settleLoan(loan);
         }
@@ -281,12 +281,11 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             }
         }
 
-        if (offer.length > 0) {
-            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-            _setOfferApprovalsWithSeaport(offer);
-        }
+        _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+        _setOfferApprovalsWithSeaport(offer);
     }
 
+    //custodian cant get any other assets deposited aside from what the LM supports
     function _enableAssetWithSeaport(SpentItem memory offer) internal {
         //approve consideration based on item type
         if (offer.itemType == ItemType.NATIVE) {
@@ -335,4 +334,8 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             try LoanSettledCallback(loan.issuer).onLoanSettled(loan) {} catch (bytes memory error) {}
         }
     }
+
+    fallback() external payable {}
+
+    receive() external payable {}
 }

@@ -2,27 +2,21 @@ import "./StarPortTest.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract TestCustodian is StarPortTest, DeepEq, MockCall {
     using Cast for *;
 
     LoanManager.Loan public activeLoan;
-    LoanManager.Loan public activeLoanWithContractOwner;
+
+    using {StarPortLib.getId} for LoanManager.Loan;
 
     event RepayApproval(address borrower, address repayer, bool approved);
 
+    uint256 public borrowAmount = 100;
+
     function setUp() public override {
         super.setUp();
-
-        uint256 borrowAmount = 100;
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
 
         bytes32 conduitKey = bytes32(uint256(uint160(address(this))) << 96);
 
@@ -31,22 +25,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         conduitController.updateChannel(testHelperConduit, address(UO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        selectedCollateral.push(_getERC721Consideration(erc721s[0]));
-
-        debt.push(_getERC20SpentItem(erc20s[0], borrowAmount));
-
-        Originator.Details memory loanDetails = Originator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custodian),
-            issuer: address(this),
-            deadline: block.timestamp + 100,
-            offer: Originator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
+        Originator.Details memory loanDetails = _generateOriginationDetails(
+            _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
@@ -56,6 +37,127 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
+    }
+
+    function _generateOriginationDetails(
+        ConsiderationItem memory collateral,
+        SpentItem memory debtRequested,
+        address issuer
+    ) internal returns (Originator.Details memory details) {
+        delete selectedCollateral;
+        delete debt;
+        selectedCollateral.push(collateral);
+        debt.push(debtRequested);
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        details = Originator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custodian),
+            issuer: issuer,
+            deadline: block.timestamp + 100,
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
+        });
+    }
+
+    function testPayableFunctions() public {
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(bytes4(keccak256("hello()"))));
+
+        payable(address(custodian)).call{value: 1 ether}("");
+    }
+
+    function testNonPayableFunctions() public {
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(Custodian.tokenURI.selector, uint256(0))
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(Custodian.getBorrower.selector, uint256(0))
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(Custodian.supportsInterface.selector, bytes4(0))
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.name.selector));
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.symbol.selector));
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.mint.selector, activeLoan));
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(Custodian.setRepayApproval.selector, address(0), false)
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.ratifyOrder.selector,
+                new SpentItem[](0),
+                new ReceivedItem[](0),
+                new bytes(0),
+                new bytes32[](0),
+                uint256(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.generateOrder.selector, address(0), new SpentItem[](0), new SpentItem[](0), new bytes(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.custody.selector, new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.getSeaportMetadata.selector));
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.previewOrder.selector,
+                address(0),
+                address(0),
+                new SpentItem[](0),
+                new SpentItem[](0),
+                new bytes(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.onERC721Received.selector, address(0), address(0), uint256(0), new bytes(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.onERC1155BatchReceived.selector,
+                address(0),
+                address(0),
+                new uint256[](0),
+                new uint256[](0),
+                new bytes(0)
+            )
+        );
+        vm.expectRevert();
+        payable(address(custodian)).call{value: 1 ether}(
+            abi.encodeWithSelector(
+                Custodian.onERC1155Received.selector, address(0), address(0), uint256(0), uint256(0), new bytes(0)
+            )
+        );
     }
 
     function testName() public {
@@ -151,6 +253,55 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         vm.prank(seaportAddr);
         custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
     }
+    //TODO: add assertions
+
+    function testGenerateOrderRepayERC1155AndERC20AndNative() public {
+        //1155
+        Originator.Details memory loanDetails = _generateOriginationDetails(
+            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
+        );
+
+        LoanManager.Loan memory loan = newLoan(
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            Originator(UO),
+            selectedCollateral
+        );
+
+        loan.toStorage(activeLoan);
+        vm.prank(seaportAddr);
+        custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+
+        //ERC20
+        loanDetails = _generateOriginationDetails(
+            _getERC20Consideration(erc20s[1]), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
+        );
+
+        loan = newLoan(
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            Originator(UO),
+            selectedCollateral
+        );
+
+        loan.toStorage(activeLoan);
+        vm.prank(seaportAddr);
+        custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+
+        //Native
+        loanDetails = _generateOriginationDetails(
+            _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        );
+
+        loan = newLoan(
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            Originator(UO),
+            selectedCollateral
+        );
+
+        loan.toStorage(activeLoan);
+
+        vm.prank(seaportAddr);
+        custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, abi.encode(activeLoan));
+    }
 
     function testGenerateOrderRepayNotBorrower() public {
         vm.prank(seaportAddr);
@@ -200,6 +351,17 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, context);
 
         custodian.ratifyOrder(offer, consideration, context, new bytes32[](0), 0);
+
+        vm.stopPrank();
+    }
+
+    function testRatifyOrderInvalidHandlerExecution() public {
+        vm.startPrank(seaportAddr);
+        bytes memory context = abi.encode(activeLoan);
+
+        mockHandlerExecuteFail(activeLoan.terms.handler);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidHandlerExecution.selector));
+        custodian.ratifyOrder(new SpentItem[](0), new ReceivedItem[](0), context, new bytes32[](0), 0);
 
         vm.stopPrank();
     }

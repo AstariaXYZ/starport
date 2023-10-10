@@ -15,4 +15,8 @@ abstract contract MockCall is TestBase {
             abi.encode(receivedItems, authorized)
         );
     }
+
+    function mockHandlerExecuteFail(address handler) public {
+        vm.mockCall(handler, abi.encodeWithSelector(SettlementHandler.execute.selector), abi.encode(bytes4(0)));
+    }
 }

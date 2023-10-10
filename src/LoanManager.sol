@@ -54,7 +54,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     ConsiderationInterface public immutable seaport;
     //  ConsiderationInterface public constant seaport =
     //    ConsiderationInterface(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC); // mainnet
-    address public immutable defaultCustodian;
+    address payable public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
@@ -141,7 +141,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         assembly {
             defaultCustodianCodeHash := extcodehash(custodian)
         }
-        defaultCustodian = custodian;
+        defaultCustodian = payable(custodian);
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
@@ -250,7 +250,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         }
         if (codeHash != DEFAULT_CUSTODIAN_CODE_HASH) {
             if (
-                Custodian(custodian).custody(consideration, orderHashes, contractNonce, context)
+                Custodian(payable(custodian)).custody(consideration, orderHashes, contractNonce, context)
                     != Custodian.custody.selector
             ) {
                 revert InvalidAction();
