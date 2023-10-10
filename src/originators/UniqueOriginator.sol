@@ -5,7 +5,9 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import "starport-core/originators/Originator.sol";
 
 contract UniqueOriginator is Originator {
-    constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_, msg.sender) {}
+    constructor(LoanManager LM_, address strategist_, uint256 fee_, address owner)
+        Originator(LM_, strategist_, fee_, owner)
+    {}
 
     function execute(Request calldata params)
         external

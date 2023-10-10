@@ -152,7 +152,7 @@ contract StarPortTest is BaseOrderTest {
 
         LM = new LoanManager(consideration);
         custodian = new Custodian(LM, seaportAddr);
-        UO = new UniqueOriginator(LM, strategist.addr, 1e16);
+        UO = new UniqueOriginator(LM, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(LM);
         handler = new FixedTermDutchAuctionHandler(LM);
         hook = new FixedTermHook();
