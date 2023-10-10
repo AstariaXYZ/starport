@@ -97,8 +97,7 @@ abstract contract Originator is Ownable {
 
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH =
-        keccak256("Origination(address originator,uint256 nonce,bytes32 hash)");
+    bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH = keccak256("Origination(uint256 nonce,bytes32 hash)");
     bytes32 constant VERSION = keccak256("0");
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -177,7 +176,7 @@ abstract contract Originator is Ownable {
 
     // Encode the data with the account's nonce for generating a signature
     function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory) {
-        bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, address(this), _counter, contextHash));
+        bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
     }
