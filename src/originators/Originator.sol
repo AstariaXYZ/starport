@@ -75,6 +75,8 @@ abstract contract Originator is Ownable {
 
     event CounterUpdated();
 
+    event HashInvalidated(bytes32 hash);
+
     modifier onlyLoanManager() {
         if (msg.sender != address(LM)) {
             revert NotLoanManager();
@@ -219,6 +221,7 @@ abstract contract Originator is Ownable {
         if (details.offer.salt != bytes32(0)) {
             if (!usedHashes[contextHash]) {
                 usedHashes[contextHash] = true;
+                emit HashInvalidated(contextHash);
             } else {
                 revert InvalidOffer();
             }
