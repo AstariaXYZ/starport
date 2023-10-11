@@ -52,8 +52,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
     ConsiderationInterface public immutable seaport;
-    //  ConsiderationInterface public constant seaport =
-    //    ConsiderationInterface(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC); // mainnet
     address payable public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -118,6 +116,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     event Open(uint256 loanId, LoanManager.Loan loan);
     event SeaportCompatibleContractDeployed();
 
+    error CannotTransferLoans();
     error ConduitTransferError();
     error InvalidConduit();
     error InvalidRefinance();
@@ -242,8 +241,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         assembly {
             custodian := calldataload(add(context.offset, 0x20)) // 0x20 offset for the first address 'custodian'
         }
-        // Comparing the retrieved code hash with a known hash (placeholder here)
-
+        // Comparing the retrieved code hash with a known hash
         bytes32 codeHash;
         assembly {
             codeHash := extcodehash(custodian)
@@ -515,11 +513,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         //active loans do nothing
-        if (from != address(this)) revert("cannot transfer loans");
+        if (from != address(this)) revert CannotTransferLoans();
     }
 
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) public payable override {
-        if (from != address(this)) revert("Cannot transfer loans");
+        if (from != address(this)) revert CannotTransferLoans();
     }
 
     /**
@@ -554,7 +552,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             || super.supportsInterface(interfaceId);
     }
 
-    //TODO: needs tests
     function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external {
         (,, address conduitController) = seaport.information();
 
@@ -603,8 +600,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         loan.start = block.timestamp;
         _issueLoanManager(loan, msg.sender.code.length > 0);
     }
-
-    fallback() external payable {}
 
     receive() external payable {}
 }
