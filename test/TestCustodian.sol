@@ -3,7 +3,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {LoanSettledCallback} from "starport-core/Custodian.sol";
+import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 
 contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
     function onLoanSettled(LoanManager.Loan memory loan) external {}

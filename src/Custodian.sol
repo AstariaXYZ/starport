@@ -37,10 +37,6 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-interface LoanSettledCallback {
-    function onLoanSettled(LoanManager.Loan calldata loan) external;
-}
-
 contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper, ERC721 {
     using {StarPortLib.getId} for LoanManager.Loan;
 
@@ -364,11 +360,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         }
     }
 
-    function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {
-        if (loan.issuer.code.length > 0) {
-            loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
-        }
-    }
+    function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 
     receive() external payable onlySeaport {}
 }

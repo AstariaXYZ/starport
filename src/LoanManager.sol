@@ -44,6 +44,10 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 
+interface LoanSettledCallback {
+    function onLoanSettled(LoanManager.Loan calldata loan) external;
+}
+
 contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable {
     using FixedPointMathLib for uint256;
 
@@ -227,6 +231,10 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             _burn(tokenId);
         }
         _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
+
+        if (loan.issuer.code.length > 0) {
+            loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
+        }
         emit Close(tokenId);
     }
 
