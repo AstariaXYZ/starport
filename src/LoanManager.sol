@@ -329,7 +329,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         uint88 rake;
     }
 
-    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
@@ -540,23 +540,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
         _callCustody(consideration, orderHashes, contractNonce, context);
-        _clearApprovals(context);
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
-    }
-
-    function _clearApprovals(bytes calldata context) internal {
-        SpentItem[] memory debt;
-        assembly {
-            debt := calldataload(add(context.offset, 0x40)) // 0x20 offset for the first address 'custodian'
-        }
-        for (uint256 i = 0; i < debt.length;) {
-            if (debt[i].itemType == ItemType.ERC1155) {
-                ERC1155(debt[i].token).setApprovalForAll(address(seaport), false);
-            }
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     function supportsInterface(bytes4 interfaceId)
