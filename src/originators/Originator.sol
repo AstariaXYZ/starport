@@ -83,7 +83,7 @@ abstract contract Originator is Ownable {
     }
 
     error NotLoanManager();
-    error NotStrategist();
+    error NotAuthorized();
     error InvalidDebtLength();
     error InvalidDebtAmount();
     error InvalidCustodian();
@@ -191,8 +191,8 @@ abstract contract Originator is Ownable {
     }
 
     function incrementCounter() external {
-        if (msg.sender != strategist) {
-            revert NotStrategist();
+        if (msg.sender != strategist || msg.sender != owner()) {
+            revert NotAuthorized();
         }
         _counter += uint256(blockhash(block.number - 1) << 0x80);
         emit CounterUpdated();
