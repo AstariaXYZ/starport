@@ -466,7 +466,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     function testGenerateOrderSettlementUnauthorized() public {
         vm.prank(seaportAddr);
         mockHookCall(activeLoan.terms.hook, false);
-        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), lender.addr);
+        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), alice);
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidFulfiller.selector));
         custodian.generateOrder(borrower.addr, new SpentItem[](0), debt, abi.encode(activeLoan));

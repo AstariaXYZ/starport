@@ -281,9 +281,12 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
             _afterSettlementHandlerHook(loan);
 
-            if (authorized != address(0) && authorized == loan.terms.handler) {
-                _moveDebtToHandler(loan.collateral, authorized);
-                if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
+            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {
+                _moveDebtToAuthorized(loan.collateral, authorized);
+                if (
+                    authorized == loan.terms.handler
+                        && SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector
+                ) {
                     revert InvalidHandlerExecution();
                 }
                 _settleLoan(loan);
@@ -332,7 +335,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         }
     }
 
-    function _moveDebtToHandler(SpentItem[] memory offer, address handler) internal {
+    function _moveDebtToAuthorized(SpentItem[] memory offer, address handler) internal {
         for (uint256 i = 0; i < offer.length; i++) {
             _transferCollateralToHandler(offer[i], handler);
         }
