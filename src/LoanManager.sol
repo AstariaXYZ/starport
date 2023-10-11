@@ -301,6 +301,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
         // we settle via seaport channels if caveats are present
         if (fulfiller != receiver || obligation.caveats.length > 0) {
+            bytes32 caveatHash = keccak256(
+                encodeWithSaltAndBorrowerCounter(
+                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation.caveats))
+                )
+            );
             SpentItem[] memory debt = obligation.debt;
             offer = new SpentItem[](debt.length + 1);
 
@@ -311,12 +316,8 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
                 }
             }
 
-            offer[debt.length] = SpentItem({
-                itemType: ItemType.ERC721,
-                token: address(this),
-                identifier: uint256(keccak256(abi.encode(obligation.caveats))),
-                amount: 1
-            });
+            offer[debt.length] =
+                SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(caveatHash), amount: 1});
         }
     }
 
