@@ -116,6 +116,12 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         bytes approval;
     }
 
+    struct Fee {
+        ItemType itemType;
+        address token;
+        uint88 rake;
+    }
+
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
     event SeaportCompatibleContractDeployed();
@@ -124,16 +130,13 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     error ConduitTransferError();
     error InvalidConduit();
     error InvalidRefinance();
-    error InvalidSender();
+    error NotSeaport();
+    error NotLoanCustodian();
     error InvalidAction();
     error InvalidLoan(uint256);
     error InvalidMaximumSpentEmpty();
     error InvalidDebt();
-    error InvalidAmount();
-    error InvalidDuration();
-    error InvalidSignature();
     error InvalidOrigination();
-    error InvalidSigner();
     error InvalidNoRefinanceConsideration();
 
     constructor(ConsiderationInterface seaport_) {
@@ -177,7 +180,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     // MODIFIERS
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
-            revert InvalidSender();
+            revert NotSeaport();
         }
         _;
     }
@@ -217,7 +220,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
     function settle(Loan memory loan) external {
         if (msg.sender != loan.custodian) {
-            revert InvalidSender();
+            revert NotLoanCustodian();
         }
         _settle(loan);
     }
@@ -327,12 +330,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         schemas = new Schema[](1);
         schemas[0] = Schema(8, "");
         return ("Loans", schemas);
-    }
-
-    struct Fee {
-        ItemType itemType;
-        address token;
-        uint88 rake;
     }
 
     function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
