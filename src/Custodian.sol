@@ -194,7 +194,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        offer = loan.collateral;
 
         if (!LM.issued(loan.getId())) {
             revert InvalidLoan();
@@ -204,6 +203,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
             }
+            offer = loan.collateral;
 
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
@@ -214,8 +214,12 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
 
-            if (authorized != address(0) && fulfiller != authorized) {
+            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {} else if (
+                authorized != address(0) && fulfiller != authorized
+            ) {
                 revert InvalidFulfiller();
+            } else {
+                offer = loan.collateral;
             }
         }
     }
