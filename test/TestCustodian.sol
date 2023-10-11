@@ -285,6 +285,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testCustodySelector() public {
+        vm.prank(address(custodian.LM()));
         assert(
             custodian.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))
                 == Custodian.custody.selector

@@ -49,6 +49,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     event SeaportCompatibleContractDeployed();
 
     error NotSeaport();
+    error NotLoanManager();
     error InvalidRepayer();
     error InvalidFulfiller();
     error InvalidHandlerExecution();
@@ -58,6 +59,13 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         seaport = seaport_;
         LM = LM_;
         emit SeaportCompatibleContractDeployed();
+    }
+
+    modifier onlyLoanManager() {
+        if (msg.sender != address(LM)) {
+            revert NotLoanManager();
+        }
+        _;
     }
 
     function getBorrower(LoanManager.Loan memory loan) public view returns (address) {
@@ -159,7 +167,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         bytes32[] calldata orderHashes,
         uint256 contractNonce,
         bytes calldata context
-    ) external virtual returns (bytes4 selector) {
+    ) external virtual onlyLoanManager returns (bytes4 selector) {
         selector = Custodian.custody.selector;
     }
 
