@@ -49,12 +49,14 @@ contract MockOriginator is Originator, TokenReceiverInterface {
 
 contract TestLoanManager is StarPortTest {
     function testSupportsInterface() public {
-        assertTrue(LM.supportsInterface(type(ContractOffererInterface).interfaceId));
-        assertTrue(LM.supportsInterface(type(ERC721).interfaceId));
+        assertTrue(custodian.supportsInterface(type(ContractOffererInterface).interfaceId));
+        assertTrue(custodian.supportsInterface(type(ERC721).interfaceId));
+        assertTrue(custodian.supportsInterface(bytes4(0x5b5e139f)));
+        assertTrue(custodian.supportsInterface(bytes4(0x01ffc9a7)));
     }
 
-    function testGenerateOrderInvalidSender() public {
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidSender.selector));
+    function testGenerateOrderNotSeaport() public {
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.NotSeaport.selector));
         LM.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
     }
 
