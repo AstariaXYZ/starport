@@ -1,3 +1,23 @@
+// SPDX-License-Identifier: BUSL-1.1
+/**
+ *                                                                                                                           ,--,
+ *                                                                                                                        ,---.'|
+ *      ,----..    ,---,                                                                            ,-.                   |   | :
+ *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
+ *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
+ *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
+ *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
+ *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
+ *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
+ *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
+ *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
+ *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
+ *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
+ *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
+ *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
+ *
+ * Chainworks Labs
+ */
 pragma solidity =0.8.17;
 
 import {ERC721} from "solady/src/tokens/ERC721.sol";
@@ -117,19 +137,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         bytes32[] calldata orderHashes,
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
-        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        //ensure loan is valid against what we have to deliver to seaport
-
-        // we burn the loan on repayment in generateOrder, but in ratify order where we would trigger any post settlement actions
-        // we burn it here so that in the case it was minted and an owner is set for settlement their pointer can still be utilized
-        // in this case we are not a repayment we have burnt the loan in the generate order for a repayment
-        uint256 loanId = loan.getId();
-        if (LM.active(loanId)) {
-            if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
-                revert InvalidHandlerExecution();
-            }
-            _settleLoan(loan);
-        }
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
@@ -251,7 +258,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
     {
         LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        offer = loan.collateral;
         if (!LM.issued(loan.getId())) {
             revert InvalidLoan();
         }
@@ -260,6 +266,10 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
             }
+
+            offer = loan.collateral;
+            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+            _setOfferApprovalsWithSeaport(offer);
 
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
@@ -275,13 +285,21 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
             _afterSettlementHandlerHook(loan);
 
-            if (authorized != address(0) && fulfiller != authorized) {
+            if (authorized != address(0) && authorized == loan.terms.handler) {
+                _moveDebtToHandler(loan.collateral, authorized);
+                if (SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector) {
+                    revert InvalidHandlerExecution();
+                }
+                _settleLoan(loan);
+            } else if (authorized != address(0) && fulfiller != authorized) {
                 revert InvalidFulfiller();
+            } else {
+                offer = loan.collateral;
+                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+                _setOfferApprovalsWithSeaport(offer);
+                _settleLoan(loan);
             }
         }
-
-        _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-        _setOfferApprovalsWithSeaport(offer);
     }
 
     //custodian cant get any other assets deposited aside from what the LM supports
@@ -301,6 +319,26 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     function _setOfferApprovalsWithSeaport(SpentItem[] memory offer) internal {
         for (uint256 i = 0; i < offer.length; i++) {
             _enableAssetWithSeaport(offer[i]);
+        }
+    }
+    //custodian cant get any other assets deposited aside from what the LM supports
+
+    function _transferCollateralToHandler(SpentItem memory offer, address handler) internal {
+        //approve consideration based on item type
+        if (offer.itemType == ItemType.NATIVE) {
+            payable(address(handler)).call{value: offer.amount}("");
+        } else if (offer.itemType == ItemType.ERC721) {
+            ERC721(offer.token).transferFrom(address(this), handler, offer.identifier);
+        } else if (offer.itemType == ItemType.ERC1155) {
+            ERC1155(offer.token).safeTransferFrom(address(this), handler, offer.identifier, offer.amount, "");
+        } else if (offer.itemType == ItemType.ERC20) {
+            ERC20(offer.token).transfer(handler, offer.amount);
+        }
+    }
+
+    function _moveDebtToHandler(SpentItem[] memory offer, address handler) internal {
+        for (uint256 i = 0; i < offer.length; i++) {
+            _transferCollateralToHandler(offer[i], handler);
         }
     }
 
@@ -331,8 +369,6 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
         }
     }
-
-    fallback() external payable onlySeaport {}
 
     receive() external payable onlySeaport {}
 }
