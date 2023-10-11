@@ -222,13 +222,16 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
 
-            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {} else if (
-                authorized != address(0) && fulfiller != authorized
-            ) {
-                revert InvalidFulfiller();
-            } else {
+
+            if (authorized == address(0) || fulfiller == authorized)  {
                 offer = loan.collateral;
+            } 
+            else if (authorized == loan.terms.handler || authorized == loan.issuer) {
             }
+            else {
+                revert InvalidFulfiller();
+            }
+
         }
     }
 
@@ -293,7 +296,12 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
             _afterSettlementHandlerHook(loan);
 
-            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {
+            if (authorized == address(0) || fulfiller == authorized)  {
+                offer = loan.collateral;
+                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+                _setOfferApprovalsWithSeaport(offer);
+            } 
+            else if (authorized == loan.terms.handler || authorized == loan.issuer) {
                 _moveDebtToAuthorized(loan.collateral, authorized);
                 if (
                     authorized == loan.terms.handler
@@ -301,15 +309,13 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
                 ) {
                     revert InvalidHandlerExecution();
                 }
-                _settleLoan(loan);
-            } else if (authorized != address(0) && fulfiller != authorized) {
-                revert InvalidFulfiller();
-            } else {
-                offer = loan.collateral;
-                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-                _setOfferApprovalsWithSeaport(offer);
-                _settleLoan(loan);
             }
+            else {
+                revert InvalidFulfiller();
+            }
+
+            _settleLoan(loan);
+
         }
     }
 
