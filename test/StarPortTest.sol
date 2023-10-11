@@ -63,6 +63,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
+import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -70,8 +71,40 @@ interface IWETH9 {
     function withdraw(uint256) external;
 }
 
+contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
+    function onLoanSettled(LoanManager.Loan memory loan) external {}
+
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        override
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
+    }
+
+    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
+        external
+        override
+        returns (bytes4)
+    {
+        return this.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
+    }
+}
+
 contract StarPortTest is BaseOrderTest {
     using Cast for *;
+
+    MockIssuer public issuer;
 
     SettlementHook fixedTermHook;
     SettlementHook astariaSettlementHook;
@@ -143,7 +176,9 @@ contract StarPortTest is BaseOrderTest {
 
         // allocate funds and tokens to test addresses
         allocateTokensAndApprovals(address(this), uint128(MAX_INT));
-
+        issuer = new MockIssuer();
+        vm.label(address(issuer), "MockIssuer");
+        allocateTokensAndApprovals(address(issuer), uint128(MAX_INT));
         borrower = makeAndAllocateAccount("borrower");
         lender = makeAndAllocateAccount("lender");
         strategist = makeAndAllocateAccount("strategist");
@@ -163,14 +198,12 @@ contract StarPortTest is BaseOrderTest {
         vm.label(address(erc1155s[0]), "Collateral 1155");
         vm.label(address(erc1155s[1]), "Debt 1155 ");
         {
-            vm.startPrank(borrower.addr);
             erc721s[1].mint(seller.addr, 1);
             erc721s[0].mint(borrower.addr, 1);
             erc721s[0].mint(borrower.addr, 2);
             erc721s[0].mint(borrower.addr, 3);
             erc20s[1].mint(borrower.addr, 10000);
             erc1155s[0].mint(borrower.addr, 1, 1);
-            vm.stopPrank();
         }
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
         conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
@@ -181,6 +214,8 @@ contract StarPortTest is BaseOrderTest {
         conduitController.updateChannel(lenderConduit, address(UO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
         vm.stopPrank();
+        vm.prank(address(issuer));
+        erc20s[0].approve(address(lenderConduit), 100000);
         vm.startPrank(refinancer.addr);
         refinancerConduit = conduitController.createConduit(conduitKeyRefinancer, refinancer.addr);
         // console.log("Refinancer", refinancer.addr);
@@ -678,6 +713,37 @@ contract StarPortTest is BaseOrderTest {
         });
     }
 
+    function _generateOriginationDetails(
+        ConsiderationItem memory collateral,
+        SpentItem memory debtRequested,
+        address incomingIssuer
+    ) internal returns (Originator.Details memory details) {
+        delete selectedCollateral;
+        delete debt;
+        selectedCollateral.push(collateral);
+        debt.push(debtRequested);
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        details = Originator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custodian),
+            issuer: incomingIssuer,
+            deadline: block.timestamp + 100,
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
+        });
+    }
+
     function _createLoan(
         address lender,
         LoanManager.Terms memory terms,
@@ -687,18 +753,7 @@ contract StarPortTest is BaseOrderTest {
         selectedCollateral.push(collateralItem);
         debt.push(debtItem);
 
-        Originator.Details memory loanDetails = Originator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custodian),
-            issuer: lender,
-            deadline: block.timestamp + 100,
-            offer: Originator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
+        Originator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
 
         loan = newLoan(
             NewLoanData({

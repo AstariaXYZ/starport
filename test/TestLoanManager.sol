@@ -1,4 +1,5 @@
 import "./StarPortTest.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract MockOriginator is Originator, TokenReceiverInterface {
     constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_, msg.sender) {}
@@ -48,11 +49,29 @@ contract MockOriginator is Originator, TokenReceiverInterface {
 }
 
 contract TestLoanManager is StarPortTest {
+    using Cast for *;
+
+    LoanManager.Loan public activeLoan;
+
+    using {StarPortLib.getId} for LoanManager.Loan;
+
+    function setUp() public virtual override {
+        super.setUp();
+    }
+
+    function testName() public {
+        assertEq(LM.name(), "Starport Loan Manager");
+    }
+
+    function testSymbol() public {
+        assertEq(LM.symbol(), "SLM");
+    }
+
     function testSupportsInterface() public {
-        assertTrue(custodian.supportsInterface(type(ContractOffererInterface).interfaceId));
-        assertTrue(custodian.supportsInterface(type(ERC721).interfaceId));
-        assertTrue(custodian.supportsInterface(bytes4(0x5b5e139f)));
-        assertTrue(custodian.supportsInterface(bytes4(0x01ffc9a7)));
+        assertTrue(LM.supportsInterface(type(ContractOffererInterface).interfaceId));
+        assertTrue(LM.supportsInterface(type(ERC721).interfaceId));
+        assertTrue(LM.supportsInterface(bytes4(0x5b5e139f)));
+        assertTrue(LM.supportsInterface(bytes4(0x01ffc9a7)));
     }
 
     function testGenerateOrderNotSeaport() public {

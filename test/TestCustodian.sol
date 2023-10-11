@@ -3,37 +3,6 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {LoanSettledCallback} from "starport-core/LoanManager.sol";
-
-contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
-    function onLoanSettled(LoanManager.Loan memory loan) external {}
-
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-        external
-        override
-        returns (bytes4)
-    {
-        return this.onERC721Received.selector;
-    }
-
-    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
-        external
-        override
-        returns (bytes4)
-    {
-        return this.onERC1155Received.selector;
-    }
-
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external override returns (bytes4) {
-        return this.onERC1155BatchReceived.selector;
-    }
-}
 
 contract TestCustodian is StarPortTest, DeepEq, MockCall {
     using Cast for *;
@@ -45,19 +14,12 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     event RepayApproval(address borrower, address repayer, bool approved);
 
     uint256 public borrowAmount = 100;
-    MockIssuer public issuer;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         erc20s[0].approve(address(lenderConduit), 100000);
-        issuer = new MockIssuer();
-        vm.label(address(issuer), "MockIssuer");
-        conduitKey = bytes32(uint256(uint160(address(issuer))) << 96);
 
-        erc20s[0].mint(address(issuer), 100000);
-        vm.prank(address(issuer));
-        erc20s[0].approve(address(lenderConduit), 100000);
         Originator.Details memory loanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
@@ -70,37 +32,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
-    }
-
-    function _generateOriginationDetails(
-        ConsiderationItem memory collateral,
-        SpentItem memory debtRequested,
-        address incomingIssuer
-    ) internal returns (Originator.Details memory details) {
-        delete selectedCollateral;
-        delete debt;
-        selectedCollateral.push(collateral);
-        debt.push(debtRequested);
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-        details = Originator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custodian),
-            issuer: incomingIssuer,
-            deadline: block.timestamp + 100,
-            offer: Originator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
     }
 
     function testPayableFunctions() public {
