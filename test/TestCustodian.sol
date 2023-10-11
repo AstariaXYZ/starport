@@ -205,7 +205,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testSymbol() public {
-        assertEq(custodian.symbol(), "SCT");
+        assertEq(custodian.symbol(), "SC");
     }
 
     function testTokenURI() public {

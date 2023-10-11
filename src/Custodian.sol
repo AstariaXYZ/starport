@@ -71,7 +71,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
     }
 
     function symbol() public pure override returns (string memory) {
-        return "SCT";
+        return "SC";
     }
 
     //MODIFIERS
