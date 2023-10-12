@@ -55,8 +55,8 @@ contract EnglishAuctionHandler is SettlementHandler {
         return details.reservePrice.length == loan.debt.length;
     }
 
-    function execute(LoanManager.Loan calldata loan) external virtual override returns (bytes4 selector) {
-        selector = SettlementHandler.execute.selector;
+    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return SettlementHandler.execute.selector;
     }
 
     function getSettlement(LoanManager.Loan calldata loan)

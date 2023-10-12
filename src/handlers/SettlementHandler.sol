@@ -32,9 +32,7 @@ abstract contract SettlementHandler is TokenReceiverInterface {
         LM = LM_;
     }
 
-    function execute(LoanManager.Loan calldata loan) external virtual returns (bytes4) {
-        return SettlementHandler.execute.selector;
-    }
+    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
 
     function validate(LoanManager.Loan calldata loan) external view virtual returns (bool);
 

@@ -18,6 +18,10 @@ contract FixedTermDutchAuctionHandler is DutchAuctionHandler {
         return loan.start + details.loanDuration;
     }
 
+    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return SettlementHandler.execute.selector;
+    }
+
     function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {
         return true;
     }

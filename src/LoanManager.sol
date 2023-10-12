@@ -48,7 +48,7 @@ interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
 }
 
-contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable {
+contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721 {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];

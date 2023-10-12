@@ -4,6 +4,19 @@ import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
+contract MockCustodian is Custodian {
+    constructor(LoanManager LM_, address seaport_) Custodian(LM_, seaport_) {}
+
+    function custody(
+        ReceivedItem[] calldata consideration,
+        bytes32[] calldata orderHashes,
+        uint256 contractNonce,
+        bytes calldata context
+    ) external virtual override onlyLoanManager returns (bytes4 selector) {
+        selector = Custodian.custody.selector;
+    }
+}
+
 contract TestCustodian is StarPortTest, DeepEq, MockCall {
     using Cast for *;
 
@@ -216,11 +229,18 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testCustodySelector() public {
-        vm.prank(address(custodian.LM()));
+        MockCustodian custodianMock = new MockCustodian(LM, seaportAddr);
+        vm.prank(address(custodianMock.LM()));
         assert(
-            custodian.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))
+            custodianMock.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))
                 == Custodian.custody.selector
         );
+    }
+
+    function testDefaultCustodySelectorRevert() public {
+        vm.prank(address(custodian.LM()));
+        vm.expectRevert(abi.encodeWithSelector(Custodian.ImplementInChild.selector));
+        custodian.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0));
     }
 
     //TODO: add assertions

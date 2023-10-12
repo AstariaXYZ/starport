@@ -27,6 +27,7 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
+import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
@@ -34,10 +35,9 @@ import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper, ERC721 {
+contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenReceiverInterface {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;
@@ -54,6 +54,7 @@ abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface,
     error InvalidFulfiller();
     error InvalidHandlerExecution();
     error InvalidLoan();
+    error ImplementInChild();
 
     constructor(LoanManager LM_, address seaport_) {
         seaport = seaport_;
@@ -167,7 +168,9 @@ abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface,
         bytes32[] calldata orderHashes,
         uint256 contractNonce,
         bytes calldata context
-    ) external virtual onlyLoanManager returns (bytes4 selector);
+    ) external virtual onlyLoanManager returns (bytes4 selector) {
+        revert ImplementInChild();
+    }
 
     //todo work with seaport
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
@@ -220,12 +223,10 @@ abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface,
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
 
-            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {} else if (
-                authorized != address(0) && fulfiller != authorized
-            ) {
-                revert InvalidFulfiller();
-            } else {
+            if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
+            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {} else {
+                revert InvalidFulfiller();
             }
         }
     }
@@ -291,23 +292,24 @@ abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface,
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
             _afterSettlementHandlerHook(loan);
 
-            if (authorized == loan.terms.handler || (fulfiller != authorized && authorized == loan.issuer)) {
-                _moveDebtToAuthorized(loan.collateral, authorized);
-                if (
-                    authorized == loan.terms.handler
-                        && SettlementHandler(loan.terms.handler).execute(loan) != SettlementHandler.execute.selector
-                ) {
-                    revert InvalidHandlerExecution();
-                }
-                _settleLoan(loan);
-            } else if (authorized != address(0) && fulfiller != authorized) {
-                revert InvalidFulfiller();
-            } else {
+            if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
                 _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
                 _setOfferApprovalsWithSeaport(offer);
-                _settleLoan(loan);
+            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {
+                _moveDebtToAuthorized(loan.collateral, authorized);
+                if (
+                    authorized == loan.terms.handler
+                        && SettlementHandler(loan.terms.handler).execute(loan, fulfiller)
+                            != SettlementHandler.execute.selector
+                ) {
+                    revert InvalidHandlerExecution();
+                }
+            } else {
+                revert InvalidFulfiller();
             }
+
+            _settleLoan(loan);
         }
     }
 

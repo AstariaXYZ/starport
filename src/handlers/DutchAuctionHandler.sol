@@ -32,6 +32,10 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         uint256 window;
     }
 
+    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return SettlementHandler.execute.selector;
+    }
+
     function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual returns (uint256);
 
     function getSettlement(LoanManager.Loan calldata loan)

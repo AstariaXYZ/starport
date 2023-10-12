@@ -186,7 +186,7 @@ contract StarPortTest is BaseOrderTest {
         refinancer = makeAndAllocateAccount("refinancer");
 
         LM = new LoanManager(consideration);
-        custodian = new Custodian(LM, seaportAddr);
+        custodian = Custodian(payable(LM.defaultCustodian()));
         UO = new UniqueOriginator(LM, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(LM);
         handler = new FixedTermDutchAuctionHandler(LM);
