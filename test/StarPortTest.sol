@@ -339,6 +339,76 @@ contract StarPortTest is BaseOrderTest {
         });
     }
 
+    function _SpentItemToOfferItem(SpentItem memory item) internal pure returns (OfferItem memory) {
+        return OfferItem({
+            itemType: item.itemType,
+            token: item.token,
+            identifierOrCriteria: item.identifier,
+            startAmount: item.amount,
+            endAmount: item.amount
+        });
+    }
+
+    function _SpentItemsToOfferItems(SpentItem[] memory items) internal pure returns (OfferItem[] memory) {
+        OfferItem[] memory copiedItems = new OfferItem[](items.length);
+        for (uint256 i = 0; i < items.length; i++) {
+            copiedItems[i] = _SpentItemToOfferItem(items[i]);
+        }
+        return copiedItems;
+    }
+
+    function _toConsiderationItems(ReceivedItem[] memory _receivedItems)
+        internal
+        pure
+        returns (ConsiderationItem[] memory)
+    {
+        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](
+            _receivedItems.length
+        );
+        for (uint256 i = 0; i < _receivedItems.length; ++i) {
+            considerationItems[i] = ConsiderationItem(
+                _receivedItems[i].itemType,
+                _receivedItems[i].token,
+                _receivedItems[i].identifier,
+                _receivedItems[i].amount,
+                _receivedItems[i].amount,
+                _receivedItems[i].recipient
+            );
+        }
+        return considerationItems;
+    }
+
+    function _settleLoan(LoanManager.Loan memory activeLoan, address fulfiller) internal {
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
+            payable(activeLoan.custodian)
+        ).previewOrder(address(LM.seaport()), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan));
+
+        OrderParameters memory op = _buildContractOrder(
+            address(activeLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
+
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(activeLoan)
+        });
+
+        uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
+        //        vm.recordLogs();
+        vm.startPrank(borrower.addr);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(this)
+        });
+        //    Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
+    }
+
     function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
         (ReceivedItem[] memory loanPayment, ReceivedItem[] memory carryPayment) =
             Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
@@ -350,9 +420,9 @@ contract StarPortTest is BaseOrderTest {
             consider[i].token = loanPayment[i].token;
             consider[i].itemType = loanPayment[i].itemType;
             consider[i].identifierOrCriteria = loanPayment[i].identifier;
-            consider[i].startAmount = 5 ether;
+            consider[i].startAmount = loanPayment[i].amount;
             //TODO: update this
-            consider[i].endAmount = 5 ether;
+            consider[i].endAmount = loanPayment[i].amount;
             consider[i].recipient = loanPayment[i].recipient;
             unchecked {
                 ++i;

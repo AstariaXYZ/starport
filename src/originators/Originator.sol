@@ -84,6 +84,7 @@ abstract contract Originator is Ownable {
 
     error NotLoanManager();
     error NotAuthorized();
+    error InvalidDebt();
     error InvalidDebtLength();
     error InvalidDebtAmount();
     error InvalidCustodian();
@@ -203,7 +204,33 @@ abstract contract Originator is Ownable {
         return _DOMAIN_SEPARATOR;
     }
 
-    function _validateAsk(Request calldata request, Details memory details) internal virtual {}
+    function _validateAsk(Request calldata request, Details memory details) internal virtual {
+        if (keccak256(abi.encode(request.collateral)) != keccak256(abi.encode(details.offer.collateral))) {
+            revert InvalidCollateral();
+        }
+
+        //loop through collateral and check if the collateral is the same
+
+        for (uint256 i = 0; i < request.collateral.length;) {
+            if (
+                request.debt[i].itemType != details.offer.debt[i].itemType
+                    || request.debt[i].token != details.offer.debt[i].token
+                    || request.debt[i].identifier != details.offer.debt[i].identifier
+            ) {
+                revert InvalidDebt();
+            }
+
+            if (
+                request.debt[i].amount > details.offer.debt[i].amount || request.debt[i].amount == 0
+                    || details.offer.debt[i].amount == 0
+            ) {
+                revert InvalidDebtAmount();
+            }
+            unchecked {
+                i++;
+            }
+        }
+    }
 
     function _validateOffer(Request calldata request, Details memory details) internal virtual {
         bytes32 contextHash = keccak256(request.details);

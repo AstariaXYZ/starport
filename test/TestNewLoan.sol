@@ -51,6 +51,56 @@ contract TestNewLoan is StarPortTest {
             newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), Originator(UO), selectedCollateral);
     }
 
+    function testNewLoanERC721CollateralLessDebtThanOffered() public returns (LoanManager.Loan memory) {
+        Custodian custody = Custodian(LM.defaultCustodian());
+
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+
+        selectedCollateral.push(
+            ConsiderationItem({
+                token: address(erc721s[0]),
+                startAmount: 1,
+                endAmount: 1,
+                identifierOrCriteria: 1,
+                itemType: ItemType.ERC721,
+                recipient: payable(address(custody))
+            })
+        );
+
+        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+        Originator.Details memory loanDetails = Originator.Details({
+            conduit: address(lenderConduit),
+            custodian: address(custody),
+            issuer: lender.addr,
+            deadline: block.timestamp + 100,
+            offer: Originator.Offer({
+                salt: bytes32(0),
+                terms: terms,
+                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+                debt: debt
+            })
+        });
+        debt[0].amount = 50;
+
+        TermEnforcer TE = new TermEnforcer();
+
+        TermEnforcer.Details memory TEDetails =
+            TermEnforcer.Details({pricing: address(pricing), hook: address(hook), handler: address(handler)});
+
+        LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
+        caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
+
+        return
+            newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), Originator(UO), selectedCollateral);
+    }
+
     function testNewLoanERC721CollateralDefaultTermsRefinance() public {
         Custodian custody = Custodian(LM.defaultCustodian());
 
