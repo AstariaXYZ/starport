@@ -54,7 +54,7 @@ contract SwapHook is SettlementHook {
 contract SwapHandler is SettlementHandler {
     constructor(LoanManager LM_) SettlementHandler(LM_) {}
 
-    function execute(LoanManager.Loan calldata loan) external override returns (bytes4) {
+    function execute(LoanManager.Loan calldata loan, address fulfiller) external override returns (bytes4) {
         return bytes4(0);
     }
 

@@ -44,7 +44,11 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 
-contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable {
+interface LoanSettledCallback {
+    function onLoanSettled(LoanManager.Loan calldata loan) external;
+}
+
+contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721 {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
@@ -52,8 +56,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
     ConsiderationInterface public immutable seaport;
-    //  ConsiderationInterface public constant seaport =
-    //    ConsiderationInterface(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC); // mainnet
     address payable public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -114,23 +116,27 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         bytes approval;
     }
 
+    struct Fee {
+        ItemType itemType;
+        address token;
+        uint88 rake;
+    }
+
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
     event SeaportCompatibleContractDeployed();
 
+    error CannotTransferLoans();
     error ConduitTransferError();
     error InvalidConduit();
     error InvalidRefinance();
-    error InvalidSender();
+    error NotSeaport();
+    error NotLoanCustodian();
     error InvalidAction();
     error InvalidLoan(uint256);
     error InvalidMaximumSpentEmpty();
     error InvalidDebt();
-    error InvalidAmount();
-    error InvalidDuration();
-    error InvalidSignature();
     error InvalidOrigination();
-    error InvalidSigner();
     error InvalidNoRefinanceConsideration();
 
     constructor(ConsiderationInterface seaport_) {
@@ -174,7 +180,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
     // MODIFIERS
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
-            revert InvalidSender();
+            revert NotSeaport();
         }
         _;
     }
@@ -214,7 +220,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
     function settle(Loan memory loan) external {
         if (msg.sender != loan.custodian) {
-            revert InvalidSender();
+            revert NotLoanCustodian();
         }
         _settle(loan);
     }
@@ -228,6 +234,10 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             _burn(tokenId);
         }
         _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
+
+        if (loan.issuer.code.length > 0) {
+            loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
+        }
         emit Close(tokenId);
     }
 
@@ -242,8 +252,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         assembly {
             custodian := calldataload(add(context.offset, 0x20)) // 0x20 offset for the first address 'custodian'
         }
-        // Comparing the retrieved code hash with a known hash (placeholder here)
-
+        // Comparing the retrieved code hash with a known hash
         bytes32 codeHash;
         assembly {
             codeHash := extcodehash(custodian)
@@ -292,6 +301,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
         // we settle via seaport channels if caveats are present
         if (fulfiller != receiver || obligation.caveats.length > 0) {
+            bytes32 caveatHash = keccak256(
+                encodeWithSaltAndBorrowerCounter(
+                    obligation.borrower, obligation.salt, keccak256(abi.encode(obligation.caveats))
+                )
+            );
             SpentItem[] memory debt = obligation.debt;
             offer = new SpentItem[](debt.length + 1);
 
@@ -302,12 +316,8 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
                 }
             }
 
-            offer[debt.length] = SpentItem({
-                itemType: ItemType.ERC721,
-                token: address(this),
-                identifier: uint256(keccak256(abi.encode(obligation.caveats))),
-                amount: 1
-            });
+            offer[debt.length] =
+                SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(caveatHash), amount: 1});
         }
     }
 
@@ -323,13 +333,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         return ("Loans", schemas);
     }
 
-    struct Fee {
-        ItemType itemType;
-        address token;
-        uint88 rake;
-    }
-
-    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
@@ -515,11 +519,11 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         //active loans do nothing
-        if (from != address(this)) revert("cannot transfer loans");
+        if (from != address(this)) revert CannotTransferLoans();
     }
 
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) public payable override {
-        if (from != address(this)) revert("Cannot transfer loans");
+        if (from != address(this)) revert CannotTransferLoans();
     }
 
     /**
@@ -540,23 +544,7 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         uint256 contractNonce
     ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
         _callCustody(consideration, orderHashes, contractNonce, context);
-        _clearApprovals(context);
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
-    }
-
-    function _clearApprovals(bytes calldata context) internal {
-        SpentItem[] memory debt;
-        assembly {
-            debt := calldataload(add(context.offset, 0x40)) // 0x20 offset for the first address 'custodian'
-        }
-        for (uint256 i = 0; i < debt.length;) {
-            if (debt[i].itemType == ItemType.ERC1155) {
-                ERC1155(debt[i].token).setApprovalForAll(address(seaport), false);
-            }
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     function supportsInterface(bytes4 interfaceId)
@@ -570,7 +558,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
             || super.supportsInterface(interfaceId);
     }
 
-    //TODO: needs tests
     function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external {
         (,, address conduitController) = seaport.information();
 
@@ -619,8 +606,6 @@ contract LoanManager is ERC721, ContractOffererInterface, ConduitHelper, Ownable
         loan.start = block.timestamp;
         _issueLoanManager(loan, msg.sender.code.length > 0);
     }
-
-    fallback() external payable {}
 
     receive() external payable {}
 }
