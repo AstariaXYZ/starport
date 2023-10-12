@@ -37,7 +37,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper, ERC721 {
+abstract contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitHelper, ERC721 {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;
@@ -167,9 +167,7 @@ contract Custodian is ContractOffererInterface, TokenReceiverInterface, ConduitH
         bytes32[] calldata orderHashes,
         uint256 contractNonce,
         bytes calldata context
-    ) external virtual onlyLoanManager returns (bytes4 selector) {
-        selector = Custodian.custody.selector;
-    }
+    ) external virtual onlyLoanManager returns (bytes4 selector);
 
     //todo work with seaport
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
