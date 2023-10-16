@@ -1,4 +1,4 @@
-import "./StarPortTest.sol";
+import "test/StarPortTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 
 contract TestNewLoan is StarPortTest {
