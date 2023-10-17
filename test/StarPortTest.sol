@@ -64,6 +64,8 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
+import {ConduitHelper} from "starport-core/ConduitHelper.sol";
+
 
 interface IWETH9 {
     function deposit() external payable;
@@ -101,7 +103,7 @@ contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
     }
 }
 
-contract StarPortTest is BaseOrderTest {
+contract StarPortTest is BaseOrderTest, ConduitHelper {
     using Cast for *;
 
     MockIssuer public issuer;
@@ -413,29 +415,20 @@ contract StarPortTest is BaseOrderTest {
         (ReceivedItem[] memory loanPayment, ReceivedItem[] memory carryPayment) =
             Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
         uint256 i = 0;
+        ReceivedItem[] memory considerationPayments = _removeZeroAmounts(_mergeConsiderations(loanPayment, carryPayment, new ReceivedItem[](0)));
         ConsiderationItem[] memory consider = new ConsiderationItem[](
-            loanPayment.length + carryPayment.length
+          considerationPayments.length
         );
-        for (; i < loanPayment.length;) {
-            consider[i].token = loanPayment[i].token;
-            consider[i].itemType = loanPayment[i].itemType;
-            consider[i].identifierOrCriteria = loanPayment[i].identifier;
-            consider[i].startAmount = loanPayment[i].amount;
+
+
+        for (; i < consider.length;) {
+            consider[i].token = considerationPayments[i].token;
+            consider[i].itemType = considerationPayments[i].itemType;
+            consider[i].identifierOrCriteria = considerationPayments[i].identifier;
+            consider[i].startAmount = considerationPayments[i].amount;
             //TODO: update this
-            consider[i].endAmount = loanPayment[i].amount;
-            consider[i].recipient = loanPayment[i].recipient;
-            unchecked {
-                ++i;
-            }
-        }
-        for (; i < carryPayment.length;) {
-            consider[i].token = carryPayment[i].token;
-            consider[i].itemType = carryPayment[i].itemType;
-            consider[i].identifierOrCriteria = carryPayment[i].identifier;
-            consider[i].startAmount = carryPayment[i].amount;
-            //TODO: update this
-            consider[i].endAmount = carryPayment[i].amount;
-            consider[i].recipient = carryPayment[i].recipient;
+            consider[i].endAmount = considerationPayments[i].amount;
+            consider[i].recipient = considerationPayments[i].recipient;
             unchecked {
                 ++i;
             }

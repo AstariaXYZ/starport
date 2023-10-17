@@ -559,6 +559,10 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     }
 
     function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external {
+        _refinanceRefA(loan, newPricingData, conduit);
+    }
+
+    function _refinanceRefA(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) internal {
         (,, address conduitController) = seaport.information();
 
         if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
@@ -577,6 +581,65 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
 
         ReceivedItem[] memory refinanceConsideration =
             _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
+
+        refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
+
+        // if for malicious or non-malicious the refinanceConsideration is zero
+        if (refinanceConsideration.length == 0) {
+            revert InvalidNoRefinanceConsideration();
+        }
+
+        _settle(loan);
+
+        if (carryPayment.length > 0) {
+            for (uint256 i; i < loan.debt.length;) {
+                loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            for (uint256 i; i < loan.debt.length;) {
+                loan.debt[i].amount = considerationPayment[i].amount;
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        if (
+            ConduitInterface(conduit).execute(_packageTransfers(refinanceConsideration, msg.sender))
+                != ConduitInterface.execute.selector
+        ) {
+            revert ConduitTransferError();
+        }
+
+        loan.terms.pricingData = newPricingData;
+        loan.originator = msg.sender;
+        loan.issuer = msg.sender;
+        loan.start = block.timestamp;
+        _issueLoanManager(loan, msg.sender.code.length > 0);
+    }
+
+    function _refinanceRefB(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) internal {
+        (,, address conduitController) = seaport.information();
+
+        if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
+            revert InvalidConduit();
+        }
+        (
+            // used to repay the lender
+            ReceivedItem[] memory considerationPayment,
+            // used to pay the carry amount
+            ReceivedItem[] memory carryPayment,
+            //carry and consideration both removed from the debt
+            // used for any additional payments beyond consideration and carry
+            ReceivedItem[] memory additionalPayment
+        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, msg.sender);
+
+        ReceivedItem[] memory refinanceConsideration =
+            _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
+
         refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
 
         // if for malicious or non-malicious the refinanceConsideration is zero
@@ -587,7 +650,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         _settle(loan);
 
         for (uint256 i; i < loan.debt.length;) {
-            loan.debt[i].amount = considerationPayment[i].amount;
+            loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
             unchecked {
                 ++i;
             }

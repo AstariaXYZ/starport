@@ -32,62 +32,39 @@ abstract contract ConduitHelper {
         ReceivedItem[] memory carryConsideration,
         ReceivedItem[] memory additionalConsiderations
     ) internal pure returns (ReceivedItem[] memory consideration) {
-        if (carryConsideration.length == 0 && additionalConsiderations.length == 0) {
-            return repayConsideration;
-        }
+        //if (repayConsideration.length != carryConsideration.length) {
+        //    revert RepayCarryLengthMismatch();
+        //}
         consideration = new ReceivedItem[](repayConsideration.length +
         carryConsideration.length +
         additionalConsiderations.length);
 
-        uint256 j = 0;
-        // if there is a carry to handle, subtract it from the amount owed
+        uint256 i = 0;
+        uint256 n = repayConsideration.length;
+        for (; i < n; i++) {
+            consideration[i] = repayConsideration[i];
+        }
+        uint256 offset = n;
         if (carryConsideration.length > 0) {
-            if (repayConsideration.length != carryConsideration.length) {
-                revert RepayCarryLengthMismatch();
-            }
-            uint256 i = 0;
-            for (; i < repayConsideration.length;) {
-                repayConsideration[i].amount -= carryConsideration[i].amount;
-                consideration[j] = repayConsideration[i];
-                unchecked {
-                    ++i;
-                    ++j;
-                }
-            }
-            i = 0;
-            for (; i < carryConsideration.length;) {
-                consideration[j] = carryConsideration[i];
-                unchecked {
-                    ++i;
-                    ++j;
-                }
-            }
-        }
-        // else just use the consideration payment only
-        else {
-            for (; j < repayConsideration.length;) {
-                consideration[j] = repayConsideration[j];
-                unchecked {
-                    ++j;
-                }
-            }
-        }
+            n += carryConsideration.length;
 
+            for (; i < n; i++) {
+                consideration[i] = carryConsideration[i - offset];
+            }
+        }
         if (additionalConsiderations.length > 0) {
-            uint256 i = 0;
-            for (; i < additionalConsiderations.length;) {
-                consideration[j] = additionalConsiderations[i];
-                unchecked {
-                    ++i;
-                    ++j;
-                }
+            offset = n;
+            n += additionalConsiderations.length;
+
+            for (; i < n; i++) {
+                consideration[i] = additionalConsiderations[i - offset];
             }
         }
     }
 
     function _removeZeroAmounts(ReceivedItem[] memory consideration)
         internal
-        view
+        pure
         returns (ReceivedItem[] memory newConsideration)
     {
         uint256 i = 0;

@@ -53,46 +53,6 @@ library StarPortLib {
         }
     }
 
-    function encodeWithRecipient(ReceivedItem[] calldata receivedItems, address recipient)
-        internal
-        pure
-        returns (ReceivedItem[] memory result)
-    {
-        assembly {
-            //set `result` pointer to free memory
-            result := mload(0x40)
-
-            let n := receivedItems.length
-
-            //store length of `result`
-            mstore(result, n)
-
-            //set `ptr` to start of first struct offset
-            let ptr := add(result, 0x20)
-
-            //`s` = offset of first struct
-            let s := add(ptr, mul(n, 0x20))
-
-            //expand memory
-            mstore(0x40, add(ptr, mul(n, 0xC0)))
-
-            //copy struct data
-            calldatacopy(s, receivedItems.offset, mul(n, 0xA0))
-
-            //store struct offsets - first offset starts at end of offsets
-            let o := s
-            let r := add(s, 0x80) // first recipient offset
-            for {} lt(ptr, s) {
-                ptr := add(ptr, 0x20)
-                o := add(o, 0xA0)
-                r := add(r, 0xA0)
-            } {
-                mstore(ptr, o) //store offset
-                mstore(r, recipient) //set recipient
-            }
-        }
-    }
-
     function validateSaltRef(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
         address borrower,
@@ -110,17 +70,15 @@ library StarPortLib {
         bytes32 salt
     ) internal {
         assembly {
-            mstore(0x0, borrower)
             mstore(0x20, usedSalts.slot)
+            mstore(0x0, borrower)
 
             //usedSalts[borrower]
-            let loc := keccak256(0x0, 0x40)
-
+            mstore(0x20, keccak256(0x0, 0x40))
             mstore(0x0, salt)
-            mstore(0x20, loc)
 
             //usedSalts[borrower][salt]
-            loc := keccak256(0x0, 0x40)
+            let loc := keccak256(0x0, 0x40)
 
             //if (usedSalts[borrower][salt] == true)
             if iszero(iszero(sload(loc))) {
@@ -132,4 +90,6 @@ library StarPortLib {
             sstore(loc, 1)
         }
     }
+
+
 }

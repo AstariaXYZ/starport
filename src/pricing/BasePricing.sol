@@ -46,40 +46,52 @@ abstract contract BasePricing is Pricing {
         override
         returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration)
     {
-        repayConsideration = _generateRepayConsideration(loan);
-        carryConsideration = _generateRepayCarryConsideration(loan);
-    }
-
-    function getOwed(LoanManager.Loan memory loan) public view returns (uint256[] memory) {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        return _getOwed(loan, details, loan.start, block.timestamp);
-    }
 
-    function _getOwedCarry(LoanManager.Loan memory loan, Details memory details, uint256 timestamp)
-        internal
-        view
-        returns (uint256[] memory carryOwed)
-    {
-        carryOwed = new uint256[](loan.debt.length);
-        uint256 i = 0;
+        uint256 length = loan.debt.length;
+        repayConsideration = new ReceivedItem[](length);
 
-        for (; i < loan.debt.length;) {
-            uint256 carry = getInterest(loan, details, loan.start, timestamp, i).mulWad(details.carryRate);
-            carryOwed[i] = carry;
-            unchecked {
-                ++i;
+        uint256 delta_t = block.timestamp - loan.start;
+
+        if (details.carryRate != 0) {
+            carryConsideration = new ReceivedItem[](length);
+            for (uint256 i = 0; i < length;) {
+                uint256 interest = calculateInterest(delta_t, loan.debt[i].amount, details.rate);
+                uint256 carry = interest.divWad(details.carryRate);
+                repayConsideration[i] = ReceivedItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: loan.debt[i].amount + interest - carry,
+                    token: loan.debt[i].token,
+                    recipient: payable(loan.issuer)
+                });
+
+                carryConsideration[i] = ReceivedItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: carry,
+                    token: loan.debt[i].token,
+                    recipient: payable(loan.originator)
+                });
+                unchecked {
+                    ++i;
+                }
             }
-        }
-    }
+        } else {
+            for (uint256 i = 0; i < length;) {
+                uint256 interest = calculateInterest(delta_t, loan.debt[i].amount, details.rate);
+                repayConsideration[i] = ReceivedItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: loan.debt[i].amount + interest,
+                    token: loan.debt[i].token,
+                    recipient: payable(loan.issuer)
+                });
 
-    function _getOwed(LoanManager.Loan memory loan, Details memory details, uint256 start, uint256 end)
-        internal
-        view
-        returns (uint256[] memory updatedDebt)
-    {
-        updatedDebt = new uint256[](loan.debt.length);
-        for (uint256 i = 0; i < loan.debt.length; i++) {
-            updatedDebt[i] = loan.debt[i].amount + getInterest(loan, details, start, end, i);
+                unchecked {
+                    ++i;
+                }
+            }
         }
     }
 
@@ -89,7 +101,7 @@ abstract contract BasePricing is Pricing {
         uint256 start,
         uint256 end,
         uint256 index
-    ) public view returns (uint256) {
+    ) public pure returns (uint256) {
         uint256 delta_t = end - start;
         return calculateInterest(delta_t, details.rate, loan.debt[index].amount);
     }
@@ -99,55 +111,4 @@ abstract contract BasePricing is Pricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure virtual returns (uint256);
-
-    function _generateRepayConsideration(LoanManager.Loan memory loan)
-        internal
-        view
-        returns (ReceivedItem[] memory consideration)
-    {
-        Details memory details = abi.decode(loan.terms.pricingData, (Details));
-
-        consideration = new ReceivedItem[](loan.debt.length);
-        uint256[] memory owing = _getOwed(loan, details, loan.start, block.timestamp);
-        bool isActive = LM.active(loan.getId());
-
-        uint256 i = 0;
-        for (; i < consideration.length;) {
-            consideration[i] = ReceivedItem({
-                itemType: loan.debt[i].itemType,
-                identifier: loan.debt[i].identifier,
-                amount: owing[i],
-                token: loan.debt[i].token,
-                recipient: payable(loan.issuer)
-            });
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _generateRepayCarryConsideration(LoanManager.Loan memory loan)
-        internal
-        view
-        returns (ReceivedItem[] memory consideration)
-    {
-        Details memory details = abi.decode(loan.terms.pricingData, (Details));
-
-        if (details.carryRate == 0) return new ReceivedItem[](0);
-        uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
-        consideration = new ReceivedItem[](owing.length);
-        uint256 i = 0;
-        for (; i < consideration.length;) {
-            consideration[i] = ReceivedItem({
-                itemType: loan.debt[i].itemType,
-                identifier: loan.debt[i].identifier,
-                amount: owing[i],
-                token: loan.debt[i].token,
-                recipient: payable(loan.originator)
-            });
-            unchecked {
-                ++i;
-            }
-        }
-    }
 }
