@@ -72,7 +72,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     address public feeTo;
     uint96 public defaultFeeRake;
     //contract to token //fee rake
-    mapping(address => Fee) public exoticFee;
+    mapping(address => Fee) public feeOverride;
 
     enum FieldFlags {
         INITIALIZED,
@@ -117,9 +117,8 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     }
 
     struct Fee {
-        ItemType itemType;
-        address token;
-        uint88 rake;
+        bool enabled;
+        uint96 amount;
     }
 
     event Close(uint256 loanId);
@@ -130,14 +129,15 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     error ConduitTransferError();
     error InvalidConduit();
     error InvalidRefinance();
-    error NotSeaport();
-    error NotLoanCustodian();
-    error InvalidAction();
-    error InvalidLoan(uint256);
+    error InvalidCustodian();
+    error InvalidLoan();
     error InvalidMaximumSpentEmpty();
     error InvalidDebt();
     error InvalidOrigination();
     error InvalidNoRefinanceConsideration();
+    error NotLoanCustodian();
+    error NotPayingFees();
+    error NotSeaport();
 
     constructor(ConsiderationInterface seaport_) {
         seaport = seaport_;
@@ -198,8 +198,8 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (!_exists(tokenId)) {
-            revert InvalidLoan(tokenId);
+        if (!_issued(tokenId)) {
+            revert InvalidLoan();
         }
         return string("");
     }
@@ -212,12 +212,6 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         return _issued(tokenId);
     }
 
-    //break the revert of the ownerOf method, so we can ensure anyone calling it in the settlement pipeline wont halt
-    function ownerOf(uint256 loanId) public view override returns (address) {
-        //not hasn't been issued but exists if we own it
-        return _issued(loanId) && !_exists(loanId) ? address(this) : _ownerOf(loanId);
-    }
-
     function settle(Loan memory loan) external {
         if (msg.sender != loan.custodian) {
             revert NotLoanCustodian();
@@ -228,7 +222,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     function _settle(Loan memory loan) internal {
         uint256 tokenId = loan.getId();
         if (!_issued(tokenId)) {
-            revert InvalidLoan(tokenId);
+            revert InvalidLoan();
         }
         if (_exists(tokenId)) {
             _burn(tokenId);
@@ -262,7 +256,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
                 Custodian(payable(custodian)).custody(consideration, orderHashes, contractNonce, context)
                     != Custodian.custody.selector
             ) {
-                revert InvalidAction();
+                revert InvalidCustodian();
             }
         }
     }
@@ -287,6 +281,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
 
+        bool feeOn;
         if (obligation.debt.length == 0) {
             revert InvalidDebt();
         }
@@ -295,7 +290,7 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         }
         consideration = maximumSpentFromBorrower.toReceivedItems(obligation.custodian);
         if (feeTo != address(0)) {
-            consideration = _mergeFees(consideration, _feeRake(obligation.debt));
+            feeOn = true;
         }
         address receiver = obligation.borrower;
 
@@ -308,9 +303,13 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
             );
             SpentItem[] memory debt = obligation.debt;
             offer = new SpentItem[](debt.length + 1);
+            SpentItem[] memory feeItems = !feeOn ? new SpentItem[](0) : _feeRake(debt);
 
             for (uint256 i; i < debt.length;) {
                 offer[i] = debt[i];
+                if (feeOn && feeItems[i].amount > 0) {
+                    offer[i].amount = debt[i].amount - feeItems[i].amount;
+                }
                 unchecked {
                     ++i;
                 }
@@ -318,6 +317,19 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
 
             offer[debt.length] =
                 SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(caveatHash), amount: 1});
+        } else if (feeOn) {
+            SpentItem[] memory debt = obligation.debt;
+            offer = new SpentItem[](debt.length);
+
+            SpentItem[] memory feeItems = !feeOn ? new SpentItem[](0) : _feeRake(debt);
+
+            for (uint256 i; i < debt.length;) {
+                offer[i] = debt[i];
+                offer[i].amount = debt[i].amount - feeItems[i].amount;
+                unchecked {
+                    ++i;
+                }
+            }
         }
     }
 
@@ -338,53 +350,26 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         defaultFeeRake = defaultFeeRake_;
     }
 
-    function setExoticFee(address exotic, Fee memory fee) external onlyOwner {
-        exoticFee[exotic] = fee;
+    function setFeeOverride(address token, uint96 overrideValue) external onlyOwner {
+        feeOverride[token].enabled = true;
+        feeOverride[token].amount = overrideValue;
     }
 
-    function getExoticFee(SpentItem memory exotic) public view returns (Fee memory fee) {
-        return exoticFee[exotic.token];
-    }
-
-    function _feeRake(SpentItem[] memory debt) internal view returns (ReceivedItem[] memory feeConsideration) {
-        uint256 i = 0;
-        feeConsideration = new ReceivedItem[](debt.length);
-        for (; i < debt.length;) {
-            feeConsideration[i].identifier = 0; //fees are native or erc20
-            feeConsideration[i].recipient = payable(feeTo);
+    function _feeRake(SpentItem[] memory debt) internal view returns (SpentItem[] memory feeItems) {
+        feeItems = new SpentItem[](debt.length);
+        uint256 totalDebtItems;
+        for (uint256 i = 0; i < debt.length;) {
+            Fee memory feeOverride = feeOverride[debt[i].token];
+            feeItems[i].identifier = 0; //fees are native or erc20
             if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
-                feeConsideration[i].amount = debt[i].amount.mulDiv(
-                    defaultFeeRake, debt[i].itemType == ItemType.NATIVE ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
+                feeItems[i].amount = debt[i].amount.mulDiv(
+                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount,
+                    debt[i].itemType == ItemType.NATIVE ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
                 );
-                feeConsideration[i].token = debt[i].token;
-                feeConsideration[i].itemType = debt[i].itemType;
-            } else {
-                Fee memory fee = getExoticFee(debt[i]);
-                feeConsideration[i].itemType = fee.itemType;
-                feeConsideration[i].token = fee.token;
-                feeConsideration[i].amount = fee.rake; //flat fee
+                feeItems[i].token = debt[i].token;
+                feeItems[i].itemType = debt[i].itemType;
+                ++totalDebtItems;
             }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _mergeFees(ReceivedItem[] memory first, ReceivedItem[] memory second)
-        internal
-        pure
-        returns (ReceivedItem[] memory consideration)
-    {
-        consideration = new ReceivedItem[](first.length + second.length);
-        uint256 i = 0;
-        for (; i < first.length;) {
-            consideration[i] = first[i];
-            unchecked {
-                ++i;
-            }
-        }
-        for (i = first.length; i < second.length;) {
-            consideration[i] = second[i];
             unchecked {
                 ++i;
             }
@@ -396,6 +381,10 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         SpentItem[] calldata maximumSpentFromBorrower,
         bytes calldata context
     ) internal returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        bool feesOn = false;
+        if (feeTo != address(0)) {
+            feesOn = true;
+        }
         LoanManager.Obligation memory obligation = abi.decode(context, (LoanManager.Obligation));
 
         if (obligation.debt.length == 0) {
@@ -405,12 +394,10 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
             revert InvalidMaximumSpentEmpty();
         }
         consideration = maximumSpentFromBorrower.toReceivedItems(obligation.custodian);
-        if (feeTo != address(0)) {
-            consideration = _mergeFees(consideration, _feeRake(obligation.debt));
-        }
+
         address receiver = obligation.borrower;
         bool enforceCaveats = fulfiller != receiver || obligation.caveats.length > 0;
-        if (enforceCaveats) {
+        if (enforceCaveats || feesOn) {
             receiver = address(this);
         }
         Originator.Response memory response = Originator(obligation.originator).execute(
@@ -452,7 +439,9 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
                     ++i;
                 }
             }
-            offer = _setOffer(loan.debt, caveatHash);
+            offer = _setOffer(loan.debt, caveatHash, feesOn);
+        } else if (feesOn) {
+            offer = _setOffer(loan.debt, bytes32(0), feesOn);
         }
         _issueLoanManager(loan, response.issuer.code.length > 0);
     }
@@ -487,6 +476,14 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context);
     }
 
+    function _moveFeesToReceived(SpentItem memory feeItem) internal {
+        if (feeItem.itemType == ItemType.NATIVE) {
+            payable(feeTo).call{value: feeItem.amount}("");
+        } else if (feeItem.itemType == ItemType.ERC20) {
+            ERC20(feeItem.token).transfer(feeTo, feeItem.amount);
+        }
+    }
+
     function _enableDebtWithSeaport(SpentItem memory debt) internal {
         //approve consideration based on item type
         if (debt.itemType == ItemType.NATIVE) {
@@ -502,28 +499,32 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
         }
     }
 
-    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash) internal returns (SpentItem[] memory offer) {
-        offer = new SpentItem[](debt.length + 1);
-
+    function _setOffer(SpentItem[] memory debt, bytes32 caveatHash, bool feesOn)
+        internal
+        returns (SpentItem[] memory offer)
+    {
+        uint256 caveatLength = (caveatHash == bytes32(0)) ? 0 : 1;
+        offer = new SpentItem[](debt.length + caveatLength);
+        SpentItem[] memory feeItems = !feesOn ? new SpentItem[](0) : _feeRake(debt);
         for (uint256 i; i < debt.length;) {
             offer[i] = debt[i];
-            _enableDebtWithSeaport(debt[i]);
+            if (feesOn) {
+                offer[i].amount = debt[i].amount - feeItems[i].amount;
+                _moveFeesToReceived(feeItems[i]);
+            }
+            _enableDebtWithSeaport(offer[i]);
             unchecked {
                 ++i;
             }
         }
-
-        offer[debt.length] =
-            SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(caveatHash), amount: 1});
+        if (caveatHash != bytes32(0)) {
+            offer[debt.length] =
+                SpentItem({itemType: ItemType.ERC721, token: address(this), identifier: uint256(caveatHash), amount: 1});
+        }
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public payable override {
-        //active loans do nothing
-        if (from != address(this)) revert CannotTransferLoans();
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) public payable override {
-        if (from != address(this)) revert CannotTransferLoans();
+    function transferFrom(address from, address to, uint256 tokenId) public payable override onlySeaport {
+        if (address(this) != from) revert CannotTransferLoans();
     }
 
     /**

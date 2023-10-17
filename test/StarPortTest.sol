@@ -694,7 +694,16 @@ contract StarPortTest is BaseOrderTest {
             balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
         }
 
-        assertEq(balanceAfter - balanceBefore, debt[0].amount);
+        uint256 feeReceiverBalance;
+        if (LM.feeTo() != address(0)) {
+            if (debt[0].token == address(0)) {
+                feeReceiverBalance = LM.feeTo().balance;
+            } else {
+                feeReceiverBalance = ERC20(debt[0].token).balanceOf(LM.feeTo());
+            }
+        }
+
+        assertEq(balanceAfter - balanceBefore + feeReceiverBalance, debt[0].amount);
         vm.stopPrank();
     }
 
@@ -788,6 +797,15 @@ contract StarPortTest is BaseOrderTest {
         SpentItem memory debtRequested,
         address incomingIssuer
     ) internal returns (Originator.Details memory details) {
+        return _generateOriginationDetails(collateral, debtRequested, incomingIssuer, address(LM.defaultCustodian()));
+    }
+
+    function _generateOriginationDetails(
+        ConsiderationItem memory collateral,
+        SpentItem memory debtRequested,
+        address incomingIssuer,
+        address incomingCustodian
+    ) internal returns (Originator.Details memory details) {
         delete selectedCollateral;
         delete debt;
         selectedCollateral.push(collateral);
@@ -802,7 +820,7 @@ contract StarPortTest is BaseOrderTest {
         });
         details = Originator.Details({
             conduit: address(lenderConduit),
-            custodian: address(custodian),
+            custodian: address(incomingCustodian),
             issuer: incomingIssuer,
             deadline: block.timestamp + 100,
             offer: Originator.Offer({
@@ -885,6 +903,21 @@ contract StarPortTest is BaseOrderTest {
             startAmount: 1,
             endAmount: 1,
             identifierOrCriteria: 1,
+            itemType: ItemType.ERC721,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getERC721Consideration(TestERC721 token, uint256 tokenId)
+        internal
+        view
+        returns (ConsiderationItem memory)
+    {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: tokenId,
             itemType: ItemType.ERC721,
             recipient: payable(address(custodian))
         });
