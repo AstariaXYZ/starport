@@ -695,7 +695,16 @@ contract StarPortTest is BaseOrderTest {
             balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
         }
 
-        assertEq(balanceAfter - balanceBefore, debt[0].amount);
+        uint256 feeReceiverBalance;
+        if (LM.feeTo() != address(0)) {
+            if (debt[0].token == address(0)) {
+                feeReceiverBalance = LM.feeTo().balance;
+            } else {
+                feeReceiverBalance = ERC20(debt[0].token).balanceOf(LM.feeTo());
+            }
+        }
+
+        assertEq(balanceAfter - balanceBefore + feeReceiverBalance, debt[0].amount);
         vm.stopPrank();
     }
 
@@ -803,7 +812,7 @@ contract StarPortTest is BaseOrderTest {
         });
         details = StrategistOriginator.Details({
             conduit: address(lenderConduit),
-            custodian: address(custodian),
+            custodian: address(incomingCustodian),
             issuer: incomingIssuer,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -886,6 +895,21 @@ contract StarPortTest is BaseOrderTest {
             startAmount: 1,
             endAmount: 1,
             identifierOrCriteria: 1,
+            itemType: ItemType.ERC721,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getERC721Consideration(TestERC721 token, uint256 tokenId)
+        internal
+        view
+        returns (ConsiderationItem memory)
+    {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: tokenId,
             itemType: ItemType.ERC721,
             recipient: payable(address(custodian))
         });
