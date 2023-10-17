@@ -1,4 +1,4 @@
-import "test/AstariaV1Test.sol";
+import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 // import {Base} from "starport-core/pricing/CompoundInterestPricing.sol";
