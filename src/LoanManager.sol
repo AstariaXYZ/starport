@@ -141,6 +141,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     error InvalidDebtType();
     error InvalidOrigination();
     error InvalidNoRefinanceConsideration();
+    error LoanExists();
     error NotLoanCustodian();
     error NotPayingFees();
     error NotSeaport();
@@ -161,7 +162,14 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         emit SeaportCompatibleContractDeployed();
     }
 
-    // Encode the data with the account's nonce for generating a signature
+    /**
+     * @dev previews the order for this contract offerer.
+     *
+     * @param borrower        The address of the borrower
+     * @param salt            The salt of the borrower's obligation
+     * @param caveatHash      The hash of the abi.encoded obligation caveats
+     * @return                The abi encode packed bytes that include the intent typehash with the salt and nonce and caveatHash
+     */
     function encodeWithSaltAndBorrowerCounter(address borrower, bytes32 salt, bytes32 caveatHash)
         public
         view
@@ -176,15 +184,25 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         );
     }
 
+    /**
+     * @dev the erc721 name of the contract
+     * @return                   The name of the contract as a string
+     */
     function name() public pure override returns (string memory) {
         return "Starport Loan Manager";
     }
 
+    /**
+     * @dev the erc721 symbol of the contract
+     * @return                   The symbol of the contract as a string
+     */
     function symbol() public pure override returns (string memory) {
         return "SLM";
     }
 
-    // MODIFIERS
+    /**
+     * @dev  modifier to check if the caller is seaport
+     */
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
             revert NotSeaport();
@@ -192,33 +210,63 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _;
     }
 
+    /**
+     * @dev  helper to check if a loan is active
+     * @param loanId            The id of the loan
+     * @return                  True if the loan is active
+     */
     function active(uint256 loanId) public view returns (bool) {
         return _getExtraData(loanId) == uint8(FieldFlags.ACTIVE);
     }
 
+    /**
+     * @dev  helper to check if a loan is inactive
+     * @param loanId            The id of the loan
+     * @return                  True if the loan is inactive
+     */
     function inactive(uint256 loanId) public view returns (bool) {
         return _getExtraData(loanId) == uint8(FieldFlags.INACTIVE);
     }
 
+    /**
+     * @dev  helper to check if a loan is initialized(ie. has never been opened)
+     * @param loanId            The id of the loan
+     * @return                  True if the loan is initialized
+     */
     function initialized(uint256 loanId) public view returns (bool) {
         return _getExtraData(loanId) == uint8(FieldFlags.INITIALIZED);
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (!_issued(tokenId)) {
+    /**
+     * @dev  erc721 tokenURI override
+     * @param loanId            The id of the loan
+     * @return                  the string uri of the loan
+     */
+    function tokenURI(uint256 loanId) public view override returns (string memory) {
+        if (!_issued(loanId)) {
             revert InvalidLoan();
         }
         return string("");
     }
 
-    function _issued(uint256 tokenId) internal view returns (bool) {
-        return (_getExtraData(tokenId) > uint8(0));
+    function _issued(uint256 loanId) internal view returns (bool) {
+        return (_getExtraData(loanId) > uint8(0));
     }
 
-    function issued(uint256 tokenId) external view returns (bool) {
-        return _issued(tokenId);
+    /**
+     * @dev  helper to check if a loan was issued ever(getExtraData > 0)
+     * @param loanId            The id of the loan
+     * @return                  True if the loan is initialized
+     */
+    function issued(uint256 loanId) external view returns (bool) {
+        return _issued(loanId);
     }
 
+    /**
+     * @dev  helper to check if a loan is initialized(ie. has never been opened)
+     * guarded to ensure only the loan.custodian can call it
+     * @param loan              The entire loan struct
+     */
     function settle(Loan memory loan) external {
         if (msg.sender != loan.custodian) {
             revert NotLoanCustodian();
@@ -242,6 +290,14 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         emit Close(tokenId);
     }
 
+    /**
+     * @dev  internal method to call the custody selector of the custodian if it does not share
+     * the same codehash as the default custodian
+     * @param consideration the receivedItems[]
+     * @param orderHashes  the order hashes of the seaport txn
+     * @param contractNonce the nonce of the current contract offerer
+     * @param context  the abi encoded bytes data of the order
+     */
     function _callCustody(
         ReceivedItem[] calldata consideration,
         bytes32[] calldata orderHashes,
@@ -399,16 +455,34 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         return ("Loans", schemas);
     }
 
+    /**
+     * @dev set's the default fee Data
+     * only owner can call
+     * @param feeTo_  The feeToAddress
+     * @param defaultFeeRake_ the default fee rake in WAD denomination(1e17 = 10%)
+     */
     function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
 
+    /**
+     * @dev set's fee override's for specific tokens
+     * only owner can call
+     * @param token  The token to override
+     * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
+     */
     function setFeeOverride(address token, uint96 overrideValue) external onlyOwner {
         feeOverride[token].enabled = true;
         feeOverride[token].amount = overrideValue;
     }
 
+    /**
+     * @dev set's fee override's for specific tokens
+     * only owner can call
+     * @param debt The debt to rake
+     * @return feeItems SpentItem[] of fee's
+     */
     function _feeRake(SpentItem[] memory debt) internal view returns (SpentItem[] memory feeItems) {
         feeItems = new SpentItem[](debt.length);
         uint256 totalDebtItems;
@@ -433,6 +507,13 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    /**
+     * @dev fills and verifies the incoming obligation
+     *
+     * @param fulfiller the new value in WAD denomination to override(1e17 = 10%)
+     * @param maximumSpentFromBorrower the maximum incoming items from the order
+     * @param context bytes encoded abi of the obligation
+     */
     function _fillObligationAndVerify(
         address fulfiller,
         SpentItem[] calldata maximumSpentFromBorrower,
@@ -503,11 +584,19 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _issueLoanManager(loan, response.issuer.code.length > 0);
     }
 
+    /**
+     * @dev issues a LM token if needed
+     * only owner can call
+     * @param loan  the loan to issue
+     * @param mint if true, mint the token
+     */
     function _issueLoanManager(Loan memory loan, bool mint) internal {
         bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = loan.getId();
-
+        if (_issued(loanId)) {
+            revert LoanExists();
+        }
         _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
         if (mint) {
             _safeMint(loan.issuer, loanId, encodedLoan);
@@ -540,6 +629,11 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    /**
+     * @dev set's fee override's for specific tokens
+     * only owner can call
+     * @param feeItem The feeItem to payout
+     */
     function _moveFeesToReceived(SpentItem memory feeItem) internal {
         if (feeItem.itemType == ItemType.NATIVE) {
             payable(feeTo).call{value: feeItem.amount}("");
@@ -548,6 +642,11 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    /**
+     * @dev set's fee override's for specific tokens
+     * only owner can call
+     * @param debt The item to make available to seaport
+     */
     function _enableDebtWithSeaport(SpentItem memory debt) internal {
         //approve consideration based on item type
         if (debt.itemType == ItemType.NATIVE) {
