@@ -75,16 +75,6 @@ abstract contract ConduitHelper {
             _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, additionalConsiderations, validCount);
     }
 
-    function _mergeAndRemoveZeroAmounts(
-        ReceivedItem[] memory repayConsideration,
-        ReceivedItem[] memory carryConsideration
-    ) internal pure virtual returns (ReceivedItem[] memory consideration) {
-        uint256 validCount = 0;
-        validCount = _countNonZeroAmounts(repayConsideration, validCount);
-        validCount = _countNonZeroAmounts(carryConsideration, validCount);
-        consideration =
-            _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, new ReceivedItem[](0), validCount);
-    }
 
     function _packageTransfers(ReceivedItem[] memory refinanceConsideration, address refinancer)
         internal
