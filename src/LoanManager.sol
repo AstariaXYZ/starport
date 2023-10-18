@@ -636,54 +636,5 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _issueLoanManager(loan, fulfiller.code.length > 0);
     }
 
-    function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external {
-        (,, address conduitController) = seaport.information();
-
-        if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-            revert InvalidConduit();
-        }
-        (
-            // used to update the new loan amount
-            ReceivedItem[] memory considerationPayment,
-            // used to pay the carry amount
-            ReceivedItem[] memory carryPayment,
-            // note: considerationPayment - carryPayment = amount to pay lender
-
-            // used for any additional payments beyond consideration and carry
-            ReceivedItem[] memory additionalPayment
-        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, msg.sender);
-
-        ReceivedItem[] memory refinanceConsideration =
-            _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
-        refinanceConsideration = _removeZeroAmounts(refinanceConsideration);
-
-        // if for malicious or non-malicious the refinanceConsideration is zero
-        if (refinanceConsideration.length == 0) {
-            revert InvalidNoRefinanceConsideration();
-        }
-
-        _settle(loan);
-
-        for (uint256 i; i < loan.debt.length;) {
-            loan.debt[i].amount = considerationPayment[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
-
-        if (
-            ConduitInterface(conduit).execute(_packageTransfers(refinanceConsideration, msg.sender))
-                != ConduitInterface.execute.selector
-        ) {
-            revert ConduitTransferError();
-        }
-
-        loan.terms.pricingData = newPricingData;
-        loan.originator = msg.sender;
-        loan.issuer = msg.sender;
-        loan.start = block.timestamp;
-        _issueLoanManager(loan, msg.sender.code.length > 0);
-    }
-
     receive() external payable {}
 }
