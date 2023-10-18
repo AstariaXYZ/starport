@@ -173,7 +173,6 @@ contract StarPortTest is BaseOrderTest {
         vm.label(address(erc721s[0]), "721 collateral 1");
         vm.label(address(erc721s[1]), "721 collateral 2");
         vm.label(address(erc1155s[0]), "1155 collateral 1");
-        vm.label(address(erc1155s[1]), "1155 collateral 2");
 
         // allocate funds and tokens to test addresses
         allocateTokensAndApprovals(address(this), uint128(MAX_INT));
@@ -198,6 +197,7 @@ contract StarPortTest is BaseOrderTest {
         vm.label(address(erc20s[1]), "Collateral ERC20");
         vm.label(address(erc1155s[0]), "Collateral 1155");
         vm.label(address(erc1155s[1]), "Debt 1155 ");
+        vm.label(address(erc721s[2]), "Debt 721 ");
         {
             erc721s[1].mint(seller.addr, 1);
             erc721s[0].mint(borrower.addr, 1);
@@ -205,6 +205,9 @@ contract StarPortTest is BaseOrderTest {
             erc721s[0].mint(borrower.addr, 3);
             erc20s[1].mint(borrower.addr, 10000);
             erc1155s[0].mint(borrower.addr, 1, 1);
+            erc1155s[1].mint(lender.addr, 1, 10);
+            erc1155s[1].mint(lender.addr, 2, 10);
+            erc721s[2].mint(lender.addr, 1);
         }
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
         conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
@@ -214,6 +217,8 @@ contract StarPortTest is BaseOrderTest {
 
         conduitController.updateChannel(lenderConduit, address(UO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
+        erc1155s[1].setApprovalForAll(lenderConduit, true);
+        erc721s[2].setApprovalForAll(lenderConduit, true);
         vm.stopPrank();
         vm.prank(address(issuer));
         erc20s[0].approve(address(lenderConduit), 100000);
@@ -273,7 +278,6 @@ contract StarPortTest is BaseOrderTest {
         ConsiderationItem[] storage collateral,
         bytes memory revertMessage
     ) internal returns (LoanManager.Loan memory) {
-        bool isTrusted = loanData.caveats.length == 0;
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
@@ -945,9 +949,6 @@ contract StarPortTest is BaseOrderTest {
         ConsiderationItem memory collateralItem,
         SpentItem memory debtItem
     ) internal returns (LoanManager.Loan memory loan) {
-        selectedCollateral.push(collateralItem);
-        debt.push(debtItem);
-
         Originator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
 
         loan = newLoan(

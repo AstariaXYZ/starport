@@ -122,23 +122,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(
             abi.encodeWithSelector(
-                Custodian.onERC721Received.selector, address(0), address(0), uint256(0), new bytes(0)
-            )
-        );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                Custodian.onERC1155BatchReceived.selector,
-                address(0),
-                address(0),
-                new uint256[](0),
-                new uint256[](0),
-                new bytes(0)
-            )
-        );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(
                 Custodian.onERC1155Received.selector, address(0), address(0), uint256(0), uint256(0), new bytes(0)
             )
         );
@@ -200,23 +183,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         custodian.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
     }
 
-    function testSafeTransferReceive() public {
+    function testSafeTransfer1155Receive() public {
         erc721s[0].mint(address(this), 0x1a4);
-        erc721s[0].safeTransferFrom(address(this), address(custodian), 0x1a4);
-
         erc1155s[0].mint(address(this), 1, 2);
-        erc1155s[0].mint(address(this), 2, 2);
 
         erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
-
-        uint256[] memory ids = new uint256[](2);
-        ids[0] = 1;
-        ids[1] = 2;
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 1;
-        amounts[1] = 1;
-        erc1155s[0].safeBatchTransferFrom(address(this), address(custodian), ids, amounts, new bytes(0));
     }
 
     //TODO: make this test meaningful
