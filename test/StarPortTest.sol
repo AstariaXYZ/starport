@@ -264,6 +264,15 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory)
     {
+        return newLoan(loanData, originator, collateral, "");
+    }
+
+    function newLoan(
+        NewLoanData memory loanData,
+        Originator originator,
+        ConsiderationItem[] storage collateral,
+        bytes memory revertMessage
+    ) internal returns (LoanManager.Loan memory) {
         bool isTrusted = loanData.caveats.length == 0;
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
@@ -288,8 +297,20 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory newLoan)
     {
+        return refinanceLoan(loan, newPricingData, asWho, "");
+    }
+
+    function refinanceLoan(
+        LoanManager.Loan memory loan,
+        bytes memory newPricingData,
+        address asWho,
+        bytes memory revertMessage
+    ) internal returns (LoanManager.Loan memory newLoan) {
+        if (revertMessage.length > 0) {
+            vm.expectRevert(revertMessage);
+        }
         (SpentItem[] memory offer, ReceivedItem[] memory requiredConsideration) = LM.previewOrder(
-            address(LM.seaport()),
+            address(seaport),
             asWho,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -332,6 +353,9 @@ contract StarPortTest is BaseOrderTest {
         vm.recordLogs();
         vm.startPrank(asWho);
 
+        if (revertMessage.length > 0) {
+            vm.expectRevert(); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
+        }
         consideration.fulfillAdvancedOrder({
             advancedOrder: refinanceOrder,
             criteriaResolvers: new CriteriaResolver[](0),
@@ -688,6 +712,14 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory loan)
     {
+        return _executeNLR(nlr, collateral, "");
+    }
+
+    function _executeNLR(
+        LoanManager.Obligation memory nlr,
+        ConsiderationItem[] memory collateral,
+        bytes memory revertReason
+    ) internal returns (LoanManager.Loan memory loan) {
         bytes32 caveatHash =
             keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
@@ -732,6 +764,9 @@ contract StarPortTest is BaseOrderTest {
         }
         vm.recordLogs();
         vm.startPrank(borrower.addr);
+        if (revertReason.length > 0) {
+            vm.expectRevert(revertReason);
+        }
         if (collateral[0].itemType == ItemType.NATIVE) {
             consideration.fulfillAdvancedOrder{value: collateral[0].endAmount}({
                 advancedOrder: x,

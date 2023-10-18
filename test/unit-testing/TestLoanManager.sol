@@ -252,6 +252,20 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.generateOrder(
             address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
         );
+
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebt.selector));
+        LM.previewOrder(
+            address(seaport),
+            address(this),
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Origination, obligation)
+        );
+    }
+    //TODO: make this test meaningful
+
+    function testSeaportMetadata() public view {
+        LM.getSeaportMetadata();
     }
 
     function testInvalidMaximumSpentEmpty() public {
@@ -269,6 +283,14 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
         LM.generateOrder(
             address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
+        );
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
+        LM.previewOrder(
+            address(seaport),
+            address(this),
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Origination, obligation)
         );
     }
 
