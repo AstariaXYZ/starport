@@ -1,4 +1,4 @@
-import "./StarPortTest.sol";
+import "starport-test/StarPortTest.sol";
 
 contract TestRepayLoan is StarPortTest {
     function testRepayLoan() public {
