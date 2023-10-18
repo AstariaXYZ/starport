@@ -4,7 +4,7 @@ import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
+import {StrategistOriginator} from "starport-core/originators/StrategistOriginator.sol";
 import {
     ItemType,
     ReceivedItem,
@@ -29,7 +29,7 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //import {
 //  ReferenceConsideration as Consideration
 //} from "seaport/reference/ReferenceConsideration.sol";
-import {UniqueOriginator} from "starport-core/originators/UniqueOriginator.sol";
+import {StrategistOriginator} from "starport-core/originators/StrategistOriginator.sol";
 
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
@@ -145,7 +145,7 @@ contract StarPortTest is BaseOrderTest {
     address seaportAddr;
     LoanManager LM;
     Custodian custodian;
-    UniqueOriginator UO;
+    StrategistOriginator SO;
 
     bytes32 conduitKeyRefinancer;
 
@@ -187,7 +187,7 @@ contract StarPortTest is BaseOrderTest {
 
         LM = new LoanManager(consideration);
         custodian = Custodian(payable(LM.defaultCustodian()));
-        UO = new UniqueOriginator(LM, strategist.addr, 1e16, address(this));
+        SO = new StrategistOriginator(LM, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(LM);
         handler = new FixedTermDutchAuctionHandler(LM);
         hook = new FixedTermHook();
@@ -211,7 +211,7 @@ contract StarPortTest is BaseOrderTest {
         vm.startPrank(lender.addr);
         lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
 
-        conduitController.updateChannel(lenderConduit, address(UO), true);
+        conduitController.updateChannel(lenderConduit, address(SO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
         vm.stopPrank();
         vm.prank(address(issuer));
@@ -259,10 +259,11 @@ contract StarPortTest is BaseOrderTest {
         bytes details;
     }
 
-    function newLoan(NewLoanData memory loanData, Originator originator, ConsiderationItem[] storage collateral)
-        internal
-        returns (LoanManager.Loan memory)
-    {
+    function newLoan(
+        NewLoanData memory loanData,
+        StrategistOriginator originator,
+        ConsiderationItem[] storage collateral
+    ) internal returns (LoanManager.Loan memory) {
         bool isTrusted = loanData.caveats.length == 0;
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
@@ -286,7 +287,7 @@ contract StarPortTest is BaseOrderTest {
     function buyNowPayLater(
         AdvancedOrder memory thingToBuy,
         NewLoanData memory loanData,
-        Originator originator,
+        StrategistOriginator originator,
         ConsiderationItem[] storage collateral
     ) internal {
         (uint8 v, bytes32 r, bytes32 s) =
@@ -297,7 +298,7 @@ contract StarPortTest is BaseOrderTest {
             issuer: address(0),
             borrower: borrower.addr,
             originator: address(0),
-            terms: originator.terms(loanData.details),
+            terms: abi.decode(loanData.details, (StrategistOriginator.Details)).offer.terms,
             debt: debt,
             collateral: ConsiderationItemLib.toSpentItemArray(collateral),
             start: uint256(0)
@@ -787,7 +788,7 @@ contract StarPortTest is BaseOrderTest {
         ConsiderationItem memory collateral,
         SpentItem memory debtRequested,
         address incomingIssuer
-    ) internal returns (Originator.Details memory details) {
+    ) internal returns (StrategistOriginator.Details memory details) {
         delete selectedCollateral;
         delete debt;
         selectedCollateral.push(collateral);
@@ -800,12 +801,12 @@ contract StarPortTest is BaseOrderTest {
             handlerData: defaultHandlerData,
             hookData: defaultHookData
         });
-        details = Originator.Details({
+        details = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: incomingIssuer,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -823,7 +824,7 @@ contract StarPortTest is BaseOrderTest {
         selectedCollateral.push(collateralItem);
         debt.push(debtItem);
 
-        Originator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
 
         loan = newLoan(
             NewLoanData({
@@ -831,7 +832,7 @@ contract StarPortTest is BaseOrderTest {
                 caveats: new LoanManager.Caveat[](0), // TODO check
                 details: abi.encode(loanDetails)
             }),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
     }
@@ -846,12 +847,12 @@ contract StarPortTest is BaseOrderTest {
         selectedCollateral.push(collateralItem);
         debt.push(debtItem);
 
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: lender,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -865,7 +866,7 @@ contract StarPortTest is BaseOrderTest {
                 caveats: caveats, // TODO check
                 details: abi.encode(loanDetails)
             }),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
     }

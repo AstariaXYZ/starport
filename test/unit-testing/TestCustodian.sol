@@ -33,13 +33,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        Originator.Details memory loanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         Custodian(custodian).mint(loan);
@@ -260,13 +260,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
     function testGenerateOrderRepayERC1155WithRevert() public {
         //1155
-        Originator.Details memory loanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
             _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -283,13 +283,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
     function testGenerateOrderRepayERC1155AndERC20AndNativeHandlerAuthorized() public {
         //1155
-        Originator.Details memory loanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
             _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -307,7 +307,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -323,7 +323,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -335,13 +335,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
     function testGenerateOrderRepayERC1155AndERC20AndNative() public {
         //1155
-        Originator.Details memory loanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
             _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -356,7 +356,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 
@@ -371,7 +371,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
 

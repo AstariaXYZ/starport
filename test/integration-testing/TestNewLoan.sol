@@ -26,12 +26,12 @@ contract TestNewLoan is StarPortTest {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -47,8 +47,11 @@ contract TestNewLoan is StarPortTest {
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-        return
-            newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), Originator(UO), selectedCollateral);
+        return newLoan(
+            NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
+            StrategistOriginator(SO),
+            selectedCollateral
+        );
     }
 
     function testNewLoanERC721CollateralLessDebtThanOffered() public returns (LoanManager.Loan memory) {
@@ -75,12 +78,12 @@ contract TestNewLoan is StarPortTest {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -97,8 +100,11 @@ contract TestNewLoan is StarPortTest {
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-        return
-            newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), Originator(UO), selectedCollateral);
+        return newLoan(
+            NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
+            StrategistOriginator(SO),
+            selectedCollateral
+        );
     }
 
     function testNewLoanERC721CollateralDefaultTermsRefinance() public {
@@ -126,12 +132,12 @@ contract TestNewLoan is StarPortTest {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -141,7 +147,7 @@ contract TestNewLoan is StarPortTest {
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         vm.startPrank(refinancer.addr);
@@ -222,12 +228,12 @@ contract TestNewLoan is StarPortTest {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -246,7 +252,7 @@ contract TestNewLoan is StarPortTest {
         buyNowPayLater(
             advThingToSell,
             NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
     }
