@@ -59,7 +59,6 @@ contract TestStarLiteUtils is Test {
             assertEq(consideration0[i].recipient, consideration1[i].recipient);
         }
     }
-
 }
 
 contract TestContract {

@@ -8,7 +8,6 @@ import {
     OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Originator} from "starport-core/originators/Originator.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";

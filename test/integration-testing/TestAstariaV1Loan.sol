@@ -35,12 +35,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -50,7 +50,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         uint256 loanId = loan.getId();
@@ -208,12 +208,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -223,7 +223,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         uint256 loanId = loan.getId();
@@ -349,12 +349,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
 
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custody),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -364,7 +364,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         uint256 loanId = loan.getId();

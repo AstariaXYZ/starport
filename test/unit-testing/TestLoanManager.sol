@@ -1,8 +1,10 @@
 import "starport-test/StarPortTest.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-contract MockOriginator is Originator, TokenReceiverInterface {
-    constructor(LoanManager LM_, address strategist_, uint256 fee_) Originator(LM_, strategist_, fee_, msg.sender) {}
+contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
+    constructor(LoanManager LM_, address strategist_, uint256 fee_)
+        StrategistOriginator(LM_, strategist_, fee_, msg.sender)
+    {}
 
     // PUBLIC FUNCTIONS
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
@@ -32,7 +34,7 @@ contract MockOriginator is Originator, TokenReceiverInterface {
         return TokenReceiverInterface.onERC1155BatchReceived.selector;
     }
 
-    function terms(bytes calldata) public view override returns (LoanManager.Terms memory) {
+    function terms(bytes calldata) public view returns (LoanManager.Terms memory) {
         return LoanManager.Terms({
             hook: address(0),
             handler: address(0),
@@ -80,7 +82,7 @@ contract TestLoanManager is StarPortTest {
     }
 
     function testGenerateOrder() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
+        StrategistOriginator originator = new MockOriginator(LM, address(0), 0);
         address seaport = address(LM.seaport());
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
 

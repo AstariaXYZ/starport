@@ -58,9 +58,9 @@ abstract contract RefConduitHelper {
             }
         }
         assembly {
-          mstore(repayConsideration, 0)
-          mstore(carryConsideration, 0) 
-          mstore(additionalConsiderations, 0)
+            mstore(repayConsideration, 0)
+            mstore(carryConsideration, 0)
+            mstore(additionalConsiderations, 0)
         }
         consideration = _removeZeroAmounts(consideration);
     }

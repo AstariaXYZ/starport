@@ -25,7 +25,6 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
 abstract contract ConduitHelper {
-
     uint256 internal constant RECEIVED_AMOUNT_OFFSET = 0x60;
 
     function _mergeAndRemoveZeroAmounts(
@@ -33,7 +32,7 @@ abstract contract ConduitHelper {
         ReceivedItem[] memory carryConsideration,
         ReceivedItem[] memory additionalConsiderations,
         uint256 validCount
-    ) internal virtual pure returns (ReceivedItem[] memory consideration) {
+    ) internal pure virtual returns (ReceivedItem[] memory consideration) {
         assembly {
             function consumingCopy(arr, ptr) -> out {
                 let size := mload(arr)
@@ -87,7 +86,6 @@ abstract contract ConduitHelper {
             _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, new ReceivedItem[](0), validCount);
     }
 
-
     function _packageTransfers(ReceivedItem[] memory refinanceConsideration, address refinancer)
         internal
         pure
@@ -96,7 +94,7 @@ abstract contract ConduitHelper {
     {
         uint256 validConsiderations = _countNonZeroAmounts(refinanceConsideration, 0);
         transfers = new ConduitTransfer[](validConsiderations);
-        uint i = 0;
+        uint256 i = 0;
         uint256 j = 0;
         for (; i < refinanceConsideration.length;) {
             ConduitItemType itemType;
@@ -129,7 +127,13 @@ abstract contract ConduitHelper {
             }
         }
     }
-    function _countNonZeroAmounts(ReceivedItem[] memory arr, uint256 validCount) internal pure virtual returns (uint256) {
+
+    function _countNonZeroAmounts(ReceivedItem[] memory arr, uint256 validCount)
+        internal
+        pure
+        virtual
+        returns (uint256)
+    {
         assembly {
             let size := mload(arr)
             let i := add(arr, 0x20)

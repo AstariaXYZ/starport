@@ -30,7 +30,6 @@ import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOff
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
@@ -281,7 +280,8 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            consideration =
+                _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
             _settleLoan(loan);
         } else {
             address authorized;

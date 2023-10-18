@@ -32,12 +32,12 @@ contract TestRepayLoan is StarPortTest {
             })
         );
 
-        Originator.Details memory loanDetails = Originator.Details({
+        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),
             custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
-            offer: Originator.Offer({
+            offer: StrategistOriginator.Offer({
                 salt: bytes32(0),
                 terms: terms,
                 collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
@@ -47,7 +47,7 @@ contract TestRepayLoan is StarPortTest {
 
         LoanManager.Loan memory activeLoan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         vm.startPrank(borrower.addr);
