@@ -2,7 +2,9 @@ import "starport-test/StarPortTest.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
-    constructor(LoanManager LM_, address strategist_, uint256 fee_) StrategistOriginator(LM_, strategist_, fee_, msg.sender) {}
+    constructor(LoanManager LM_, address strategist_, uint256 fee_)
+        StrategistOriginator(LM_, strategist_, fee_, msg.sender)
+    {}
 
     // PUBLIC FUNCTIONS
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)

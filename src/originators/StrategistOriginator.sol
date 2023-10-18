@@ -34,7 +34,6 @@ import {Originator} from "starport-core/originators/Originator.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 contract StrategistOriginator is Ownable, Originator {
-
     event StrategistTransferred(address newStrategist);
 
     mapping(bytes32 => bool) public usedHashes;

@@ -47,8 +47,11 @@ contract TestNewLoan is StarPortTest {
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-        return
-            newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), StrategistOriginator(SO), selectedCollateral);
+        return newLoan(
+            NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
+            StrategistOriginator(SO),
+            selectedCollateral
+        );
     }
 
     function testNewLoanERC721CollateralLessDebtThanOffered() public returns (LoanManager.Loan memory) {
@@ -97,8 +100,11 @@ contract TestNewLoan is StarPortTest {
         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-        return
-            newLoan(NewLoanData(address(custody), caveats, abi.encode(loanDetails)), StrategistOriginator(SO), selectedCollateral);
+        return newLoan(
+            NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
+            StrategistOriginator(SO),
+            selectedCollateral
+        );
     }
 
     function testNewLoanERC721CollateralDefaultTermsRefinance() public {

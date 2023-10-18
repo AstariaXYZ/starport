@@ -27,7 +27,6 @@ import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/Co
 import {Ownable} from "solady/src/auth/Ownable.sol";
 
 abstract contract Originator is Ownable {
-
     struct Response {
         LoanManager.Terms terms;
         address issuer;

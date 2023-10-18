@@ -259,10 +259,11 @@ contract StarPortTest is BaseOrderTest {
         bytes details;
     }
 
-    function newLoan(NewLoanData memory loanData, StrategistOriginator originator, ConsiderationItem[] storage collateral)
-        internal
-        returns (LoanManager.Loan memory)
-    {
+    function newLoan(
+        NewLoanData memory loanData,
+        StrategistOriginator originator,
+        ConsiderationItem[] storage collateral
+    ) internal returns (LoanManager.Loan memory) {
         bool isTrusted = loanData.caveats.length == 0;
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
