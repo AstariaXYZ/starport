@@ -1061,4 +1061,61 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.store(address(LM.seaport()), bytes32(uint256(0)), bytes32(uint256(2)));
         erc1155s[0].safeTransferFrom(address(this), address(LM), 1, 1, new bytes(0));
     }
+
+    function testCannotIssueSameLoanTwice() public {
+        Originator originator = new MockOriginator(LM, address(0), 0);
+        vm.deal(address(originator), 1 ether);
+        address seaport = address(LM.seaport());
+
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(0), amount: 100, identifier: 1, itemType: ItemType.NATIVE});
+
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 1, itemType: ItemType.ERC20});
+        Originator.Details memory OD;
+        vm.prank(lender.addr);
+        conduitController.updateChannel(lenderConduit, address(originator), true);
+
+        LoanManager.Obligation memory O = LoanManager.Obligation({
+            custodian: address(custodian),
+            borrower: borrower.addr,
+            debt: exoticDebt,
+            salt: bytes32(0),
+            details: abi.encode(OD),
+            approval: "",
+            caveats: new LoanManager.Caveat[](0),
+            originator: address(originator)
+        });
+
+        bytes memory encodedObligation = abi.encode(Actions.Origination, O);
+
+        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) =
+            LM.previewOrder(address(LM.seaport()), borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
+
+        uint256 balanceOfLM = address(LM).balance;
+        //enable re entrancy guard
+        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
+
+        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
+        for (uint256 i; i < maxSpent.length; i++) {
+            expectedConsider[i] = ReceivedItem({
+                itemType: maxSpent[i].itemType,
+                token: maxSpent[i].token,
+                identifier: maxSpent[i].identifier,
+                amount: maxSpent[i].amount,
+                recipient: payable(O.custodian)
+            });
+        }
+
+        vm.prank(address(LM.seaport()));
+        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
+            LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
+        _deepEq(offer, new SpentItem[](0));
+        _deepEq(previewOffer, offer);
+        _deepEq(consider, expectedConsider);
+        _deepEq(consider, previewConsider);
+        vm.prank(address(LM.seaport()));
+        vm.expectRevert(LoanManager.LoanExists.selector);
+        LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
+    }
 }
