@@ -74,8 +74,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         }
         paymentConsiderations[0].amount = settlementPrice;
 
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-        consideration = _removeZeroAmounts(consideration);
+        consideration = _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
     }
 
     function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {

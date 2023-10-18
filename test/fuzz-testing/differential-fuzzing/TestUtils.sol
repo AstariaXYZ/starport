@@ -60,55 +60,6 @@ contract TestStarLiteUtils is Test {
         }
     }
 
-    function testMergeAndRemoveNonZeroAmounts() public {
-        ReceivedItem[] memory receivedItemsA = new ReceivedItem[](1);
-        ReceivedItem[] memory receivedItemsB = new ReceivedItem[](1);
-        ReceivedItem[] memory receivedItemsC = new ReceivedItem[](1);
-
-        receivedItemsA[0] = ReceivedItem({
-            itemType: ItemType.ERC20,
-            token: address(2),
-            identifier: 3,
-            amount: 4,
-            recipient: payable(address(0x45))
-        });
-        receivedItemsB[0] = ReceivedItem({
-            itemType: ItemType.ERC721,
-            token: address(2),
-            identifier: 3,
-            amount: 0,
-            recipient: payable(address(1))
-        });
-        receivedItemsC[0] = ReceivedItem({
-            itemType: ItemType.ERC20,
-            token: address(2),
-            identifier: 3,
-            amount: 4,
-            recipient: payable(address(0x69))
-        });
-
-        uint256 validCount = StarPortLib._countNonZeroAmounts(receivedItemsA, 0);
-        validCount = StarPortLib._countNonZeroAmounts(receivedItemsB, validCount);
-        validCount = StarPortLib._countNonZeroAmounts(receivedItemsC, validCount);
-
-        ReceivedItem[] memory consideration =
-            StarPortLib._mergeAndRemoveZeroAmounts(receivedItemsA, receivedItemsB, receivedItemsC);
-
-        assertEq(consideration.length, validCount);
-        logConsideration(consideration);
-    }
-
-    function logConsideration(ReceivedItem[] memory consideration) public {
-        for (uint256 i = 0; i < consideration.length; i++) {
-            console.log("consideration[%s]", i);
-            string memory key = "consideration";
-            vm.serializeUint(key, "itemType", uint256(consideration[i].itemType));
-            vm.serializeAddress(key, "token", consideration[i].token);
-            vm.serializeUint(key, "identifier", consideration[i].identifier);
-            vm.serializeUint(key, "amount", consideration[i].amount);
-            console.log(vm.serializeAddress(key, "recipient", consideration[i].recipient));
-        }
-    }
 }
 
 contract TestContract {

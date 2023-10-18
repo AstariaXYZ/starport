@@ -217,8 +217,8 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
+            consideration =
+                _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
         } else {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
@@ -281,9 +281,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
-
+            consideration = _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
             _settleLoan(loan);
         } else {
             address authorized;

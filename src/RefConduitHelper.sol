@@ -24,79 +24,86 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
-abstract contract ConduitHelper {
-
-    uint256 internal constant RECEIVED_AMOUNT_OFFSET = 0x60;
-
-    function _mergeAndRemoveZeroAmounts(
-        ReceivedItem[] memory repayConsideration,
-        ReceivedItem[] memory carryConsideration,
-        ReceivedItem[] memory additionalConsiderations,
-        uint256 validCount
-    ) internal virtual pure returns (ReceivedItem[] memory consideration) {
-        assembly {
-            function consumingCopy(arr, ptr) -> out {
-                let size := mload(arr)
-                let end := add(arr, mul(add(1, size), 0x20))
-                for { let i := add(0x20, arr) } lt(i, end) { i := add(i, 0x20) } {
-                    let amount := mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))
-                    if iszero(amount) { continue }
-                    mstore(ptr, mload(i))
-                    ptr := add(ptr, 0x20)
-                }
-                //reset old array length
-                mstore(arr, 0)
-                out := ptr
-            }
-
-            //Set consideration to free memory
-            consideration := mload(0x40)
-            //Expand memory
-            mstore(0x40, add(add(0x20, consideration), mul(validCount, 0x20)))
-            mstore(consideration, validCount)
-            pop(
-                consumingCopy(
-                    additionalConsiderations,
-                    consumingCopy(carryConsideration, consumingCopy(repayConsideration, add(consideration, 0x20)))
-                )
-            )
-        }
-    }
+abstract contract RefConduitHelper {
+    error RepayCarryLengthMismatch();
 
     function _mergeAndRemoveZeroAmounts(
         ReceivedItem[] memory repayConsideration,
         ReceivedItem[] memory carryConsideration,
         ReceivedItem[] memory additionalConsiderations
     ) internal pure virtual returns (ReceivedItem[] memory consideration) {
-        uint256 validCount = 0;
-        validCount = _countNonZeroAmounts(repayConsideration, validCount);
-        validCount = _countNonZeroAmounts(carryConsideration, validCount);
-        validCount = _countNonZeroAmounts(additionalConsiderations, validCount);
-        consideration =
-            _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, additionalConsiderations, validCount);
+        unchecked {
+            consideration =
+            new ReceivedItem[](repayConsideration.length + carryConsideration.length + additionalConsiderations.length);
+
+            uint256 i = 0;
+            uint256 n = repayConsideration.length;
+            for (; i < n; i++) {
+                consideration[i] = repayConsideration[i];
+            }
+            uint256 offset = n;
+            if (carryConsideration.length > 0) {
+                n += carryConsideration.length;
+                for (; i < n; ++i) {
+                    consideration[i] = carryConsideration[i - offset];
+                }
+            }
+            if (additionalConsiderations.length > 0) {
+                offset = n;
+                n += additionalConsiderations.length;
+
+                for (; i < n; ++i) {
+                    consideration[i] = additionalConsiderations[i - offset];
+                }
+            }
+        }
+        assembly {
+          mstore(repayConsideration, 0)
+          mstore(carryConsideration, 0) 
+          mstore(additionalConsiderations, 0)
+        }
+        consideration = _removeZeroAmounts(consideration);
     }
 
-    function _mergeAndRemoveZeroAmounts(
-        ReceivedItem[] memory repayConsideration,
-        ReceivedItem[] memory carryConsideration
-    ) internal pure virtual returns (ReceivedItem[] memory consideration) {
-        uint256 validCount = 0;
-        validCount = _countNonZeroAmounts(repayConsideration, validCount);
-        validCount = _countNonZeroAmounts(carryConsideration, validCount);
-        consideration =
-            _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, new ReceivedItem[](0), validCount);
+    function _removeZeroAmounts(ReceivedItem[] memory consideration)
+        internal
+        pure
+        virtual
+        returns (ReceivedItem[] memory newConsideration)
+    {
+        uint256 i = 0;
+        uint256 validConsiderations = 0;
+        for (; i < consideration.length;) {
+            if (consideration[i].amount > 0) ++validConsiderations;
+            unchecked {
+                ++i;
+            }
+        }
+        i = 0;
+        uint256 j = 0;
+        newConsideration = new ReceivedItem[](validConsiderations);
+        for (; i < consideration.length;) {
+            if (consideration[i].amount > 0) {
+                newConsideration[j] = consideration[i];
+                unchecked {
+                    ++j;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
     }
-
 
     function _packageTransfers(ReceivedItem[] memory refinanceConsideration, address refinancer)
         internal
         pure
-        virtual
         returns (ConduitTransfer[] memory transfers)
     {
         uint256 validConsiderations = _countNonZeroAmounts(refinanceConsideration, 0);
         transfers = new ConduitTransfer[](validConsiderations);
-        uint i = 0;
+        uint256 i = 0;
+        i = 0;
         uint256 j = 0;
         for (; i < refinanceConsideration.length;) {
             ConduitItemType itemType;
@@ -129,15 +136,17 @@ abstract contract ConduitHelper {
             }
         }
     }
-    function _countNonZeroAmounts(ReceivedItem[] memory arr, uint256 validCount) internal pure virtual returns (uint256) {
-        assembly {
-            let size := mload(arr)
-            let i := add(arr, 0x20)
-            let end := add(i, mul(size, 0x20))
-            for {} lt(i, end) { i := add(i, 0x20) } {
-                let amount := mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))
-                if iszero(amount) { continue }
-                validCount := add(validCount, 1)
+
+    function _countNonZeroAmounts(ReceivedItem[] memory arr, uint256 validCount)
+        internal
+        pure
+        virtual
+        returns (uint256)
+    {
+        for (uint256 i; i < arr.length;) {
+            unchecked {
+                if (arr[i].amount > 0) ++validCount;
+                ++i;
             }
         }
         return validCount;

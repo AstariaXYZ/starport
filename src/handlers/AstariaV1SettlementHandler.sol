@@ -79,8 +79,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
             recipient: payable(recaller)
         });
 
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, recallerPayment);
-        consideration = _removeZeroAmounts(consideration);
+        consideration = _mergeAndRemoveZeroAmounts(paymentConsiderations, carryFeeConsideration, recallerPayment);
     }
 
     function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {

@@ -579,14 +579,6 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
             ReceivedItem[] memory additionalPayment
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, msg.sender);
 
-        ReceivedItem[] memory refinanceConsideration =
-            _removeZeroAmounts(_mergeConsiderations(considerationPayment, carryPayment, additionalPayment));
-
-        // if for malicious or non-malicious the refinanceConsideration is zero
-        if (refinanceConsideration.length == 0) {
-            revert InvalidNoRefinanceConsideration();
-        }
-
         _settle(loan);
 
         if (carryPayment.length > 0) {
@@ -603,6 +595,14 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
                     ++i;
                 }
             }
+        }
+
+        ReceivedItem[] memory refinanceConsideration =
+            _mergeAndRemoveZeroAmounts(considerationPayment, carryPayment, additionalPayment);
+
+        // if for malicious or non-malicious the refinanceConsideration is zero
+        if (refinanceConsideration.length == 0) {
+            revert InvalidNoRefinanceConsideration();
         }
 
         if (
