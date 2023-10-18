@@ -34,7 +34,7 @@ import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
 contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenReceiverInterface {
     using {StarPortLib.getId} for LoanManager.Loan;
@@ -47,13 +47,14 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
     event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
-    error NotSeaport();
-    error NotLoanManager();
-    error InvalidRepayer();
+    error ImplementInChild();
+    error InvalidAction();
     error InvalidFulfiller();
     error InvalidHandlerExecution();
     error InvalidLoan();
-    error ImplementInChild();
+    error InvalidRepayer();
+    error NotSeaport();
+    error NotLoanManager();
 
     constructor(LoanManager LM_, address seaport_) {
         seaport = seaport_;
@@ -201,12 +202,13 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
+        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
 
         if (!LM.issued(loan.getId())) {
             revert InvalidLoan();
         }
-        if (SettlementHook(loan.terms.hook).isActive(loan)) {
+        bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);
+        if (action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
@@ -218,7 +220,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
 
             consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
             consideration = _removeZeroAmounts(consideration);
-        } else {
+        } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
 
@@ -227,6 +229,8 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             } else if (authorized == loan.terms.handler || authorized == loan.issuer) {} else {
                 revert InvalidFulfiller();
             }
+        } else {
+            revert InvalidAction();
         }
     }
 
@@ -263,11 +267,10 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
         internal
         returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
     {
-        LoanManager.Loan memory loan = abi.decode(context, (LoanManager.Loan));
-        if (!LM.issued(loan.getId())) {
-            revert InvalidLoan();
-        }
-        if (SettlementHook(loan.terms.hook).isActive(loan)) {
+        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
+
+        bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);
+        if (action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
@@ -284,7 +287,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             consideration = _removeZeroAmounts(consideration);
 
             _settleLoan(loan);
-        } else {
+        } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             //add in originator fee
             _beforeSettlementHandlerHook(loan);
@@ -309,6 +312,8 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
             }
 
             _settleLoan(loan);
+        } else {
+            revert InvalidAction();
         }
     }
 

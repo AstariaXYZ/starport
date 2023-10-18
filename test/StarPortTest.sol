@@ -64,6 +64,7 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
+import {Actions} from "starport-core/lib/StarPortLib.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -284,6 +285,72 @@ contract StarPortTest is BaseOrderTest {
         }
     }
 
+    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho)
+        internal
+        returns (LoanManager.Loan memory newLoan)
+    {
+        (SpentItem[] memory offer, ReceivedItem[] memory requiredConsideration) = LM.previewOrder(
+            address(LM.seaport()),
+            asWho,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Refinance, loan, newPricingData)
+        );
+        //OrderParameters parameters;
+        //    uint120 numerator;
+        //    uint120 denominator;
+        //    bytes signature;
+        //    bytes extraData;
+        OfferItem[] memory offerItems = new OfferItem[](offer.length);
+        for (uint256 i = 0; i < offer.length; i++) {
+            offerItems[i] = OfferItem({
+                itemType: offer[i].itemType,
+                token: offer[i].token,
+                identifierOrCriteria: offer[i].identifier,
+                startAmount: offer[i].amount,
+                endAmount: offer[i].amount
+            });
+        }
+
+        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](requiredConsideration.length);
+        for (uint256 i = 0; i < requiredConsideration.length; i++) {
+            considerationItems[i] = ConsiderationItem({
+                itemType: requiredConsideration[i].itemType,
+                token: requiredConsideration[i].token,
+                identifierOrCriteria: requiredConsideration[i].identifier,
+                startAmount: requiredConsideration[i].amount,
+                endAmount: requiredConsideration[i].amount,
+                recipient: requiredConsideration[i].recipient
+            });
+        }
+        AdvancedOrder memory refinanceOrder = AdvancedOrder({
+            signature: "",
+            parameters: _buildContractOrder(address(LM), offerItems, considerationItems),
+            numerator: 1,
+            denominator: 1,
+            extraData: abi.encode(Actions.Refinance, loan, newPricingData)
+        });
+        vm.recordLogs();
+        vm.startPrank(asWho);
+
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: refinanceOrder,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(asWho)
+        });
+        vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
+                (, newLoan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                break;
+            }
+        }
+    }
+
     function buyNowPayLater(
         AdvancedOrder memory thingToBuy,
         NewLoanData memory loanData,
@@ -393,7 +460,7 @@ contract StarPortTest is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(activeLoan)
+            extraData: abi.encode(Actions.Settlement, activeLoan)
         });
 
         uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
@@ -465,7 +532,7 @@ contract StarPortTest is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(activeLoan)
+            extraData: abi.encode(Actions.Repayment, activeLoan)
         });
 
         uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
@@ -557,7 +624,7 @@ contract StarPortTest is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "",
-            extraData: abi.encode(nlr)
+            extraData: abi.encode(Actions.Origination, nlr)
         });
         orders[2] = z;
 
@@ -650,8 +717,13 @@ contract StarPortTest is BaseOrderTest {
         OrderParameters memory op =
             _buildContractOrder(address(LM), nlr.caveats.length == 0 ? new OfferItem[](0) : offer, collateral);
 
-        AdvancedOrder memory x =
-            AdvancedOrder({parameters: op, numerator: 1, denominator: 1, signature: "0x", extraData: abi.encode(nlr)});
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Origination, nlr)
+        });
 
         uint256 balanceBefore;
         if (debt[0].token == address(0)) {
