@@ -109,7 +109,6 @@ abstract contract BasePricing is Pricing {
 
         consideration = new ReceivedItem[](loan.debt.length);
         uint256[] memory owing = _getOwed(loan, details, loan.start, block.timestamp);
-        bool isActive = LM.active(loan.getId());
 
         uint256 i = 0;
         for (; i < consideration.length;) {

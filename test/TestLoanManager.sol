@@ -132,7 +132,7 @@ contract TestLoanManager is StarPortTest {
         //        OrderParameters memory op = _buildContractOrder(address(LM), new OfferItem[](0), selectedCollateral);
         vm.startPrank(seaport);
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(O));
+            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
         //TODO:: validate return data matches request
         //        assertEq(keccak256(abi.encode(consideration)), keccak256(abi.encode(maxSpent)));
     }
@@ -191,7 +191,13 @@ contract TestLoanManager is StarPortTest {
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
-        LM.ratifyOrder(new SpentItem[](0), new ReceivedItem[](0), abi.encode(obligation), new bytes32[](0), uint256(0));
+        LM.ratifyOrder(
+            new SpentItem[](0),
+            new ReceivedItem[](0),
+            abi.encode(Actions.Origination, obligation),
+            new bytes32[](0),
+            uint256(0)
+        );
     }
 
     function testNonDefaultCustodianCustodyCallSuccess() public {
@@ -209,12 +215,22 @@ contract TestLoanManager is StarPortTest {
         vm.mockCall(
             address(mockCustodian),
             abi.encodeWithSelector(
-                Custodian.custody.selector, new ReceivedItem[](0), new bytes32[](0), uint256(0), abi.encode(obligation)
+                Custodian.custody.selector,
+                new ReceivedItem[](0),
+                new bytes32[](0),
+                uint256(0),
+                abi.encode(Actions.Origination, obligation)
             ),
             abi.encode(bytes4(Custodian.custody.selector))
         );
         vm.prank(address(LM.seaport()));
-        LM.ratifyOrder(new SpentItem[](0), new ReceivedItem[](0), abi.encode(obligation), new bytes32[](0), uint256(0));
+        LM.ratifyOrder(
+            new SpentItem[](0),
+            new ReceivedItem[](0),
+            abi.encode(Actions.Origination, obligation),
+            new bytes32[](0),
+            uint256(0)
+        );
     }
 
     function testInvalidDebt() public {
@@ -230,7 +246,9 @@ contract TestLoanManager is StarPortTest {
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebt.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(obligation));
+        LM.generateOrder(
+            address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
+        );
     }
 
     function testInvalidMaximumSpentEmpty() public {
@@ -246,7 +264,9 @@ contract TestLoanManager is StarPortTest {
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(obligation));
+        LM.generateOrder(
+            address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
+        );
     }
 
     function testDefaultFeeRake() public {
@@ -331,6 +351,55 @@ contract TestLoanManager is StarPortTest {
         );
         vm.startPrank(seaport);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidOrigination.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(O));
+        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
+    }
+
+    function testGenerateOrderInvalidAction() public {
+        Originator originator = new MockOriginator(LM, address(0), 0);
+        address seaport = address(LM.seaport());
+        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
+
+        //
+        LoanManager.Obligation memory O = LoanManager.Obligation({
+            custodian: address(custodian),
+            borrower: borrower.addr,
+            debt: debt,
+            salt: bytes32(0),
+            details: "",
+            approval: "",
+            caveats: new LoanManager.Caveat[](0),
+            originator: address(originator)
+        });
+
+        vm.startPrank(seaport);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidAction.selector));
+        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
+    }
+
+    function testPreviewOrderInvalidAction() public {
+        Originator originator = new MockOriginator(LM, address(0), 0);
+        address seaport = address(LM.seaport());
+        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
+
+        LoanManager.Obligation memory O = LoanManager.Obligation({
+            custodian: address(custodian),
+            borrower: borrower.addr,
+            debt: debt,
+            salt: bytes32(0),
+            details: "",
+            approval: "",
+            caveats: new LoanManager.Caveat[](0),
+            originator: address(originator)
+        });
+
+        vm.startPrank(seaport);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidAction.selector));
+        LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
     }
 }

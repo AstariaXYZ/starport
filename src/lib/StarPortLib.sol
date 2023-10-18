@@ -3,11 +3,35 @@ pragma solidity ^0.8.17;
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {LoanManager} from "starport-core/LoanManager.sol";
+import "forge-std/console.sol";
+
+enum Actions {
+    Nothing,
+    Origination,
+    Refinance,
+    Repayment,
+    Settlement
+}
 
 library StarPortLib {
     error InvalidSalt();
 
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
+
+    uint256 internal constant ONE_WORD = 0x20;
+    uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
+
+    function getAction(bytes calldata data) internal pure returns (Actions action) {
+        assembly {
+            action := calldataload(data.offset)
+        }
+    }
+
+    function getCustodian(bytes calldata data) internal pure returns (address custodian) {
+        assembly {
+            custodian := calldataload(add(data.offset, CUSTODIAN_WORD_OFFSET))
+        }
+    }
 
     function getId(LoanManager.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
