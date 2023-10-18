@@ -559,10 +559,6 @@ contract LoanManager is ContractOffererInterface, ConduitHelper, Ownable, ERC721
     }
 
     function refinance(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) external {
-        _refinanceRefA(loan, newPricingData, conduit);
-    }
-
-    function _refinanceRefA(LoanManager.Loan memory loan, bytes memory newPricingData, address conduit) internal {
         (,, address conduitController) = seaport.information();
 
         if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
