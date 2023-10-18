@@ -43,6 +43,16 @@ library Cast {
         }
     }
 
+    function toStorage(ReceivedItem[] memory a, ReceivedItem[] storage b) internal {
+        assembly {
+            sstore(b.slot, mload(a))
+        }
+
+        for (uint256 i; i < a.length; i++) {
+            b[i] = a[i];
+        }
+    }
+
     function toStorage(LoanManager.Loan memory a, LoanManager.Loan storage b) internal {
         b.start = a.start;
         b.custodian = a.custodian;

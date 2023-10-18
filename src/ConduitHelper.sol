@@ -35,29 +35,29 @@ abstract contract ConduitHelper {
         //if (repayConsideration.length != carryConsideration.length) {
         //    revert RepayCarryLengthMismatch();
         //}
-        consideration = new ReceivedItem[](repayConsideration.length +
-        carryConsideration.length +
-        additionalConsiderations.length);
+        unchecked {
+            consideration =
+            new ReceivedItem[](repayConsideration.length + carryConsideration.length + additionalConsiderations.length);
 
-        uint256 i = 0;
-        uint256 n = repayConsideration.length;
-        for (; i < n; i++) {
-            consideration[i] = repayConsideration[i];
-        }
-        uint256 offset = n;
-        if (carryConsideration.length > 0) {
-            n += carryConsideration.length;
-
+            uint256 i = 0;
+            uint256 n = repayConsideration.length;
             for (; i < n; i++) {
-                consideration[i] = carryConsideration[i - offset];
+                consideration[i] = repayConsideration[i];
             }
-        }
-        if (additionalConsiderations.length > 0) {
-            offset = n;
-            n += additionalConsiderations.length;
+            uint256 offset = n;
+            if (carryConsideration.length > 0) {
+                n += carryConsideration.length;
+                for (; i < n; ++i) {
+                    consideration[i] = carryConsideration[i - offset];
+                }
+            }
+            if (additionalConsiderations.length > 0) {
+                offset = n;
+                n += additionalConsiderations.length;
 
-            for (; i < n; i++) {
-                consideration[i] = additionalConsiderations[i - offset];
+                for (; i < n; ++i) {
+                    consideration[i] = additionalConsiderations[i - offset];
+                }
             }
         }
     }

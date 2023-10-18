@@ -66,7 +66,6 @@ import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInte
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 
-
 interface IWETH9 {
     function deposit() external payable;
 
@@ -412,45 +411,17 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
     }
 
     function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-        (ReceivedItem[] memory loanPayment, ReceivedItem[] memory carryPayment) =
-            Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
-        uint256 i = 0;
-        ReceivedItem[] memory considerationPayments = _removeZeroAmounts(_mergeConsiderations(loanPayment, carryPayment, new ReceivedItem[](0)));
-        ConsiderationItem[] memory consider = new ConsiderationItem[](
-          considerationPayments.length
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
+            payable(activeLoan.custodian)
+        ).previewOrder(
+            address(LM.seaport()), activeLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan)
         );
 
-
-        for (; i < consider.length;) {
-            consider[i].token = considerationPayments[i].token;
-            consider[i].itemType = considerationPayments[i].itemType;
-            consider[i].identifierOrCriteria = considerationPayments[i].identifier;
-            consider[i].startAmount = considerationPayments[i].amount;
-            //TODO: update this
-            consider[i].endAmount = considerationPayments[i].amount;
-            consider[i].recipient = considerationPayments[i].recipient;
-            unchecked {
-                ++i;
-            }
-        }
-
-        OfferItem[] memory repayOffering = new OfferItem[](
-            activeLoan.collateral.length
+        OrderParameters memory op = _buildContractOrder(
+            address(custodian),
+            _SpentItemsToOfferItems(offer),
+            _toConsiderationItems(paymentConsideration)
         );
-        i = 0;
-        for (; i < activeLoan.collateral.length;) {
-            repayOffering[i] = OfferItem({
-                itemType: activeLoan.collateral[i].itemType,
-                token: address(activeLoan.collateral[i].token),
-                identifierOrCriteria: activeLoan.collateral[i].identifier,
-                endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
-                startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
-            });
-            unchecked {
-                ++i;
-            }
-        }
-        OrderParameters memory op = _buildContractOrder(address(custodian), repayOffering, consider);
 
         AdvancedOrder memory x = AdvancedOrder({
             parameters: op,
