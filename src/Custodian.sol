@@ -28,7 +28,6 @@ import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/C
 
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
@@ -36,7 +35,7 @@ import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
-contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenReceiverInterface {
+contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;
@@ -234,31 +233,14 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper, TokenRece
         }
     }
 
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-        public
-        pure
-        virtual
-        returns (bytes4)
-    {
-        return TokenReceiverInterface.onERC721Received.selector;
-    }
-
+    //seaport doesn't call safe transfer on anything but 1155 and never batch
     function onERC1155Received(address, address, uint256, uint256, bytes calldata)
         public
         pure
         virtual
         returns (bytes4)
     {
-        return TokenReceiverInterface.onERC1155Received.selector;
-    }
-
-    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
-        public
-        pure
-        virtual
-        returns (bytes4)
-    {
-        return TokenReceiverInterface.onERC1155BatchReceived.selector;
+        return this.onERC1155Received.selector;
     }
 
     //INTERNAL FUNCTIONS

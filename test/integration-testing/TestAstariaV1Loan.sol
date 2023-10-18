@@ -1,8 +1,6 @@
 import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
-// import {Base} from "starport-core/pricing/CompoundInterestPricing.sol";
-// import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import "forge-std/console2.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
@@ -10,28 +8,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
-        Custodian custody = Custodian(LM.defaultCustodian());
-
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-
-        selectedCollateral.push(
-            ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custody))
-            })
-        );
-
         debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
         StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
             conduit: address(lenderConduit),

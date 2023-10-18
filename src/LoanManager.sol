@@ -137,12 +137,14 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     error InvalidCustodian();
     error InvalidLoan();
     error InvalidMaximumSpentEmpty();
-    error InvalidDebt();
+    error InvalidDebtLength();
+    error InvalidDebtType();
     error InvalidOrigination();
     error InvalidNoRefinanceConsideration();
     error NotLoanCustodian();
     error NotPayingFees();
     error NotSeaport();
+    error NotEnteredViaSeaport();
 
     constructor(ConsiderationInterface seaport_) {
         seaport = seaport_;
@@ -285,7 +287,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
 
             bool feeOn;
             if (obligation.debt.length == 0) {
-                revert InvalidDebt();
+                revert InvalidDebtLength();
             }
             if (maximumSpentFromBorrower.length == 0) {
                 revert InvalidMaximumSpentEmpty();
@@ -308,7 +310,18 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
                 SpentItem[] memory feeItems = !feeOn ? new SpentItem[](0) : _feeRake(debt);
 
                 for (uint256 i; i < debt.length;) {
-                    offer[i] = debt[i];
+                    if (
+                        debt[i].itemType == ItemType.ERC721_WITH_CRITERIA
+                            || debt[i].itemType == ItemType.ERC1155_WITH_CRITERIA
+                    ) {
+                        revert InvalidDebtType();
+                    }
+                    offer[i] = SpentItem({
+                        itemType: debt[i].itemType,
+                        token: debt[i].token,
+                        identifier: debt[i].identifier,
+                        amount: debt[i].amount
+                    });
                     if (feeOn && feeItems[i].amount > 0) {
                         offer[i].amount = debt[i].amount - feeItems[i].amount;
                     }
@@ -330,8 +343,15 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
                 SpentItem[] memory feeItems = !feeOn ? new SpentItem[](0) : _feeRake(debt);
 
                 for (uint256 i; i < debt.length;) {
-                    offer[i] = debt[i];
-                    offer[i].amount = debt[i].amount - feeItems[i].amount;
+                    offer[i] = SpentItem({
+                        itemType: debt[i].itemType,
+                        token: debt[i].token,
+                        identifier: debt[i].identifier,
+                        amount: debt[i].amount
+                    });
+                    if (feeItems[i].amount > 0) {
+                        offer[i].amount = debt[i].amount - feeItems[i].amount;
+                    }
                     unchecked {
                         ++i;
                     }
@@ -341,20 +361,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             (, LoanManager.Loan memory loan, bytes memory newPricingData) =
                 abi.decode(context, (Actions, LoanManager.Loan, bytes));
 
-            (
-                // used to update the new loan amount
-                ReceivedItem[] memory considerationPayment,
-                // used to pay the carry amount
-                ReceivedItem[] memory carryPayment,
-                // note: considerationPayment - carryPayment = amount to pay lender
-
-                // used for any additional payments beyond consideration and carry
-                ReceivedItem[] memory additionalPayment
-            ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, msg.sender);
-
-            consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
-            consideration = _removeZeroAmounts(consideration);
-
+            consideration = _getRefinanceConsiderationsPreview(loan, newPricingData, fulfiller);
             // if for malicious or non-malicious the refinanceConsideration is zero
             if (consideration.length == 0) {
                 revert InvalidNoRefinanceConsideration();
@@ -362,6 +369,22 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         } else {
             revert InvalidAction();
         }
+    }
+
+    function _getRefinanceConsiderationsPreview(
+        LoanManager.Loan memory loan,
+        bytes memory newPricingData,
+        address fulfiller
+    ) internal view returns (ReceivedItem[] memory consideration) {
+        (
+            // used to update the new loan amount
+            ReceivedItem[] memory considerationPayment,
+            ReceivedItem[] memory carryPayment,
+            ReceivedItem[] memory additionalPayment
+        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, fulfiller);
+
+        consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
+        consideration = _removeZeroAmounts(consideration);
     }
 
     /**
@@ -395,7 +418,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
                 feeItems[i].amount = debt[i].amount.mulDiv(
                     !feeOverride.enabled ? defaultFeeRake : feeOverride.amount,
-                    debt[i].itemType == ItemType.NATIVE ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
+                    (debt[i].itemType == ItemType.NATIVE) ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
                 );
                 feeItems[i].token = debt[i].token;
                 feeItems[i].itemType = debt[i].itemType;
@@ -404,6 +427,9 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             unchecked {
                 ++i;
             }
+        }
+        assembly {
+            mstore(feeItems, totalDebtItems)
         }
     }
 
@@ -419,7 +445,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         (, LoanManager.Obligation memory obligation) = abi.decode(context, (Actions, LoanManager.Obligation));
 
         if (obligation.debt.length == 0) {
-            revert InvalidDebt();
+            revert InvalidDebtLength();
         }
         if (maximumSpentFromBorrower.length == 0) {
             revert InvalidMaximumSpentEmpty();
@@ -533,7 +559,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         } else if (debt.itemType == ItemType.ERC20) {
             ERC20(debt.token).approve(address(seaport), debt.amount);
         } else {
-            revert InvalidDebt();
+            revert InvalidDebtType();
         }
     }
 
@@ -545,7 +571,12 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         offer = new SpentItem[](debt.length + caveatLength);
         SpentItem[] memory feeItems = !feesOn ? new SpentItem[](0) : _feeRake(debt);
         for (uint256 i; i < debt.length;) {
-            offer[i] = debt[i];
+            offer[i] = SpentItem({
+                itemType: debt[i].itemType,
+                token: debt[i].token,
+                identifier: debt[i].identifier,
+                amount: debt[i].amount
+            });
             if (feesOn) {
                 offer[i].amount = debt[i].amount - feeItems[i].amount;
                 _moveFeesToReceived(feeItems[i]);
@@ -602,19 +633,13 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             abi.decode(context, (Actions, LoanManager.Loan, bytes));
 
         (
-            // used to update the new loan amount
             ReceivedItem[] memory considerationPayment,
-            // used to pay the carry amount
             ReceivedItem[] memory carryPayment,
-            // note: considerationPayment - carryPayment = amount to pay lender
-
-            // used for any additional payments beyond consideration and carry
             ReceivedItem[] memory additionalPayment
-        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, msg.sender);
+        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, fulfiller);
 
         consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
         consideration = _removeZeroAmounts(consideration);
-
         // if for malicious or non-malicious the refinanceConsideration is zero
         if (consideration.length == 0) {
             revert InvalidNoRefinanceConsideration();
@@ -636,5 +661,16 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _issueLoanManager(loan, fulfiller.code.length > 0);
     }
 
-    receive() external payable {}
+    receive() external payable {
+        try seaport.incrementCounter() {
+            revert NotEnteredViaSeaport();
+        } catch {}
+    }
+
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external returns (bytes4) {
+        try seaport.incrementCounter() {
+            revert NotEnteredViaSeaport();
+        } catch {}
+        return this.onERC1155Received.selector;
+    }
 }
