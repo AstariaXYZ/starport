@@ -75,7 +75,6 @@ abstract contract ConduitHelper {
             _mergeAndRemoveZeroAmounts(repayConsideration, carryConsideration, additionalConsiderations, validCount);
     }
 
-
     function _packageTransfers(ReceivedItem[] memory refinanceConsideration, address refinancer)
         internal
         pure
