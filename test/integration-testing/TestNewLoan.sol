@@ -1,4 +1,4 @@
-import "./StarPortTest.sol";
+import "starport-test/StarPortTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 

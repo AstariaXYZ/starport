@@ -1,4 +1,4 @@
-import "./StarPortTest.sol";
+import "starport-test/StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 

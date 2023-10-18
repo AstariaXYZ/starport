@@ -1,4 +1,4 @@
-import "./StarPortTest.sol";
+import "starport-test/StarPortTest.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract MockOriginator is Originator, TokenReceiverInterface {
