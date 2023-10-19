@@ -25,7 +25,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
 import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-
+import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -39,7 +39,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;
-    address public immutable seaport;
+    ConsiderationInterface public immutable seaport;
 
     mapping(address => mapping(address => bool)) public repayApproval;
 
@@ -53,33 +53,43 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     error InvalidLoan();
     error InvalidRepayer();
     error NotSeaport();
+    error NotEnteredViaSeaport();
     error NotLoanManager();
 
-    constructor(LoanManager LM_, address seaport_) {
+    constructor(LoanManager LM_, ConsiderationInterface seaport_) {
         seaport = seaport_;
         LM = LM_;
         emit SeaportCompatibleContractDeployed();
     }
 
-    modifier onlyLoanManager() {
-        if (msg.sender != address(LM)) {
-            revert NotLoanManager();
-        }
-        _;
-    }
-
+    /**
+     * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
+     * @param loan            Loan to get the borrower of
+     * @return address        The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
+     */
     function getBorrower(LoanManager.Loan memory loan) public view returns (address) {
-        uint256 loanId = uint256(keccak256(abi.encode(loan)));
+        uint256 loanId = loan.getId();
         return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
     }
 
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (!_exists(tokenId)) {
+    /**
+     * @dev  erc721 tokenURI override
+     * @param loanId            The id of the custody token/loan
+     * @return                  the string uri of the custody token/loan
+     */
+    function tokenURI(uint256 loanId) public view override returns (string memory) {
+        if (!_exists(loanId)) {
             revert InvalidLoan();
         }
         return string("");
     }
 
+    /**
+     * @dev Helper to determine if an interface is supported by this contract
+     *
+     * @param interfaceId       The interface to check
+     * @return bool return true if the interface is supported
+     */
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -90,16 +100,38 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             || super.supportsInterface(interfaceId);
     }
 
+    /**
+     * @dev The name of the ERC721 contract
+     *
+     * @return string           The name of the contract
+     */
     function name() public pure override returns (string memory) {
         return "Starport Custodian";
     }
 
+    /**
+     * @dev The symbol of the ERC721 contract
+     *
+     * @return string           The symbol of the contract
+     */
     function symbol() public pure override returns (string memory) {
         return "SC";
     }
 
     //MODIFIERS
+    /**
+     * @dev only allows LoanManager to execute the function
+     */
+    modifier onlyLoanManager() {
+        if (msg.sender != address(LM)) {
+            revert NotLoanManager();
+        }
+        _;
+    }
 
+    /**
+     * @dev only allows seaport to execute the function
+     */
     modifier onlySeaport() {
         if (msg.sender != address(seaport)) {
             revert NotSeaport();
@@ -108,7 +140,11 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     }
 
     //EXTERNAL FUNCTIONS
-
+    /**
+     * @dev Mints a custody token for a loan.
+     *
+     * @param loan             The loan to mint a custody token for
+     */
     function mint(LoanManager.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
@@ -119,6 +155,12 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
         _safeMint(loan.borrower, loanId, encodedLoan);
     }
 
+    /**
+     * @dev Set's approvals for who can repay a loan on behalf of the borrower.
+     *
+     * @param who              The address of the account to modify approval for
+     * @param approved         The approval status
+     */
     function setRepayApproval(address who, bool approved) external {
         repayApproval[msg.sender][who] = approved;
         emit RepayApproval(msg.sender, who, approved);
@@ -155,13 +197,69 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
      */
     function generateOrder(
         address fulfiller,
-        SpentItem[] calldata minimumReceived,
+        SpentItem[] calldata,
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (offer, consideration) = _fillObligationAndVerify(fulfiller, maximumSpent, context);
+        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
+
+        if (action == Actions.Repayment && SettlementHook(loan.terms.hook).isActive(loan)) {
+            address borrower = getBorrower(loan);
+            if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
+                revert InvalidRepayer();
+            }
+
+            offer = loan.collateral;
+            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+            _setOfferApprovalsWithSeaport(offer);
+
+            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+
+            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            consideration = _removeZeroAmounts(consideration);
+
+            _settleLoan(loan);
+        } else if (action == Actions.Settlement && !SettlementHook(loan.terms.hook).isActive(loan)) {
+            address authorized;
+            //add in originator fee
+
+            _beforeGetSettlement(loan);
+            (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            _afterGetSettlement(loan);
+            if (authorized == address(0) || fulfiller == authorized) {
+                offer = loan.collateral;
+                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
+                _setOfferApprovalsWithSeaport(offer);
+            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {
+                _moveCollateralToAuthorized(loan.collateral, authorized);
+                _beforeSettlementHandlerHook(loan);
+                if (
+                    authorized == loan.terms.handler
+                        && SettlementHandler(loan.terms.handler).execute(loan, fulfiller)
+                            != SettlementHandler.execute.selector
+                ) {
+                    revert InvalidHandlerExecution();
+                }
+                _afterSettlementHandlerHook(loan);
+            } else {
+                revert InvalidFulfiller();
+            }
+            _settleLoan(loan);
+        } else {
+            revert InvalidAction();
+        }
     }
 
+    /**
+     * @dev previews the order for this contract offerer.
+     *
+     * @param consideration    The items received from the order completing
+     * @param orderHashes      The hashes of the orders completed
+     * @param contractNonce    The nonce of the contract in seaport
+     * @param context          The abi encoded bytes passed with the order
+     * @return selector        The function selector of the custody method
+     */
     function custody(
         ReceivedItem[] calldata consideration,
         bytes32[] calldata orderHashes,
@@ -171,7 +269,12 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
         revert ImplementInChild();
     }
 
-    //todo work with seaport
+    /**
+     * @dev returns metadata on how to interact with the offerer contract
+     *
+     * @return string  the name of the contract
+     * @return schemas  an array of supported schemas
+     */
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
         //adhere to sip data, how to encode the context and what it is
         //TODO: add in the context for the loan
@@ -233,73 +336,26 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
         }
     }
 
-    //seaport doesn't call safe transfer on anything but 1155 and never batch
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
-        public
-        pure
-        virtual
-        returns (bytes4)
-    {
+    /**
+     * @dev onERC1155Received handler
+     * if we are able to increment the counter in seaport that means we have not entered into seaport
+     * we dont add for 721 as they are able to ignore the on handler call as apart of the spec
+     * revert with NotEnteredViaSeaport()
+     */
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public virtual returns (bytes4) {
+        try seaport.incrementCounter() {
+            revert NotEnteredViaSeaport();
+        } catch {}
         return this.onERC1155Received.selector;
     }
 
     //INTERNAL FUNCTIONS
 
-    function _fillObligationAndVerify(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
-        internal
-        returns (SpentItem[] memory offer, ReceivedItem[] memory consideration)
-    {
-        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
-
-        bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);
-        if (action == Actions.Repayment && loanActive) {
-            address borrower = getBorrower(loan);
-            if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
-                revert InvalidRepayer();
-            }
-
-            offer = loan.collateral;
-            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-            _setOfferApprovalsWithSeaport(offer);
-
-            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
-                Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
-
-            _settleLoan(loan);
-        } else if (action == Actions.Settlement && !loanActive) {
-            address authorized;
-            //add in originator fee
-            _beforeSettlementHandlerHook(loan);
-            (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
-            _afterSettlementHandlerHook(loan);
-
-            if (authorized == address(0) || fulfiller == authorized) {
-                offer = loan.collateral;
-                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-                _setOfferApprovalsWithSeaport(offer);
-            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {
-                _moveDebtToAuthorized(loan.collateral, authorized);
-                if (
-                    authorized == loan.terms.handler
-                        && SettlementHandler(loan.terms.handler).execute(loan, fulfiller)
-                            != SettlementHandler.execute.selector
-                ) {
-                    revert InvalidHandlerExecution();
-                }
-            } else {
-                revert InvalidFulfiller();
-            }
-
-            _settleLoan(loan);
-        } else {
-            revert InvalidAction();
-        }
-    }
-
-    //custodian cant get any other assets deposited aside from what the LM supports
+    /**
+     * @dev enables the collateral deposited to be spent via seaport
+     *
+     * @param offer The item to make available to seaport
+     */
     function _enableAssetWithSeaport(SpentItem memory offer) internal {
         //approve consideration based on item type
         if (offer.itemType == ItemType.NATIVE) {
@@ -313,12 +369,22 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
         }
     }
 
+    /**
+     * @dev set's approvals for the collateral deposited to be spent via seaport
+     *
+     * @param offer The item to make available to seaport
+     */
     function _setOfferApprovalsWithSeaport(SpentItem[] memory offer) internal {
         for (uint256 i = 0; i < offer.length; i++) {
             _enableAssetWithSeaport(offer[i]);
         }
     }
-    //custodian cant get any other assets deposited aside from what the LM supports
+    /**
+     * @dev transfers out the collateral to the handler address
+     *
+     * @param offer             The item to send out of the Custodian
+     * @param handler           The address handling the asset further
+     */
 
     function _transferCollateralToHandler(SpentItem memory offer, address handler) internal {
         //approve consideration based on item type
@@ -333,34 +399,86 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
         }
     }
 
-    function _moveDebtToAuthorized(SpentItem[] memory offer, address handler) internal {
+    /**
+     * @dev transfers out the collateral of SpentItem to the handler address
+     *
+     * @param offer             The SpentItem array to send out of the Custodian
+     * @param handler           The address handling the asset further
+     */
+    function _moveCollateralToAuthorized(SpentItem[] memory offer, address handler) internal {
         for (uint256 i = 0; i < offer.length; i++) {
             _transferCollateralToHandler(offer[i], handler);
         }
     }
 
+    /**
+     * @dev settle the loan with the LoanManager
+     *
+     * @param loan              The the loan to settle
+     */
     function _settleLoan(LoanManager.Loan memory loan) internal virtual {
         _beforeSettleLoanHook(loan);
+        uint256 loanId = loan.getId();
+        if (_exists(loanId)) {
+            _burn(loanId);
+        }
         LM.settle(loan);
         _afterSettleLoanHook(loan);
     }
 
+    /**
+     * @dev hook to call before the approvals are set
+     *
+     * @param fulfiller         The address executing seaport
+     * @param maximumSpent      The maximumSpent asses we've received with the order
+     * @param context           The abi encoded context we've received with the order
+     */
     function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
         internal
         virtual
     {}
 
+    /**
+     * @dev  hook to call before the loan get settlement call
+     *
+     * @param loan              The loan being settled
+     */
+    function _beforeGetSettlement(LoanManager.Loan memory loan) internal virtual {}
+
+    /**
+     * @dev  hook to call after the loan get settlement call
+     *
+     *
+     * @param loan              The loan being settled
+     */
+    function _afterGetSettlement(LoanManager.Loan memory loan) internal virtual {}
+    /**
+     * @dev  hook to call before the the loan settlement handler execute call
+     *
+     * @param loan              The loan being settled
+     */
     function _beforeSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
 
+    /**
+     * @dev  hook to call after the the loan settlement handler execute call
+     *
+     *
+     * @param loan              The loan being settled
+     */
     function _afterSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
 
-    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal {
-        uint256 loanId = loan.getId();
-        if (_exists(loanId)) {
-            _burn(uint256(keccak256(abi.encode(loan))));
-        }
-    }
+    /**
+     * @dev  hook to call before the loan is settled with the LM
+     *
+     * @param loan              The loan being settled
+     */
+    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 
+    /**
+     * @dev  hook to call after the loan is settled with the LM
+     *
+     * @param loan              The loan being settled
+     */
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
 
     receive() external payable onlySeaport {}

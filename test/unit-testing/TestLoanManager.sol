@@ -69,7 +69,7 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
 }
 
 contract MockCustodian is Custodian {
-    constructor(LoanManager LM_, address seaport) Custodian(LM_, seaport) {}
+    constructor(LoanManager LM_, ConsiderationInterface seaport) Custodian(LM_, seaport) {}
 
     function custody(
         ReceivedItem[] calldata consideration,
@@ -88,14 +88,14 @@ contract TestLoanManager is StarPortTest, DeepEq {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     uint256 public borrowAmount = 100;
-    MockCustodian mockCustodian = new MockCustodian(LM, address(seaport));
+    MockCustodian public mockCustodian;
 
     function setUp() public virtual override {
         super.setUp();
 
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        mockCustodian = new MockCustodian(LM, address(seaport));
+        mockCustodian = new MockCustodian(LM, seaport);
         StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
 contract MockCustodian is Custodian {
-    constructor(LoanManager LM_, address seaport_) Custodian(LM_, seaport_) {}
+    constructor(LoanManager LM_, ConsiderationInterface seaport_) Custodian(LM_, seaport_) {}
 
     function custody(
         ReceivedItem[] calldata consideration,
@@ -184,9 +184,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testSafeTransfer1155Receive() public {
-        erc721s[0].mint(address(this), 0x1a4);
         erc1155s[0].mint(address(this), 1, 2);
 
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotEnteredViaSeaport.selector));
+        erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
+        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
         erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
     }
 
@@ -200,7 +202,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testCustodySelector() public {
-        MockCustodian custodianMock = new MockCustodian(LM, seaportAddr);
+        MockCustodian custodianMock = new MockCustodian(LM, seaport);
         vm.prank(address(custodianMock.LM()));
         assert(
             custodianMock.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))

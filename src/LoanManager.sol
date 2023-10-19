@@ -148,8 +148,8 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     error NotEnteredViaSeaport();
 
     constructor(ConsiderationInterface seaport_) {
+        address custodian = address(new Custodian(this, seaport_));
         seaport = seaport_;
-        address custodian = address(new Custodian(this, address(seaport)));
 
         bytes32 defaultCustodianCodeHash;
         assembly {

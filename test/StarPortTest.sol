@@ -49,7 +49,7 @@ import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC1155} from "seaport/contracts/test/TestERC1155.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
-import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
+//import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
@@ -117,7 +117,8 @@ contract StarPortTest is BaseOrderTest {
     Pricing simpleInterestPricing;
     Pricing astariaPricing;
 
-    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+    //    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+    ConsiderationInterface public seaport;
 
     Pricing pricing;
     SettlementHandler handler;
@@ -154,6 +155,7 @@ contract StarPortTest is BaseOrderTest {
         conduitController = new ConduitController();
 
         consideration = new Consideration(address(conduitController));
+        seaport = consideration;
         seaportAddr = address(seaport);
     }
 
