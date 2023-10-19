@@ -667,7 +667,8 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      *
      * @param debt The items to make available to seaport
      * @param caveatHash the caveat hash if any
-     * @param feeOn if we're collecting fees
+     * @param feesOn if we're collecting fees
+     * @return offer an array of SpentItem on offer to seaport
      */
     function _setOffer(SpentItem[] memory debt, bytes32 caveatHash, bool feesOn)
         internal
@@ -751,7 +752,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      *
      * @param fulfiller         The address who is executing the seaport txn
      * @param context           The abi encoded bytes data passed with the order
-     * @return bool return true if the interface is supported
+     * @return consideration    The array of ReceivedItem to be received by the fulfiller
      */
     function _refinance(address fulfiller, bytes calldata context)
         internal
