@@ -34,29 +34,32 @@ abstract contract ConduitHelper {
         uint256 validCount
     ) internal pure virtual returns (ReceivedItem[] memory consideration) {
         assembly {
-            function consumingCopy(arr, ptr) -> out {
+            function refCopy(arr, ptr) -> out {
                 let size := mload(arr)
-                let end := add(arr, mul(add(1, size), 0x20))
-                for { let i := add(0x20, arr) } lt(i, end) { i := add(i, 0x20) } {
-                    let amount := mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))
-                    if iszero(amount) { continue }
+                let i := add(0x20, arr)
+                let end := add(i, mul(size, 0x20))
+                for {} lt(i, end) { i := add(i, 0x20) } {
+                    if iszero(mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))) { continue }
                     mstore(ptr, mload(i))
                     ptr := add(ptr, 0x20)
                 }
                 //reset old array length
-                mstore(arr, 0)
+
+                //Maybe add this guard to stop access of shared memory  
+                //mstore(arr, 0)
                 out := ptr
             }
 
             //Set consideration to free memory
             consideration := mload(0x40)
             //Expand memory
-            mstore(0x40, add(add(0x20, consideration), mul(validCount, 0x20)))
+            let start := add(consideration, 0x20)
+            mstore(0x40, add(start, mul(validCount, 0x20)))
             mstore(consideration, validCount)
             pop(
-                consumingCopy(
+                refCopy(
                     additionalConsiderations,
-                    consumingCopy(carryConsideration, consumingCopy(repayConsideration, add(consideration, 0x20)))
+                    refCopy(carryConsideration, refCopy(repayConsideration, start))
                 )
             )
         }
@@ -81,8 +84,7 @@ abstract contract ConduitHelper {
         virtual
         returns (ConduitTransfer[] memory transfers)
     {
-        uint256 validConsiderations = _countNonZeroAmounts(refinanceConsideration, 0);
-        transfers = new ConduitTransfer[](validConsiderations);
+        transfers = new ConduitTransfer[](_countNonZeroAmounts(refinanceConsideration, 0));
         uint256 i = 0;
         uint256 j = 0;
         for (; i < refinanceConsideration.length;) {
@@ -128,11 +130,11 @@ abstract contract ConduitHelper {
             let i := add(arr, 0x20)
             let end := add(i, mul(size, 0x20))
             for {} lt(i, end) { i := add(i, 0x20) } {
-                let amount := mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))
-                if iszero(amount) { continue }
+                if iszero(mload(add(mload(i), RECEIVED_AMOUNT_OFFSET))) { continue }
                 validCount := add(validCount, 1)
             }
         }
+
         return validCount;
     }
 }

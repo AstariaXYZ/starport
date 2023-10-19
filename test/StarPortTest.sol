@@ -49,7 +49,7 @@ import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC1155} from "seaport/contracts/test/TestERC1155.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
-import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
+//import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
@@ -65,6 +65,7 @@ import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOff
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
+import {Actions} from "starport-core/lib/StarPortLib.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -117,7 +118,8 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
     Pricing simpleInterestPricing;
     Pricing astariaPricing;
 
-    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+    //    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+    ConsiderationInterface public seaport;
 
     Pricing pricing;
     SettlementHandler handler;
@@ -154,6 +156,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         conduitController = new ConduitController();
 
         consideration = new Consideration(address(conduitController));
+        seaport = consideration;
         seaportAddr = address(seaport);
     }
 
@@ -173,7 +176,6 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         vm.label(address(erc721s[0]), "721 collateral 1");
         vm.label(address(erc721s[1]), "721 collateral 2");
         vm.label(address(erc1155s[0]), "1155 collateral 1");
-        vm.label(address(erc1155s[1]), "1155 collateral 2");
 
         // allocate funds and tokens to test addresses
         allocateTokensAndApprovals(address(this), uint128(MAX_INT));
@@ -198,6 +200,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         vm.label(address(erc20s[1]), "Collateral ERC20");
         vm.label(address(erc1155s[0]), "Collateral 1155");
         vm.label(address(erc1155s[1]), "Debt 1155 ");
+        vm.label(address(erc721s[2]), "Debt 721 ");
         {
             erc721s[1].mint(seller.addr, 1);
             erc721s[0].mint(borrower.addr, 1);
@@ -205,6 +208,9 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             erc721s[0].mint(borrower.addr, 3);
             erc20s[1].mint(borrower.addr, 10000);
             erc1155s[0].mint(borrower.addr, 1, 1);
+            erc1155s[1].mint(lender.addr, 1, 10);
+            erc1155s[1].mint(lender.addr, 2, 10);
+            erc721s[2].mint(lender.addr, 1);
         }
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
         conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
@@ -214,6 +220,8 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
 
         conduitController.updateChannel(lenderConduit, address(SO), true);
         erc20s[0].approve(address(lenderConduit), 100000);
+        erc1155s[1].setApprovalForAll(lenderConduit, true);
+        erc721s[2].setApprovalForAll(lenderConduit, true);
         vm.stopPrank();
         vm.prank(address(issuer));
         erc20s[0].approve(address(lenderConduit), 100000);
@@ -265,7 +273,15 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         StrategistOriginator originator,
         ConsiderationItem[] storage collateral
     ) internal returns (LoanManager.Loan memory) {
-        bool isTrusted = loanData.caveats.length == 0;
+        return newLoan(loanData, originator, collateral, "");
+    }
+
+    function newLoan(
+        NewLoanData memory loanData,
+        StrategistOriginator originator,
+        ConsiderationItem[] storage collateral,
+        bytes memory revertMessage
+    ) internal returns (LoanManager.Loan memory) {
         {
             bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
@@ -282,6 +298,87 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
                 }),
                 collateral // for building contract offer
             );
+        }
+    }
+
+    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho)
+        internal
+        returns (LoanManager.Loan memory newLoan)
+    {
+        return refinanceLoan(loan, newPricingData, asWho, "");
+    }
+
+    function refinanceLoan(
+        LoanManager.Loan memory loan,
+        bytes memory newPricingData,
+        address asWho,
+        bytes memory revertMessage
+    ) internal returns (LoanManager.Loan memory newLoan) {
+        if (revertMessage.length > 0) {
+            vm.expectRevert(revertMessage);
+        }
+        (SpentItem[] memory offer, ReceivedItem[] memory requiredConsideration) = LM.previewOrder(
+            address(seaport),
+            asWho,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Refinance, loan, newPricingData)
+        );
+        //OrderParameters parameters;
+        //    uint120 numerator;
+        //    uint120 denominator;
+        //    bytes signature;
+        //    bytes extraData;
+        OfferItem[] memory offerItems = new OfferItem[](offer.length);
+        for (uint256 i = 0; i < offer.length; i++) {
+            offerItems[i] = OfferItem({
+                itemType: offer[i].itemType,
+                token: offer[i].token,
+                identifierOrCriteria: offer[i].identifier,
+                startAmount: offer[i].amount,
+                endAmount: offer[i].amount
+            });
+        }
+
+        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](requiredConsideration.length);
+        for (uint256 i = 0; i < requiredConsideration.length; i++) {
+            considerationItems[i] = ConsiderationItem({
+                itemType: requiredConsideration[i].itemType,
+                token: requiredConsideration[i].token,
+                identifierOrCriteria: requiredConsideration[i].identifier,
+                startAmount: requiredConsideration[i].amount,
+                endAmount: requiredConsideration[i].amount,
+                recipient: requiredConsideration[i].recipient
+            });
+        }
+        AdvancedOrder memory refinanceOrder = AdvancedOrder({
+            signature: "",
+            parameters: _buildContractOrder(address(LM), offerItems, considerationItems),
+            numerator: 1,
+            denominator: 1,
+            extraData: abi.encode(Actions.Refinance, loan, newPricingData)
+        });
+        vm.recordLogs();
+        vm.startPrank(asWho);
+
+        if (revertMessage.length > 0) {
+            vm.expectRevert(); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
+        }
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: refinanceOrder,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(asWho)
+        });
+        vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
+                (, newLoan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                break;
+            }
         }
     }
 
@@ -394,7 +491,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(activeLoan)
+            extraData: abi.encode(Actions.Settlement, activeLoan)
         });
 
         uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
@@ -415,7 +512,11 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
             payable(activeLoan.custodian)
         ).previewOrder(
-            address(LM.seaport()), activeLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan)
+            address(LM.seaport()),
+            activeLoan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Repayment, activeLoan)
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -427,7 +528,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(activeLoan)
+            extraData: abi.encode(Actions.Repayment, activeLoan)
         });
 
         uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
@@ -519,7 +620,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             numerator: 1,
             denominator: 1,
             signature: "",
-            extraData: abi.encode(nlr)
+            extraData: abi.encode(Actions.Origination, nlr)
         });
         orders[2] = z;
 
@@ -584,6 +685,14 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         internal
         returns (LoanManager.Loan memory loan)
     {
+        return _executeNLR(nlr, collateral, "");
+    }
+
+    function _executeNLR(
+        LoanManager.Obligation memory nlr,
+        ConsiderationItem[] memory collateral,
+        bytes memory revertReason
+    ) internal returns (LoanManager.Loan memory loan) {
         bytes32 caveatHash =
             keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
         OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
@@ -612,8 +721,13 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         OrderParameters memory op =
             _buildContractOrder(address(LM), nlr.caveats.length == 0 ? new OfferItem[](0) : offer, collateral);
 
-        AdvancedOrder memory x =
-            AdvancedOrder({parameters: op, numerator: 1, denominator: 1, signature: "0x", extraData: abi.encode(nlr)});
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Origination, nlr)
+        });
 
         uint256 balanceBefore;
         if (debt[0].token == address(0)) {
@@ -623,6 +737,9 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         }
         vm.recordLogs();
         vm.startPrank(borrower.addr);
+        if (revertReason.length > 0) {
+            vm.expectRevert(revertReason);
+        }
         if (collateral[0].itemType == ItemType.NATIVE) {
             consideration.fulfillAdvancedOrder{value: collateral[0].endAmount}({
                 advancedOrder: x,
@@ -657,7 +774,16 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
         }
 
-        assertEq(balanceAfter - balanceBefore, debt[0].amount);
+        uint256 feeReceiverBalance;
+        if (LM.feeTo() != address(0)) {
+            if (debt[0].token == address(0)) {
+                feeReceiverBalance = LM.feeTo().balance;
+            } else {
+                feeReceiverBalance = ERC20(debt[0].token).balanceOf(LM.feeTo());
+            }
+        }
+
+        assertEq(balanceAfter - balanceBefore + feeReceiverBalance, debt[0].amount);
         vm.stopPrank();
     }
 
@@ -750,6 +876,15 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         ConsiderationItem memory collateral,
         SpentItem memory debtRequested,
         address incomingIssuer
+    ) internal returns (StrategistOriginator.Details memory) {
+        return _generateOriginationDetails(collateral, debtRequested, incomingIssuer, address(custodian));
+    }
+
+    function _generateOriginationDetails(
+        ConsiderationItem memory collateral,
+        SpentItem memory debtRequested,
+        address incomingIssuer,
+        address incomingCustodian
     ) internal returns (StrategistOriginator.Details memory details) {
         delete selectedCollateral;
         delete debt;
@@ -765,7 +900,7 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         });
         details = StrategistOriginator.Details({
             conduit: address(lenderConduit),
-            custodian: address(custodian),
+            custodian: address(incomingCustodian),
             issuer: incomingIssuer,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -783,9 +918,6 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
         ConsiderationItem memory collateralItem,
         SpentItem memory debtItem
     ) internal returns (LoanManager.Loan memory loan) {
-        selectedCollateral.push(collateralItem);
-        debt.push(debtItem);
-
         StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
 
         loan = newLoan(
@@ -848,6 +980,21 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
             startAmount: 1,
             endAmount: 1,
             identifierOrCriteria: 1,
+            itemType: ItemType.ERC721,
+            recipient: payable(address(custodian))
+        });
+    }
+
+    function _getERC721Consideration(TestERC721 token, uint256 tokenId)
+        internal
+        view
+        returns (ConsiderationItem memory)
+    {
+        return ConsiderationItem({
+            token: address(token),
+            startAmount: 1,
+            endAmount: 1,
+            identifierOrCriteria: tokenId,
             itemType: ItemType.ERC721,
             recipient: payable(address(custodian))
         });

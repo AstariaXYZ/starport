@@ -38,7 +38,7 @@ abstract contract RefConduitHelper {
 
             uint256 i = 0;
             uint256 n = repayConsideration.length;
-            for (; i < n; i++) {
+            for (; i < n; ++i) {
                 consideration[i] = repayConsideration[i];
             }
             uint256 offset = n;
@@ -57,11 +57,11 @@ abstract contract RefConduitHelper {
                 }
             }
         }
-        assembly {
-            mstore(repayConsideration, 0)
-            mstore(carryConsideration, 0)
-            mstore(additionalConsiderations, 0)
-        }
+        //assembly {
+        //    mstore(repayConsideration, 0)
+        //    mstore(carryConsideration, 0)
+        //    mstore(additionalConsiderations, 0)
+        //}
         consideration = _removeZeroAmounts(consideration);
     }
 

@@ -111,4 +111,5 @@ abstract contract BasePricing is Pricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure virtual returns (uint256);
+
 }

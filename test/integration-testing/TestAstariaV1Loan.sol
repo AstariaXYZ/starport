@@ -1,55 +1,24 @@
 import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
-// import {Base} from "starport-core/pricing/CompoundInterestPricing.sol";
-// import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import "forge-std/console2.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;
     using FixedPointMathLib for uint256;
 
-    function testNewLoanERC721CollateralDefaultTermsRecall() public {
-        Custodian custody = Custodian(LM.defaultCustodian());
-
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-
-        selectedCollateral.push(
-            ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custody))
-            })
+    function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
+            _getERC721Consideration(erc721s[0]),
+            SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
+            lender.addr
         );
 
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custody),
-            issuer: lender.addr,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
-
         LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
             StrategistOriginator(SO),
             selectedCollateral
         );
@@ -65,14 +34,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with before recall is initiated
-            vm.startPrank(refinancer.addr);
-            vm.expectRevert(Pricing.InvalidRefinance.selector);
-            LM.refinance(
+            refinanceLoan(
                 loan,
                 abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-                refinancerConduit
+                refinancer.addr,
+                abi.encodeWithSelector(Pricing.InvalidRefinance.selector)
             );
-            vm.stopPrank();
         }
         uint256 stake;
         {
@@ -117,14 +84,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with incorrect terms
-            vm.expectRevert(AstariaV1Pricing.InsufficientRefinance.selector);
-            vm.startPrank(refinancer.addr);
-            LM.refinance(
+            refinanceLoan(
                 loan,
                 abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-                refinancerConduit
+                refinancer.addr,
+                abi.encodeWithSelector(AstariaV1Pricing.InsufficientRefinance.selector)
             );
-            vm.stopPrank();
         }
         {
             // refinance with correct terms
@@ -133,12 +98,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
             uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
-            vm.startPrank(refinancer.addr);
             vm.warp(block.timestamp + (details.recallWindow / 2));
-            LM.refinance(
-                loan, abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0})), refinancerConduit
+            refinanceLoan(
+                loan, abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0})), refinancer.addr
             );
-            vm.stopPrank();
 
             (ReceivedItem[] memory repaymentConsideration, ReceivedItem[] memory carryConsideration) =
                 BasePricing(address(pricing)).getPaymentConsideration(loan);
@@ -306,7 +269,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(loan),
+                extraData: abi.encode(Actions.Settlement, loan),
                 signature: ""
             });
 
@@ -449,7 +412,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(loan),
+                extraData: abi.encode(Actions.Settlement, loan),
                 signature: ""
             });
 

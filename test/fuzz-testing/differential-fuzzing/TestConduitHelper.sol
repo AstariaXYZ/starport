@@ -117,18 +117,18 @@ abstract contract BaseTestConduitHelper is Test, Bound, DeepEq {
         assertEq(consideration.length, validCount, "consideration length should be equal to validCount");
     }
 
-    function testFailMergeAndRemoveZeroAmounts() public {
-        ReceivedItem[] memory receivedItemsA;
-        ReceivedItem[] memory receivedItemsB;
-        ReceivedItem[] memory receivedItemsC;
-        (receivedItemsA, receivedItemsB, receivedItemsC) = getBenchArrays();
+    //function testFailMergeAndRemoveZeroAmounts() public {
+    //    ReceivedItem[] memory receivedItemsA;
+    //    ReceivedItem[] memory receivedItemsB;
+    //    ReceivedItem[] memory receivedItemsC;
+    //    (receivedItemsA, receivedItemsB, receivedItemsC) = getBenchArrays();
 
-        ReceivedItem[] memory consideration = _mergeAndRemoveZeroAmounts(receivedItemsA, receivedItemsB, receivedItemsC);
+    //    ReceivedItem[] memory consideration = _mergeAndRemoveZeroAmounts(receivedItemsA, receivedItemsB, receivedItemsC);
 
-        console.log(receivedItemsA[0].amount);
-    }
+    //    console.log(receivedItemsA[0].amount);
+    //}
 
-    function getBenchArrays() internal returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory) {
+    function getBenchArrays() internal pure returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory) {
         ReceivedItem[] memory receivedItemsA = new ReceivedItem[](1);
         ReceivedItem[] memory receivedItemsB = new ReceivedItem[](1);
         ReceivedItem[] memory receivedItemsC = new ReceivedItem[](1);
