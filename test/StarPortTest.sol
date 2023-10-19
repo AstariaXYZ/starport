@@ -908,6 +908,15 @@ contract StarPortTest is BaseOrderTest {
         ConsiderationItem memory collateral,
         SpentItem memory debtRequested,
         address incomingIssuer
+    ) internal returns (StrategistOriginator.Details memory) {
+        return _generateOriginationDetails(collateral, debtRequested, incomingIssuer, address(custodian));
+    }
+
+    function _generateOriginationDetails(
+        ConsiderationItem memory collateral,
+        SpentItem memory debtRequested,
+        address incomingIssuer,
+        address incomingCustodian
     ) internal returns (StrategistOriginator.Details memory details) {
         delete selectedCollateral;
         delete debt;

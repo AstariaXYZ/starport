@@ -8,22 +8,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custody),
-            issuer: lender.addr,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
+        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
+            _getERC721Consideration(erc721s[0]),
+            SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
+            lender.addr
+        );
 
         LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
             StrategistOriginator(SO),
             selectedCollateral
         );

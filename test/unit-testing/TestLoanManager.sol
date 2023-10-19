@@ -4,6 +4,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
 
 contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
     constructor(LoanManager LM_, address strategist_, uint256 fee_)
@@ -53,7 +54,8 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
         address issuer = address(this);
         if (request.details.length > 0) {
             if (request.debt[0].itemType != ItemType.NATIVE) {
-                Originator.Details memory details = abi.decode(request.details, (Originator.Details));
+                StrategistOriginator.Details memory details =
+                    abi.decode(request.details, (StrategistOriginator.Details));
                 issuer = details.issuer == address(0) ? issuer : details.issuer;
                 _execute(request, details);
             } else {
@@ -94,13 +96,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
         erc20s[0].approve(address(lenderConduit), 100000);
 
         mockCustodian = new MockCustodian(LM, address(seaport));
-        Originator.Details memory defaultLoanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         Custodian(custodian).mint(loan);
@@ -206,7 +208,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             details: "",
             approval: "",
             caveats: new LoanManager.Caveat[](0),
-            originator: address(UO)
+            originator: address(SO)
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
@@ -228,7 +230,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             details: "",
             approval: "",
             caveats: new LoanManager.Caveat[](0),
-            originator: address(UO)
+            originator: address(SO)
         });
 
         vm.mockCall(
@@ -261,7 +263,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             details: "",
             approval: "",
             caveats: new LoanManager.Caveat[](0),
-            originator: address(UO)
+            originator: address(SO)
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebtLength.selector));
@@ -321,7 +323,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             details: "",
             approval: "",
             caveats: new LoanManager.Caveat[](0),
-            originator: address(UO)
+            originator: address(SO)
         });
         vm.prank(address(LM.seaport()));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
@@ -343,13 +345,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
         address feeReceiver = address(20);
         LM.setFeeData(feeReceiver, 1e17); //10% fees
 
-        Originator.Details memory defaultLoanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         assertEq(erc20s[0].balanceOf(feeReceiver), debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
@@ -361,13 +363,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.setFeeData(feeReceiver, 1e17); //10% fees
         LM.setFeeOverride(debt[0].token, 0); //0% fees
 
-        Originator.Details memory defaultLoanDetails = _generateOriginationDetails(
+        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
             _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
         LoanManager.Loan memory loan = newLoan(
             NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            Originator(UO),
+            StrategistOriginator(SO),
             selectedCollateral
         );
         assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
@@ -712,7 +714,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         OD.issuer = lender.addr;
         OD.conduit = lenderConduit;
         vm.prank(lender.addr);
@@ -769,7 +771,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         OD.issuer = lender.addr;
         OD.conduit = lenderConduit;
         vm.prank(lender.addr);
@@ -820,7 +822,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         OD.issuer = lender.addr;
         OD.conduit = lenderConduit;
         vm.prank(lender.addr);
@@ -875,7 +877,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         OD.issuer = lender.addr;
         OD.conduit = lenderConduit;
         vm.prank(lender.addr);
@@ -937,7 +939,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         OD.issuer = lender.addr;
         OD.conduit = lenderConduit;
         vm.prank(lender.addr);
@@ -1072,7 +1074,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         SpentItem[] memory maxSpent = new SpentItem[](1);
         maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 1, itemType: ItemType.ERC20});
-        Originator.Details memory OD;
+        StrategistOriginator.Details memory OD;
         vm.prank(lender.addr);
         conduitController.updateChannel(lenderConduit, address(originator), true);
 
