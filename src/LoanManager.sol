@@ -630,8 +630,8 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     }
 
     /**
-     * @dev set's fee override's for specific tokens
-     * only owner can call
+     * @dev moves the fee's collected to the feeTo address
+     *
      * @param feeItem The feeItem to payout
      */
     function _moveFeesToReceived(SpentItem memory feeItem) internal {
@@ -643,8 +643,8 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     }
 
     /**
-     * @dev set's fee override's for specific tokens
-     * only owner can call
+     * @dev enables the debt to be spent via seaport
+     *
      * @param debt The item to make available to seaport
      */
     function _enableDebtWithSeaport(SpentItem memory debt) internal {
@@ -662,6 +662,13 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    /**
+     * @dev set's the offer item to be spent via seaport
+     *
+     * @param debt The items to make available to seaport
+     * @param caveatHash the caveat hash if any
+     * @param feeOn if we're collecting fees
+     */
     function _setOffer(SpentItem[] memory debt, bytes32 caveatHash, bool feesOn)
         internal
         returns (SpentItem[] memory offer)
@@ -691,6 +698,15 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    /**
+     * @dev override the transferFrom so that onlyseaport can call it
+     * shim it so that it does a false success so seaport can tell us
+     * to move caveatHash tokens even though none are minted
+     * this allows caveatHash tokens to be signed into the seaport order and get guarentee's from seaport on execution
+     * @param from the address to send from (if not the LM, then revert CannotTransferLoans()
+     * @param to the receiving party
+     * @param tokenId the tokenId (only caveatHash tokens are supported and aren't actually issued/sent)
+     */
     function transferFrom(address from, address to, uint256 tokenId) public payable override onlySeaport {
         if (address(this) != from) revert CannotTransferLoans();
     }
@@ -719,11 +735,24 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
+    /**
+     * @dev Helper to determine if an interface is supported by this contract
+     *
+     * @param interfaceId       The interface to check
+     * @return bool return true if the interface is supported
+     */
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721) returns (bool) {
         return interfaceId == type(ContractOffererInterface).interfaceId || interfaceId == type(ERC721).interfaceId
             || super.supportsInterface(interfaceId);
     }
 
+    /**
+     * @dev internal method for conducting a refinance
+     *
+     * @param fulfiller         The address who is executing the seaport txn
+     * @param context           The abi encoded bytes data passed with the order
+     * @return bool return true if the interface is supported
+     */
     function _refinance(address fulfiller, bytes calldata context)
         internal
         returns (ReceivedItem[] memory consideration)
@@ -760,12 +789,23 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _issueLoanManager(loan, fulfiller.code.length > 0);
     }
 
+    /**
+     * @dev receive eth method
+     * if we are able to increment the counter in seaport that means we have not entered into seaport
+     * revert with NotEnteredViaSeaport()
+     */
     receive() external payable {
         try seaport.incrementCounter() {
             revert NotEnteredViaSeaport();
         } catch {}
     }
 
+    /**
+     * @dev onERC1155Received handler
+     * if we are able to increment the counter in seaport that means we have not entered into seaport
+     * we dont add for 721 as they are able to ignore the on handler call as apart of the spec
+     * revert with NotEnteredViaSeaport()
+     */
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external returns (bytes4) {
         try seaport.incrementCounter() {
             revert NotEnteredViaSeaport();
