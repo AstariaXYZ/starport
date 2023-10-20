@@ -57,7 +57,7 @@ abstract contract BasePricing is Pricing {
             carryConsideration = new ReceivedItem[](length);
             for (uint256 i = 0; i < length;) {
                 uint256 interest = calculateInterest(delta_t, loan.debt[i].amount, details.rate);
-                uint256 carry = interest.divWad(details.carryRate);
+                uint256 carry = interest.mulWad(details.carryRate);
                 repayConsideration[i] = ReceivedItem({
                     itemType: loan.debt[i].itemType,
                     identifier: loan.debt[i].identifier,
@@ -66,13 +66,15 @@ abstract contract BasePricing is Pricing {
                     recipient: payable(loan.issuer)
                 });
 
-                carryConsideration[i] = ReceivedItem({
-                    itemType: loan.debt[i].itemType,
-                    identifier: loan.debt[i].identifier,
-                    amount: carry,
-                    token: loan.debt[i].token,
-                    recipient: payable(loan.originator)
-                });
+                if (carry > 0) {
+                    carryConsideration[i] = ReceivedItem({
+                        itemType: loan.debt[i].itemType,
+                        identifier: loan.debt[i].identifier,
+                        amount: carry,
+                        token: loan.debt[i].token,
+                        recipient: payable(loan.originator)
+                    });
+                }
                 unchecked {
                     ++i;
                 }
@@ -111,5 +113,4 @@ abstract contract BasePricing is Pricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure virtual returns (uint256);
-
 }

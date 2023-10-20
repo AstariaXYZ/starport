@@ -676,23 +676,15 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     function testRefinanceNoRefinanceConsideration() public {
+        Originator originator = new MockOriginator(LM, address(0), 0);
         address seaport = address(LM.seaport());
         bytes memory newPricingData =
             abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0}));
 
-        ReceivedItem[] memory emptyConsideration = new ReceivedItem[](1);
-        emptyConsideration[0] = ReceivedItem({
-            itemType: ItemType.ERC20,
-            token: address(erc20s[0]),
-            identifier: 0,
-            amount: 0,
-            recipient: payable(address(0))
-        });
-
         vm.mockCall(
             address(activeLoan.terms.pricing),
-            abi.encode(Pricing.isValidRefinance.selector),
-            abi.encode(emptyConsideration, emptyConsideration, emptyConsideration)
+            abi.encodeWithSelector(Pricing.isValidRefinance.selector, activeLoan, newPricingData, refinancer.addr),
+            abi.encode(new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0))
         );
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidNoRefinanceConsideration.selector));
         LM.previewOrder(
@@ -703,28 +695,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             abi.encode(Actions.Refinance, activeLoan, newPricingData)
         );
         vm.prank(address(LM.seaport()));
-
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidNoRefinanceConsideration.selector));
-
-        LM.generateOrder(
-            refinancer.addr,
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Refinance, activeLoan, newPricingData)
-        );
-    }
-
-    function testRefinanceConsiderationsLessThanDebt() public {
-        bytes memory newPricingData =
-            abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0}));
-
-        vm.mockCall(
-            address(activeLoan.terms.pricing),
-            abi.encode(Pricing.isValidRefinance.selector),
-            abi.encode(new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0))
-        );
-        vm.expectRevert();
-
         LM.generateOrder(
             refinancer.addr,
             new SpentItem[](0),

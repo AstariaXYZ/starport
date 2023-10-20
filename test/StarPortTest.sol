@@ -64,7 +64,6 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 
 interface IWETH9 {
@@ -103,7 +102,7 @@ contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
     }
 }
 
-contract StarPortTest is BaseOrderTest, ConduitHelper {
+contract StarPortTest is BaseOrderTest {
     using Cast for *;
 
     MockIssuer public issuer;
@@ -509,19 +508,54 @@ contract StarPortTest is BaseOrderTest, ConduitHelper {
     }
 
     function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
-            payable(activeLoan.custodian)
-        ).previewOrder(
-            address(LM.seaport()),
-            activeLoan.borrower,
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Repayment, activeLoan)
+        (ReceivedItem[] memory loanPayment, ReceivedItem[] memory carryPayment) =
+            Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
+        uint256 i = 0;
+        ConsiderationItem[] memory consider = new ConsiderationItem[](
+            loanPayment.length + carryPayment.length
         );
+        for (; i < loanPayment.length;) {
+            consider[i].token = loanPayment[i].token;
+            consider[i].itemType = loanPayment[i].itemType;
+            consider[i].identifierOrCriteria = loanPayment[i].identifier;
+            consider[i].startAmount = loanPayment[i].amount;
+            //TODO: update this
+            consider[i].endAmount = loanPayment[i].amount;
+            consider[i].recipient = loanPayment[i].recipient;
+            unchecked {
+                ++i;
+            }
+        }
+        for (; i < carryPayment.length;) {
+            consider[i].token = carryPayment[i].token;
+            consider[i].itemType = carryPayment[i].itemType;
+            consider[i].identifierOrCriteria = carryPayment[i].identifier;
+            consider[i].startAmount = carryPayment[i].amount;
+            //TODO: update this
+            consider[i].endAmount = carryPayment[i].amount;
+            consider[i].recipient = carryPayment[i].recipient;
+            unchecked {
+                ++i;
+            }
+        }
 
-        OrderParameters memory op = _buildContractOrder(
-            address(custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        OfferItem[] memory repayOffering = new OfferItem[](
+            activeLoan.collateral.length
         );
+        i = 0;
+        for (; i < activeLoan.collateral.length;) {
+            repayOffering[i] = OfferItem({
+                itemType: activeLoan.collateral[i].itemType,
+                token: address(activeLoan.collateral[i].token),
+                identifierOrCriteria: activeLoan.collateral[i].identifier,
+                endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
+                startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
+            });
+            unchecked {
+                ++i;
+            }
+        }
+        OrderParameters memory op = _buildContractOrder(address(custodian), repayOffering, consider);
 
         AdvancedOrder memory x = AdvancedOrder({
             parameters: op,

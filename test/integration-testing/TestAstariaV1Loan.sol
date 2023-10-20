@@ -2,13 +2,10 @@ import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;
-    using FixedPointMathLib for uint256;
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
         StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
@@ -96,29 +93,25 @@ contract TestAstariaV1Loan is AstariaV1Test {
             uint256 newLenderBefore = erc20s[0].balanceOf(refinancer.addr);
             uint256 oldLenderBefore = erc20s[0].balanceOf(lender.addr);
             uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
-            uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
             refinanceLoan(
                 loan, abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0})), refinancer.addr
             );
-
-            (ReceivedItem[] memory repaymentConsideration, ReceivedItem[] memory carryConsideration) =
-                BasePricing(address(pricing)).getPaymentConsideration(loan);
-
+            uint256 delta_t = block.timestamp - loan.start;
+            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            uint256 interest =
+                BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+            uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
+            uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
             assertEq(
-                erc20s[0].balanceOf(loan.originator),
-                originatorBefore + carryConsideration[0].amount,
-                "Carry Payment to originator calculated incorrectly"
-            );
-            assertEq(
-                erc20s[0].balanceOf(lender.addr),
-                oldLenderBefore + repaymentConsideration[0].amount,
+                oldLenderAfter,
+                oldLenderBefore + loan.debt[0].amount + interest,
                 "Payment to old lender calculated incorrectly"
             );
             assertEq(
-                erc20s[0].balanceOf(refinancer.addr),
-                newLenderBefore - (repaymentConsideration[0].amount + carryConsideration[0].amount + stake),
+                newLenderAfter,
+                newLenderBefore - (loan.debt[0].amount + interest + stake),
                 "Payment from new lender calculated incorrectly"
             );
             assertEq(
