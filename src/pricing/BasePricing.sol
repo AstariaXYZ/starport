@@ -29,6 +29,7 @@ import "forge-std/console2.sol";
 
 import {BaseHook} from "starport-core/hooks/BaseHook.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 abstract contract BasePricing is Pricing {
     using FixedPointMathLib for uint256;
@@ -44,7 +45,7 @@ abstract contract BasePricing is Pricing {
         view
         virtual
         override
-        returns (ReceivedItem[] memory repayConsideration, ReceivedItem[] memory carryConsideration)
+        returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
         repayConsideration = _generateRepayConsideration(loan);
         carryConsideration = _generateRepayCarryConsideration(loan);
@@ -103,21 +104,20 @@ abstract contract BasePricing is Pricing {
     function _generateRepayConsideration(LoanManager.Loan memory loan)
         internal
         view
-        returns (ReceivedItem[] memory consideration)
+        returns (SpentItem[] memory consideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
-        consideration = new ReceivedItem[](loan.debt.length);
+        consideration = new SpentItem[](loan.debt.length);
         uint256[] memory owing = _getOwed(loan, details, loan.start, block.timestamp);
 
         uint256 i = 0;
         for (; i < consideration.length;) {
-            consideration[i] = ReceivedItem({
+            consideration[i] = SpentItem({
                 itemType: loan.debt[i].itemType,
                 identifier: loan.debt[i].identifier,
                 amount: owing[i],
-                token: loan.debt[i].token,
-                recipient: payable(loan.issuer)
+                token: loan.debt[i].token
             });
             unchecked {
                 ++i;
@@ -128,21 +128,20 @@ abstract contract BasePricing is Pricing {
     function _generateRepayCarryConsideration(LoanManager.Loan memory loan)
         internal
         view
-        returns (ReceivedItem[] memory consideration)
+        returns (SpentItem[] memory consideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
 
-        if (details.carryRate == 0) return new ReceivedItem[](0);
+        if (details.carryRate == 0) return new SpentItem[](0);
         uint256[] memory owing = _getOwedCarry(loan, details, block.timestamp);
-        consideration = new ReceivedItem[](owing.length);
+        consideration = new SpentItem[](owing.length);
         uint256 i = 0;
         for (; i < consideration.length;) {
-            consideration[i] = ReceivedItem({
+            consideration[i] = SpentItem({
                 itemType: loan.debt[i].itemType,
                 identifier: loan.debt[i].identifier,
                 amount: owing[i],
-                token: loan.debt[i].token,
-                recipient: payable(loan.originator)
+                token: loan.debt[i].token
             });
             unchecked {
                 ++i;

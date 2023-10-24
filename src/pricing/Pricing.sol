@@ -21,7 +21,8 @@
 pragma solidity =0.8.17;
 
 import {LoanManager} from "starport-core/LoanManager.sol";
-import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
 abstract contract Pricing {
     LoanManager LM;
@@ -36,11 +37,11 @@ abstract contract Pricing {
         public
         view
         virtual
-        returns (ReceivedItem[] memory, ReceivedItem[] memory);
+        returns (SpentItem[] memory, SpentItem[] memory);
 
     function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
         external
         view
         virtual
-        returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory);
+        returns (SpentItem[] memory, SpentItem[] memory, ConduitTransfer[] memory);
 }

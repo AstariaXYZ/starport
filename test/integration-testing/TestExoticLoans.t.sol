@@ -79,17 +79,17 @@ contract SwapPricing is Pricing {
         public
         view
         override
-        returns (ReceivedItem[] memory, ReceivedItem[] memory)
+        returns (SpentItem[] memory, SpentItem[] memory)
     {
-        return (new ReceivedItem[](0), new ReceivedItem[](0));
+        return (new SpentItem[](0), new SpentItem[](0));
     }
 
     function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
         external
         view
         override
-        returns (ReceivedItem[] memory, ReceivedItem[] memory, ReceivedItem[] memory)
+        returns (SpentItem[] memory, SpentItem[] memory, ConduitTransfer[] memory)
     {
-        return (new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0));
+        return (new SpentItem[](0), new SpentItem[](0), new ConduitTransfer[](0));
     }
 }

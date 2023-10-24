@@ -24,6 +24,8 @@ import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;
@@ -44,9 +46,9 @@ contract SimpleInterestPricing is BasePricing {
         virtual
         override
         returns (
-            ReceivedItem[] memory repayConsideration,
-            ReceivedItem[] memory carryConsideration,
-            ReceivedItem[] memory additionalConsideration
+            SpentItem[] memory repayConsideration,
+            SpentItem[] memory carryConsideration,
+            ConduitTransfer[] memory additionalConsideration
         )
     {
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
@@ -55,7 +57,7 @@ contract SimpleInterestPricing is BasePricing {
         //todo: figure out the proper flow for here
         if ((newDetails.rate < oldDetails.rate)) {
             (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
-            additionalConsideration = new ReceivedItem[](0);
+            additionalConsideration = new ConduitTransfer[](0);
         } else {
             revert InvalidRefinance();
         }

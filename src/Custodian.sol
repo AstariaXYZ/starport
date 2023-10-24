@@ -213,11 +213,11 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
             _setOfferApprovalsWithSeaport(offer);
 
-            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+            (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
+            // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            // consideration = _removeZeroAmounts(consideration);
 
             _settleLoan(loan);
         } else if (action == Actions.Settlement && !SettlementHook(loan.terms.hook).isActive(loan)) {
@@ -317,11 +317,11 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             }
             offer = loan.collateral;
 
-            (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+            (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            consideration = _removeZeroAmounts(consideration);
+            // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+            // consideration = _removeZeroAmounts(consideration);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);

@@ -51,12 +51,12 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
             roundUp: true
         });
 
-        (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+        (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
             Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
         // the settlementPrice does not cover carryFees
         if (paymentConsiderations[0].amount <= settlementPrice) {
-            carryFeeConsideration = new ReceivedItem[](0);
+            carryFeeConsideration = new SpentItem[](0);
         }
         // the settlementPrice covers at least some of the carry fees
         else {
@@ -78,8 +78,9 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
             token: paymentConsiderations[0].token,
             recipient: payable(recaller)
         });
-
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, recallerPayment);
+        
+        // TODO: fix this
+        // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, recallerPayment);
         consideration = _removeZeroAmounts(consideration);
     }
 

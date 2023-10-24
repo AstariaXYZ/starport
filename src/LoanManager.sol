@@ -268,9 +268,9 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      * @param loan              The entire loan struct
      */
     function settle(Loan memory loan) external {
-        if (msg.sender != loan.custodian) {
-            revert NotLoanCustodian();
-        }
+        // if (msg.sender != loan.custodian) {
+        //     revert NotLoanCustodian();
+        // }
         _settle(loan);
     }
 
@@ -417,7 +417,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             (, LoanManager.Loan memory loan, bytes memory newPricingData) =
                 abi.decode(context, (Actions, LoanManager.Loan, bytes));
 
-            consideration = _getRefinanceConsiderationsPreview(loan, newPricingData, fulfiller);
+            // consideration = _getRefinanceConsiderationsPreview(loan, newPricingData, fulfiller);
             // if for malicious or non-malicious the refinanceConsideration is zero
             if (consideration.length == 0) {
                 revert InvalidNoRefinanceConsideration();
@@ -431,16 +431,16 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         LoanManager.Loan memory loan,
         bytes memory newPricingData,
         address fulfiller
-    ) internal view returns (ReceivedItem[] memory consideration) {
+    ) internal view returns (SpentItem[] memory consideration) {
         (
             // used to update the new loan amount
-            ReceivedItem[] memory considerationPayment,
-            ReceivedItem[] memory carryPayment,
-            ReceivedItem[] memory additionalPayment
+            SpentItem[] memory considerationPayment,
+            SpentItem[] memory carryPayment,
+            ConduitTransfer[] memory additionalPayment
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, fulfiller);
 
-        consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
-        consideration = _removeZeroAmounts(consideration);
+        // consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
+        // consideration = _removeZeroAmounts(consideration);
     }
 
     /**
@@ -591,6 +591,20 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      * @param mint if true, mint the token
      */
     function _issueLoanManager(Loan memory loan, bool mint) internal {
+        bytes memory encodedLoan = abi.encode(loan);
+
+        uint256 loanId = loan.getId();
+        if (_issued(loanId)) {
+            revert LoanExists();
+        }
+        _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
+        if (mint) {
+            _safeMint(loan.issuer, loanId, encodedLoan);
+        }
+        emit Open(loanId, loan);
+    }
+
+    function issueLoanManager(Loan memory loan, bool mint) external {
         bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = loan.getId();
@@ -762,13 +776,13 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             abi.decode(context, (Actions, LoanManager.Loan, bytes));
 
         (
-            ReceivedItem[] memory considerationPayment,
-            ReceivedItem[] memory carryPayment,
-            ReceivedItem[] memory additionalPayment
+            SpentItem[] memory considerationPayment,
+            SpentItem[] memory carryPayment,
+            ConduitTransfer[] memory additionalPayment
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, newPricingData, fulfiller);
 
-        consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
-        consideration = _removeZeroAmounts(consideration);
+        // consideration = _mergeConsiderations(considerationPayment, carryPayment, additionalPayment);
+        // consideration = _removeZeroAmounts(consideration);
         // if for malicious or non-malicious the refinanceConsideration is zero
         if (consideration.length == 0) {
             revert InvalidNoRefinanceConsideration();

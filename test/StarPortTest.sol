@@ -508,7 +508,7 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-        (ReceivedItem[] memory loanPayment, ReceivedItem[] memory carryPayment) =
+        (SpentItem[] memory loanPayment, SpentItem[] memory carryPayment) =
             Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
         uint256 i = 0;
         ConsiderationItem[] memory consider = new ConsiderationItem[](
@@ -521,7 +521,7 @@ contract StarPortTest is BaseOrderTest {
             consider[i].startAmount = loanPayment[i].amount;
             //TODO: update this
             consider[i].endAmount = loanPayment[i].amount;
-            consider[i].recipient = loanPayment[i].recipient;
+            // consider[i].recipient = loanPayment[i].recipient;
             unchecked {
                 ++i;
             }
@@ -533,7 +533,7 @@ contract StarPortTest is BaseOrderTest {
             consider[i].startAmount = carryPayment[i].amount;
             //TODO: update this
             consider[i].endAmount = carryPayment[i].amount;
-            consider[i].recipient = carryPayment[i].recipient;
+            // consider[i].recipient = carryPayment[i].recipient;
             unchecked {
                 ++i;
             }

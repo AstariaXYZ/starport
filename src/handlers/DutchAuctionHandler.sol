@@ -62,18 +62,18 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
             roundUp: true
         });
 
-        (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
+        (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
             Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
         if (paymentConsiderations[0].amount <= settlementPrice) {
-            carryFeeConsideration = new ReceivedItem[](0);
+            carryFeeConsideration = new SpentItem[](0);
         } else {
             carryFeeConsideration[0].amount =
                 settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
         }
         paymentConsiderations[0].amount = settlementPrice;
 
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
+        // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
         consideration = _removeZeroAmounts(consideration);
     }
 
