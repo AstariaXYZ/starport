@@ -66,6 +66,10 @@ import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInte
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 
+import {Enforcer} from "starport-core/Enforcer.sol";
+import {BorrowerEnforcer} from "starport-core/BorrowerEnforcer.sol";
+import {LenderEnforcer} from "starport-core/LenderEnforcer.sol";
+
 interface IWETH9 {
     function deposit() external payable;
 
@@ -300,75 +304,42 @@ contract StarPortTest is BaseOrderTest {
         }
     }
 
-    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho)
+    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho, Enforcer.Caveat memory lenderCaveat, address lender)
         internal
         returns (LoanManager.Loan memory newLoan)
     {
-        return refinanceLoan(loan, newPricingData, asWho, "");
+        return refinanceLoan(loan, newPricingData, asWho, lenderCaveat, lender, "");
+    }
+
+    function getRefinanceCaveat(LoanManager.Loan memory loan, bytes memory pricingData, address fulfiller) external returns(LoanManager.Loan memory){
+        (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, fulfiller);
+        return LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
     }
 
     function refinanceLoan(
         LoanManager.Loan memory loan,
-        bytes memory newPricingData,
+        bytes memory pricingData,
         address asWho,
+        Enforcer.Caveat memory lenderCaveat,
+        address lender,
         bytes memory revertMessage
     ) internal returns (LoanManager.Loan memory newLoan) {
         if (revertMessage.length > 0) {
             vm.expectRevert(revertMessage);
         }
-        (SpentItem[] memory offer, ReceivedItem[] memory requiredConsideration) = LM.previewOrder(
-            address(seaport),
-            asWho,
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Refinance, loan, newPricingData)
-        );
-        //OrderParameters parameters;
-        //    uint120 numerator;
-        //    uint120 denominator;
-        //    bytes signature;
-        //    bytes extraData;
-        OfferItem[] memory offerItems = new OfferItem[](offer.length);
-        for (uint256 i = 0; i < offer.length; i++) {
-            offerItems[i] = OfferItem({
-                itemType: offer[i].itemType,
-                token: offer[i].token,
-                identifierOrCriteria: offer[i].identifier,
-                startAmount: offer[i].amount,
-                endAmount: offer[i].amount
-            });
-        }
-
-        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](requiredConsideration.length);
-        for (uint256 i = 0; i < requiredConsideration.length; i++) {
-            considerationItems[i] = ConsiderationItem({
-                itemType: requiredConsideration[i].itemType,
-                token: requiredConsideration[i].token,
-                identifierOrCriteria: requiredConsideration[i].identifier,
-                startAmount: requiredConsideration[i].amount,
-                endAmount: requiredConsideration[i].amount,
-                recipient: requiredConsideration[i].recipient
-            });
-        }
-        AdvancedOrder memory refinanceOrder = AdvancedOrder({
-            signature: "",
-            parameters: _buildContractOrder(address(LM), offerItems, considerationItems),
-            numerator: 1,
-            denominator: 1,
-            extraData: abi.encode(Actions.Refinance, loan, newPricingData)
-        });
         vm.recordLogs();
         vm.startPrank(asWho);
 
         if (revertMessage.length > 0) {
             vm.expectRevert(); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
         }
-        consideration.fulfillAdvancedOrder({
-            advancedOrder: refinanceOrder,
-            criteriaResolvers: new CriteriaResolver[](0),
-            fulfillerConduitKey: bytes32(0),
-            recipient: address(asWho)
-        });
+        LM.refinance(
+            lender,
+            lenderCaveat,
+            loan,
+            pricingData
+        );
+
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();

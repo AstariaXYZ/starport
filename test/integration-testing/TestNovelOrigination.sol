@@ -1,4 +1,4 @@
-import "starport-test/WhackyTest.sol";
+import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
@@ -8,17 +8,17 @@ import {BaseEnforcer} from "starport-core/BaseEnforcer.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
-contract NovelOriginationTest is WhackyTest {
+contract NovelOriginationTest is AstariaV1Test {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     function testNovelOriginationForGas() public {
       
       vm.startPrank(borrower.addr);
-      erc721s[0].setApprovalForAll(address(origination), true);
+      erc721s[0].setApprovalForAll(address(LM), true);
       vm.stopPrank();
 
       vm.startPrank(lender.addr);
-      erc20s[0].approve(address(origination), 1);
+      erc20s[0].approve(address(LM), 1);
       vm.stopPrank();
       
       SpentItem[] memory collateral = new SpentItem[](1);
@@ -92,7 +92,7 @@ contract NovelOriginationTest is WhackyTest {
       loan.issuer = lender.addr;
 
       // vm.startPrank(borrower.addr);
-      origination.originate(
+      LM.originate(
         new ConduitTransfer[](0),
         borrowerCaveat,
         lenderCaveat,
@@ -103,11 +103,11 @@ contract NovelOriginationTest is WhackyTest {
     function testNovelOriginationRefinanceForGas() public {
       
       vm.startPrank(borrower.addr);
-      erc721s[0].setApprovalForAll(address(origination), true);
+      erc721s[0].setApprovalForAll(address(LM), true);
       vm.stopPrank();
 
       vm.startPrank(lender.addr);
-      erc20s[0].approve(address(origination), 1);
+      erc20s[0].approve(address(LM), 1);
       vm.stopPrank();
       
       SpentItem[] memory collateral = new SpentItem[](1);
@@ -179,51 +179,53 @@ contract NovelOriginationTest is WhackyTest {
       loan.borrower = borrower.addr;
       loan.issuer = lender.addr;
 
-      LoanManager.Loan memory newLoan;
+      // LoanManager.Loan memory newLoan = copyLoan(loan);
+      // newLoan.start = block.timestamp;
       {
         vm.startPrank(borrower.addr);
-        newLoan = origination.originate(
+        LM.originate(
           new ConduitTransfer[](0),
           borrowerCaveat,
           lenderCaveat,
           loan
         );
         vm.stopPrank();
+        loan.start = block.timestamp;
         vm.warp(block.timestamp + 1 days);
 
         vm.startPrank(recaller.addr);
         BaseRecall recallContract = BaseRecall(address(hook));
-        recallContract.recall(newLoan, recallerConduit);
+        recallContract.recall(loan, recallerConduit);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 3 days - 1);
 
 
-        (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) = Pricing(loan.terms.pricing).isValidRefinance(newLoan, defaultPricingData, recaller.addr);
+      //   (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) = Pricing(loan.terms.pricing).isValidRefinance(newLoan, defaultPricingData, recaller.addr);
         
-        uint256 i=0;
-        if(carryPayment.length > 0){
-          for(;i<considerationPayment.length;){
-            loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
+      //   uint256 i=0;
+      //   if(carryPayment.length > 0){
+      //     for(;i<considerationPayment.length;){
+      //       loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
 
-            unchecked {
-              ++i;
-            }
-          }
-        }
-        else {
-          for(;i<considerationPayment.length;){
-            loan.debt[i].amount = considerationPayment[i].amount;
-            unchecked {
-              ++i;
-            }
-          }
-        }
-      }
+      //       unchecked {
+      //         ++i;
+      //       }
+      //     }
+      //   }
+      //   else {
+      //     for(;i<considerationPayment.length;){
+      //       loan.debt[i].amount = considerationPayment[i].amount;
+      //       unchecked {
+      //         ++i;
+      //       }
+      //     }
+      //   }
+      // }
 
-      loan.issuer = recaller.addr;
-      loan.borrower = address(0);
-      loan.originator = address(0);
+      // loan.issuer = recaller.addr;
+      // loan.borrower = address(0);
+      // loan.originator = address(0);
 
       caveat.loan = loan;
       Enforcer.Caveat memory recallerCaveat = Enforcer.Caveat({
@@ -240,14 +242,15 @@ contract NovelOriginationTest is WhackyTest {
       (recallerCaveat.approval.v, recallerCaveat.approval.r, recallerCaveat.approval.s) = vm.sign(recaller.key, keccak256(abi.encode(recallerCaveat.enforcer, recallerCaveat.caveat, recallerCaveat.salt)));
 
       vm.startPrank(recaller.addr);
-      erc20s[0].approve(address(origination), loan.debt[0].amount);
-      // vm.stopPrank();
-      origination.refinance(
+      erc20s[0].approve(address(LM), loan.debt[0].amount);
+      vm.stopPrank();
+      LM.refinance(
         recaller.addr,
         recallerCaveat,
-        newLoan,
+        loan,
         defaultPricingData
       );
-      vm.stopPrank();
+      // vm.stopPrank();
+      }
     }
 }

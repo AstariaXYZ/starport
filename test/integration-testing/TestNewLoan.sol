@@ -128,9 +128,23 @@ contract TestNewLoan is StarPortTest {
             selectedCollateral
         );
 
+        Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
+            enforcer: address(0),
+            salt: bytes32(uint256(1)),
+            caveat: new bytes(uint256(1)),
+            approval: Enforcer.Approval({
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0)
+            })
+        });
+        
+        // getLenderSignedCaveat();
         refinanceLoan(
             loan,
             abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
+            refinancer.addr,
+            lenderCaveat,
             refinancer.addr
         );
     }
