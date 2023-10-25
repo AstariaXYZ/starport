@@ -198,6 +198,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
 
         loan.start = block.timestamp;
+        loan.originator = msg.sender;
         //mint LM
         _issueLoanManager(loan, true);
         return loan;
@@ -219,7 +220,6 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
         
-        
         _transferSpentItems(considerationPayment, lender, loan.issuer);
         _transferSpentItems(carryPayment, lender, loan.originator);
 
@@ -228,12 +228,12 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         loan.start = 0;
 
         if(msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]){
-        _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
+            _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
         if(additionalTransfers.length > 0){
-        _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
-        _transferConduitTransfers(additionalTransfers);
+            _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+            _transferConduitTransfers(additionalTransfers);
         }
 
         loan.originator = msg.sender;

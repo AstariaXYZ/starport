@@ -47,8 +47,45 @@ abstract contract BasePricing is Pricing {
         override
         returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
-        repayConsideration = _generateRepayConsideration(loan);
-        carryConsideration = _generateRepayCarryConsideration(loan);
+        // repayConsideration = _generateRepayConsideration(loan);
+        // carryConsideration = _generateRepayCarryConsideration(loan);
+        
+        Details memory details = abi.decode(loan.terms.pricingData, (Details));
+        if(details.carryRate > 0) carryConsideration = new SpentItem[](loan.debt.length);
+        else carryConsideration = new SpentItem[](0);
+        repayConsideration = new SpentItem[](loan.debt.length);
+
+        uint256 i=0;
+        for(;i<loan.debt.length;){
+            uint256 interest = getInterest(loan, details, loan.start, block.timestamp, i);
+            
+            if(details.carryRate > 0){
+                carryConsideration[i] = SpentItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: interest.mulWad(details.carryRate),
+                    token: loan.debt[i].token
+                });
+                repayConsideration[i] = SpentItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: loan.debt[i].amount + interest - carryConsideration[i].amount,
+                    token: loan.debt[i].token
+                });
+            }
+            else {
+                repayConsideration[i] = SpentItem({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: loan.debt[i].amount + interest,
+                    token: loan.debt[i].token
+                });
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
     }
 
     function getOwed(LoanManager.Loan memory loan) public view returns (uint256[] memory) {

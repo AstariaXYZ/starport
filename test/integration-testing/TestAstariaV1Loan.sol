@@ -4,23 +4,109 @@ import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+
 contract TestAstariaV1Loan is AstariaV1Test {
+    using FixedPointMathLib for uint256;
     using {StarPortLib.getId} for LoanManager.Loan;
+    
+    function setupBasicLoan() public returns(LoanManager.Loan memory) {
+        vm.startPrank(borrower.addr);
+        erc721s[0].setApprovalForAll(address(LM), true);
+        vm.stopPrank();
 
-    function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0]),
-            SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
-            lender.addr
-        );
+        vm.startPrank(lender.addr);
+        erc20s[0].approve(address(LM), 1e18);
+        vm.stopPrank();
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
+        SpentItem[] memory collateral = new SpentItem[](1);
+        collateral[0] = SpentItem({
+            itemType: ItemType.ERC721,
+            token: address(erc721s[0]),
+            identifier: 1,
+            amount: 1
+        });
+
+        SpentItem[] memory debt = new SpentItem[](1);
+        debt[0] = SpentItem({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            identifier: 0,
+            amount: 1e18
+        });
+
+      LoanManager.Loan memory loan = LoanManager.Loan({
+        start: 0,
+        custodian: address(custodian),
+        borrower: borrower.addr,
+        issuer: address(0),
+        originator: address(0),
+        collateral: collateral,
+        debt: debt,
+        terms: LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        })
+      });
+
+        BaseEnforcer.Details memory caveat = BaseEnforcer.Details({
+            loan: loan
+        });
+
+        Enforcer.Caveat memory borrowerCaveat = Enforcer.Caveat({
+        enforcer: address(borrowerEnforcer),
+        salt: bytes32(uint256(2)),
+        caveat: abi.encode(caveat),
+        approval: Enforcer.Approval({
+            v: 0,
+            r: bytes32(0),
+            s: bytes32(0)
+        })
+        });
+
+        (borrowerCaveat.approval.v, borrowerCaveat.approval.r, borrowerCaveat.approval.s) = vm.sign(borrower.key, keccak256(abi.encode(borrowerCaveat.enforcer, borrowerCaveat.caveat, borrowerCaveat.salt)));
+
+        caveat.loan.borrower = address(0);
+        caveat.loan.issuer = lender.addr;
+        Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
+            enforcer: address(lenderEnforcer),
+            salt: bytes32(uint256(1)),
+            caveat: abi.encode(caveat),
+            approval: Enforcer.Approval({
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0)
+            })
+        });
+
+        (lenderCaveat.approval.v, lenderCaveat.approval.r, lenderCaveat.approval.s) = vm.sign(lender.key, keccak256(abi.encode(lenderCaveat.enforcer, lenderCaveat.caveat, lenderCaveat.salt)));
+
+
+        loan.borrower = borrower.addr;
+        loan.issuer = lender.addr;
+
+        // vm.startPrank(borrower.addr);
+        vm.startPrank(fulfiller.addr);
+        LM.originate(
+            new ConduitTransfer[](0),
+            borrowerCaveat,
+            lenderCaveat,
+            loan
         );
+        vm.stopPrank();
+        loan.start = block.timestamp;
+        loan.originator = fulfiller.addr;
+
         uint256 loanId = loan.getId();
         assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
+        return loan;
+    }
+    function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
+        LoanManager.Loan memory loan = setupBasicLoan();
 
         {
             vm.startPrank(recaller.addr);
@@ -31,13 +117,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with before recall is initiated
-            // refinanceLoan(
-            //     loan,
-            //     abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-            //     refinancer.addr,
-            //     abi.encodeWithSelector(Pricing.InvalidRefinance.selector)
-            // );
-
             Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
                 enforcer: address(0),
                 salt: bytes32(uint256(1)),
@@ -85,6 +164,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
         }
         {
+            uint256 loanId = loan.getId();
             BaseRecall recallContract = BaseRecall(address(hook));
             address recallerAddr;
             uint64 start;
@@ -101,7 +181,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with incorrect terms
-
             Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
                 enforcer: address(0),
                 salt: bytes32(uint256(1)),
@@ -121,55 +200,86 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 refinancer.addr,
                 abi.encodeWithSelector(AstariaV1Pricing.InsufficientRefinance.selector)
             );
-            // refinanceLoan(
-            //     loan,
-            //     abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-            //     refinancer.addr,
-            //     abi.encodeWithSelector(AstariaV1Pricing.InsufficientRefinance.selector)
-            // );
         }
         {
             // refinance with correct terms
             uint256 newLenderBefore = erc20s[0].balanceOf(refinancer.addr);
             uint256 oldLenderBefore = erc20s[0].balanceOf(lender.addr);
+            uint256 oldOriginatorBefore = erc20s[0].balanceOf(loan.originator);
             uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
+            uint256 newFullfillerBefore = erc20s[0].balanceOf(address(this));
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
-            // refinanceLoan(
-            //     loan, abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0})), refinancer.addr
-            // );
             
-            // bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
-            // BaseEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
-            // Enforcer.Caveat memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
-            // refinanceLoan(
-            //     loan,
-            //     pricingData,
-            //     refinancer.addr,
-            //     refinancerCaveat,
-            //     refinancer.addr
-            // );
+            bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
+            {
+                BaseEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
+                Enforcer.Caveat memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
+                // vm.startPrank(refinancer.addr);
+
+                vm.startPrank(refinancer.addr);
+                erc20s[0].approve(address(LM), refinanceDetails.loan.debt[0].amount);
+                vm.stopPrank();
+
+                erc20s[0].approve(address(LM), stake);
+                refinanceLoan(
+                    loan,
+                    pricingData,
+                    address(this),
+                    refinancerCaveat,
+                    refinancer.addr
+                );
+            }
+
             
-            // // uint256 delta_t = block.timestamp - loan.start;
-            // BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            // uint256 interest =
-            //     BasePricing(address(pricing)).calculateInterest(block.timestamp - loan.start, loan.debt[0].amount, pricingDetails.rate);
-            // uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
-            // uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
-            // assertEq(
-            //     oldLenderAfter,
-            //     oldLenderBefore + loan.debt[0].amount + interest,
-            //     "Payment to old lender calculated incorrectly"
-            // );
-            // assertEq(
-            //     newLenderAfter,
-            //     newLenderBefore - (loan.debt[0].amount + interest + stake),
-            //     "Payment from new lender calculated incorrectly"
-            // );
-            // assertEq(
-            //     recallerBefore + stake, erc20s[0].balanceOf(recaller.addr), "Recaller did not recover stake as expected"
-            // );
-            // assertTrue(LM.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
+            uint256 delta_t = block.timestamp - loan.start;
+            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            uint256 interest =
+                CompoundInterestPricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+            
+            {
+                uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
+                assertEq(
+                    oldLenderAfter,
+                    oldLenderBefore + loan.debt[0].amount + interest.mulWad(1e18 - pricingDetails.carryRate),
+                    "Payment to old lender calculated incorrectly"
+                );
+            }
+            
+            {
+                uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
+                assertEq(
+                    newLenderAfter,
+                    newLenderBefore - (loan.debt[0].amount + interest),
+                    "Payment from new lender calculated incorrectly"
+                );
+            }
+            assertEq(
+                recallerBefore + stake, erc20s[0].balanceOf(recaller.addr), "Recaller did not recover stake as expected"
+            );
+
+            {
+                uint256 oldOriginatorAfter = erc20s[0].balanceOf(loan.originator);
+                assertEq(
+                    oldOriginatorAfter,
+                    oldOriginatorBefore + interest.mulWad(pricingDetails.carryRate),
+                    "Carry payment to old originator calculated incorrectly"
+                );
+            }
+
+            {
+                uint256 newFullfillerAfter = erc20s[0].balanceOf(address(this));
+                assertEq(
+                    newFullfillerAfter,
+                    newFullfillerBefore - stake,
+                    "New fulfiller did not repay recaller stake correctly"
+                );
+            }
+
+            {
+                uint256 loanId = loan.getId();
+                assertTrue(LM.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
+            }
         }
         {
             uint256 withdrawerBalanceBefore = erc20s[0].balanceOf(address(this));

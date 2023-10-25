@@ -44,7 +44,7 @@ contract AstariaV1Test is StarPortTest {
         vm.startPrank(recaller.addr);
         recallerConduit = conduitController.createConduit(conduitKeyRecaller, recaller.addr);
         conduitController.updateChannel(recallerConduit, address(hook), true);
-        erc20s[0].approve(address(recallerConduit), 100000);
+        erc20s[0].approve(address(recallerConduit), 1e18);
         vm.stopPrank();
 
         // // 1% interest rate per second
@@ -90,7 +90,10 @@ contract AstariaV1Test is StarPortTest {
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, transactor);
 
         loan = LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-
+        loan.issuer = transactor;
+        loan.start = 0;
+        loan.originator = address(0);
+        
         return BaseEnforcer.Details({
             loan: loan
         });

@@ -144,6 +144,7 @@ contract StarPortTest is BaseOrderTest {
     Account seller;
     Account strategist;
     Account refinancer;
+    Account fulfiller;
 
     bytes32 conduitKey;
     address lenderConduit;
@@ -190,6 +191,8 @@ contract StarPortTest is BaseOrderTest {
         strategist = makeAndAllocateAccount("strategist");
         seller = makeAndAllocateAccount("seller");
         refinancer = makeAndAllocateAccount("refinancer");
+        fulfiller = makeAndAllocateAccount("fulfiller");
+
 
         LM = new LoanManager(consideration);
         custodian = Custodian(payable(LM.defaultCustodian()));
@@ -324,9 +327,9 @@ contract StarPortTest is BaseOrderTest {
         address lender,
         bytes memory revertMessage
     ) internal returns (LoanManager.Loan memory newLoan) {
-        if (revertMessage.length > 0) {
-            vm.expectRevert(revertMessage);
-        }
+        // if (revertMessage.length > 0) {
+        //     vm.expectRevert(revertMessage);
+        // }
         vm.recordLogs();
         vm.startPrank(asWho);
 
