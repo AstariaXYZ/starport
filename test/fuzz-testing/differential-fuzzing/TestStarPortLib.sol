@@ -52,7 +52,6 @@ contract DiffFuzzTestStarPortLib is Test, Bound, DeepEq {
             assertTrue(success, "expected success");
         }
     }
-
 }
 
 abstract contract BaseTestStarPortLib is Test {
