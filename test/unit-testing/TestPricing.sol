@@ -42,7 +42,9 @@ contract TestBasePricing is StarPortTest, DeepEq {
           })
         ),
         hookData: abi.encode(
-          FixedTermHook.Details({loanDuration: defaultLoanDuration})
+          FixedTermHook.Details({
+            loanDuration: 14 days
+          })
         )
       }),
       collateralItem: ConsiderationItem({
