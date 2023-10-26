@@ -303,47 +303,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // lender is recaller, liquidation amount is 0
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
-        Custodian custody = Custodian(LM.defaultCustodian());
-
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-
-        selectedCollateral.push(
-            ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custody))
-            })
-        );
-
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custody),
-            issuer: lender.addr,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
-
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan = setupBasicLoan();
         uint256 loanId = loan.getId();
 
         uint256 stake;
@@ -365,9 +325,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
             stake = BasePricing(address(pricing)).calculateInterest(
                 details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
             );
-            assertEq(balanceBefore, balanceAfter + stake, "Recaller balance not transfered correctly");
+            // lender is not required to provide a stake to recall
+            assertEq(balanceBefore, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
-                recallContractBalanceBefore + stake,
+                recallContractBalanceBefore,
                 recallContractBalanceAfter,
                 "Balance not transfered to recall contract correctly"
             );
@@ -444,47 +405,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // recaller is not the lender, liquidation amount is a dutch auction
     function testNewLoanERC721CollateralDefaultTermsRecallLiquidation() public {
-        Custodian custody = Custodian(LM.defaultCustodian());
-
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-
-        selectedCollateral.push(
-            ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custody))
-            })
-        );
-
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custody),
-            issuer: lender.addr,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
-
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custody), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan = setupBasicLoan();
         uint256 loanId = loan.getId();
 
         uint256 stake;
@@ -539,11 +460,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 SettlementHandler(loan.terms.handler).getSettlement(loan);
 
             assertEq(
-                settlementConsideration.length, 2, "Settlement consideration length for a dutch auction should be 2"
+                settlementConsideration.length, 3, "Settlement consideration length for a dutch auction should be 3 (carry, recaller, and the lender)"
             );
             assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
-            assertEq(settlementConsideration[0].amount, 450 ether, "Settlement consideration for loan incorrect");
-            assertEq(settlementConsideration[1].amount, 50 ether, "Settlement consideration for loan incorrect");
+            {
+                uint256 carry = uint256(1643840372884797);
+                uint256 settlementPrice = 500 ether - carry;
+                uint256 recallerReward = settlementPrice.mulWad(10e16);
+                assertEq(settlementConsideration[0].amount, carry, "Settlement consideration for carry incorrect");
+                assertEq(settlementConsideration[1].amount, recallerReward, "Settlement consideration for recaller incorrect");
+                assertEq(settlementConsideration[2].amount, settlementPrice - recallerReward, "Settlement consideration for lender incorrect");
+            }
             ConsiderationItem[] memory consider = new ConsiderationItem[](
                 settlementConsideration.length
             );

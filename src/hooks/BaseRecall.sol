@@ -101,20 +101,22 @@ abstract contract BaseRecall is ConduitHelper {
             revert RecallBeforeHoneymoonExpiry();
         }
 
+        if(loan.issuer != msg.sender && loan.borrower != msg.sender){
+            (,, address conduitController) = seaport.information();
+            // validate that the provided conduit is owned by the msg.sender
+            if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
+                revert InvalidConduit();
+            }
+            ConduitTransfer[] memory recallConsideration =
+                _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this)));
+            if (
+                ConduitInterface(conduit).execute(recallConsideration)
+                    != ConduitInterface.execute.selector
+            ) {
+                revert ConduitTransferError();
+            }
+        }
         // get conduitController
-        (,, address conduitController) = seaport.information();
-        // validate that the provided conduit is owned by the msg.sender
-        if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-            revert InvalidConduit();
-        }
-        ConduitTransfer[] memory recallConsideration =
-            _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this)));
-        if (
-            ConduitInterface(conduit).execute(recallConsideration)
-                != ConduitInterface.execute.selector
-        ) {
-            revert ConduitTransferError();
-        }
 
         bytes memory encodedLoan = abi.encode(loan);
 
@@ -140,19 +142,21 @@ abstract contract BaseRecall is ConduitHelper {
         if (recall.start == 0 || recall.recaller == address(0)) {
             revert WithdrawDoesNotExist();
         }
+        
+        if(loan.issuer != recall.recaller && loan.borrower != recall.recaller ){
+            ConduitTransfer[] memory recallConsideration =
+                _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
+            recall.recaller = payable(address(0));
+            recall.start = 0;
 
-        ConduitTransfer[] memory recallConsideration =
-            _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
-        recall.recaller = payable(address(0));
-        recall.start = 0;
+            for (uint256 i; i < recallConsideration.length;) {
+                if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
 
-        for (uint256 i; i < recallConsideration.length;) {
-            if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
+                ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
 
-            ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
-
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -167,7 +171,7 @@ abstract contract BaseRecall is ConduitHelper {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         recallStake = new uint256[](loan.debt.length);
         for (uint256 i; i < loan.debt.length;) {
-            recallStake[i] = BasePricing(loan.terms.pricing).getInterest(loan, details, start, end, i);
+            recallStake[i] = BasePricing(loan.terms.pricing).getInterest(loan, details.rate, start, end, i);
 
             unchecked {
                 ++i;
