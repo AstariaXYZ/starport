@@ -343,9 +343,10 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
      * revert with NotEnteredViaSeaport()
      */
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) public virtual returns (bytes4) {
-        try seaport.incrementCounter() {
-            revert NotEnteredViaSeaport();
-        } catch {}
+        // commenting out because, we are not entering this flow via Seaport after teh new origiantion changes
+        // try seaport.incrementCounter() {
+        //     revert NotEnteredViaSeaport();
+        // } catch {}
         return this.onERC1155Received.selector;
     }
 

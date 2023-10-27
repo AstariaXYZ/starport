@@ -43,8 +43,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-import {Enforcer} from "starport-core/Enforcer.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
@@ -69,7 +68,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("IntentOrigination(bytes32 hash,bytes32 salt,uint256 nonce)");
+        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
     bytes32 public constant VERSION = keccak256("0");
     address public feeTo;
     uint96 public defaultFeeRake;
@@ -173,19 +172,20 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
 
     mapping(address => mapping(bytes32 => bool)) invalidHashes;
     mapping(address => mapping(address => bool)) approvals;
+    mapping(address => uint256) caveatNonces;
 
     function originate(
         ConduitTransfer[] calldata additionalTransfers,
-        Enforcer.Caveat calldata borrowerCaveat,
-        Enforcer.Caveat calldata lenderCaveat,
-        LoanManager.Loan memory loan) external payable returns (LoanManager.Loan memory){
+        CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
+        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        LoanManager.Loan memory loan) external payable {
 
         if(msg.sender != loan.borrower){
             _validateAndEnforceCaveats(borrowerCaveat, loan.borrower, additionalTransfers, loan);
         }
 
         if(msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]){
-        _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
+            _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
         _transferSpentItems(loan.debt, loan.issuer, loan.borrower);
@@ -193,20 +193,19 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
 
         
         if(additionalTransfers.length > 0){
-        _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
-        _transferConduitTransfers(additionalTransfers);
+            _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+            _transferConduitTransfers(additionalTransfers);
         }
 
         loan.start = block.timestamp;
         loan.originator = msg.sender;
         //mint LM
         _issueLoanManager(loan, true);
-        return loan;
     }
 
     function refinance(
         address lender,
-        Enforcer.Caveat calldata lenderCaveat,
+        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan,
         bytes memory pricingData
         ) external
@@ -278,23 +277,17 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
         }
     }
-    function _validateAndEnforceCaveats(Enforcer.Caveat memory caveat, address validator, ConduitTransfer[] memory additionalTransfers, LoanManager.Loan memory loan) internal {
-        bytes32 salt = caveat.salt;
-        if(salt != bytes32(0)){
-        if(invalidHashes[validator][salt]){
-            revert HashAlreadyInvalidated();
-        }
-        else{
-            if(salt != bytes32(0)) invalidHashes[validator][salt] = true;
-        }
-        }
+    function _validateAndEnforceCaveats(CaveatEnforcer.CaveatWithApproval memory caveatApproval, address validator, ConduitTransfer[] memory additionalTransfers, LoanManager.Loan memory loan) internal {
+        invalidHashes.validateSalt(validator, caveatApproval.caveat.salt);
 
-        bytes32 hash = keccak256(abi.encode(caveat.enforcer, caveat.caveat, salt));
-        address signer = ecrecover(hash, caveat.approval.v, caveat.approval.r, caveat.approval.s);
+        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.caveat);
+        address signer = ecrecover(hash, caveatApproval.v, caveatApproval.r, caveatApproval.s);
+
+        console2.log("bark", validator, msg.sender);
         if(signer != validator) revert InvalidCaveatSigner();
 
         // will revert if invalid
-        Enforcer(caveat.enforcer).validate(additionalTransfers, loan, caveat.caveat);
+        CaveatEnforcer(caveatApproval.caveat.enforcer).validate(additionalTransfers, loan, caveatApproval.caveat.data);
     }
 
     function _transferConduitTransfers(ConduitTransfer[] memory transfers) internal {
@@ -346,26 +339,18 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
-    /**
-     * @dev previews the order for this contract offerer.
-     *
-     * @param borrower        The address of the borrower
-     * @param salt            The salt of the borrower's obligation
-     * @param caveatHash      The hash of the abi.encoded obligation caveats
-     * @return                The abi encode packed bytes that include the intent typehash with the salt and nonce and caveatHash
-     */
-    function encodeWithSaltAndBorrowerCounter(address borrower, bytes32 salt, bytes32 caveatHash)
+    function hashCaveatWithSaltAndNonce(address validator, CaveatEnforcer.Caveat memory caveat)
         public
         view
         virtual
-        returns (bytes memory)
+        returns (bytes32)
     {
-        return abi.encodePacked(
+        return keccak256(abi.encodePacked(
             bytes1(0x19),
             bytes1(0x01),
             _DOMAIN_SEPARATOR,
-            keccak256(abi.encode(INTENT_ORIGINATION_TYPEHASH, salt, borrowerNonce[borrower], caveatHash))
-        );
+            keccak256(abi.encode(INTENT_ORIGINATION_TYPEHASH, caveat.enforcer, caveatNonces[validator], caveat.salt, caveat.deadline, caveat.data))
+        ));
     }
 
     /**

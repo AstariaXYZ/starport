@@ -12,16 +12,14 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 
 import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
-import {BaseEnforcer} from "starport-core/BaseEnforcer.sol";
+import {BaseEnforcer} from "starport-core/enforcers/BaseEnforcer.sol";
 // import "forge-std/console2.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 contract AstariaV1Test is StarPortTest {
     Account recaller;
     address recallerConduit;
     bytes32 conduitKeyRecaller;
-
-    BorrowerEnforcer borrowerEnforcer;
-    LenderEnforcer lenderEnforcer;
 
     function setUp() public override {
         super.setUp();
@@ -33,11 +31,6 @@ contract AstariaV1Test is StarPortTest {
         pricing = new AstariaV1Pricing(LM);
         handler = new AstariaV1SettlementHandler(LM);
         hook = new AstariaV1SettlementHook(LM);
-
-        borrowerEnforcer = new BorrowerEnforcer();
-        lenderEnforcer = new LenderEnforcer();
-        vm.label(address(borrowerEnforcer), "BorrowerEnforcer");
-        vm.label(address(lenderEnforcer), "LenderEnforcer");
 
         conduitKeyRecaller = bytes32(uint256(uint160(address(recaller.addr))) << 96);
 
@@ -67,19 +60,17 @@ contract AstariaV1Test is StarPortTest {
         );
     }
 
-    function getLenderSignedCaveat(BaseEnforcer.Details memory details, Account memory signer, bytes32 salt, address enforcer) public pure returns(Enforcer.Caveat memory caveat) {
-        caveat = Enforcer.Caveat({
+    function getLenderSignedCaveat(BaseEnforcer.Details memory details, Account memory signer, bytes32 salt, address enforcer) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
+         caveatApproval.caveat = CaveatEnforcer.Caveat({
             enforcer: enforcer,
             salt: salt,
-            caveat: abi.encode(details),
-            approval: Enforcer.Approval({
-                v: 0,
-                r: bytes32(0),
-                s: bytes32(0)
-            })
+            deadline: block.timestamp + 1 days,
+            data: abi.encode(details)
         });
 
-        (caveat.approval.v, caveat.approval.r, caveat.approval.s) = vm.sign(signer.key, keccak256(abi.encode(caveat.enforcer, caveat.caveat, caveat.salt)));
+        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, caveatApproval.caveat);
+        
+        (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
     }
 
     function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor) public view returns(BaseEnforcer.Details memory) {

@@ -44,37 +44,38 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         override
         returns (ReceivedItem[] memory consideration, address restricted)
     {
-        Details memory details = abi.decode(loan.terms.handlerData, (Details));
-        uint256 settlementPrice;
+        // Details memory details = abi.decode(loan.terms.handlerData, (Details));
+        // uint256 settlementPrice;
 
-        uint256 start = _getAuctionStart(loan);
+        // uint256 start = _getAuctionStart(loan);
 
-        // DutchAuction has failed
-        if (start + details.window < block.timestamp) {
-            return (new ReceivedItem[](0), loan.issuer);
-        }
+        // // DutchAuction has failed
+        // if (start + details.window < block.timestamp) {
+        //     return (new ReceivedItem[](0), loan.issuer);
+        // }
 
-        settlementPrice = _locateCurrentAmount({
-            startAmount: details.startingPrice,
-            endAmount: details.endingPrice,
-            startTime: start,
-            endTime: start + details.window,
-            roundUp: true
-        });
+        // settlementPrice = _locateCurrentAmount({
+        //     startAmount: details.startingPrice,
+        //     endAmount: details.endingPrice,
+        //     startTime: start,
+        //     endTime: start + details.window,
+        //     roundUp: true
+        // });
 
-        (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
-            Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+        // (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
+        //     Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-        if (paymentConsiderations[0].amount <= settlementPrice) {
-            carryFeeConsideration = new SpentItem[](0);
-        } else {
-            carryFeeConsideration[0].amount =
-                settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
-        }
-        paymentConsiderations[0].amount = settlementPrice;
+        // if (paymentConsiderations[0].amount <= settlementPrice) {
+        //     carryFeeConsideration = new SpentItem[](0);
+        // } else {
+        //     carryFeeConsideration[0].amount =
+        //         settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
+        // }
+        // paymentConsiderations[0].amount = settlementPrice;
 
         // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-        consideration = _removeZeroAmounts(consideration);
+        // consideration = _removeZeroAmounts(consideration);
+        consideration = new ReceivedItem[](0);
     }
 
     function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {

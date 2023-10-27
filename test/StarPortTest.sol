@@ -55,20 +55,20 @@ import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {TermEnforcer} from "starport-core/enforcers/TermEnforcer.sol";
-import {FixedRateEnforcer} from "starport-core/enforcers/RateEnforcer.sol";
-import {CollateralEnforcer} from "starport-core/enforcers/CollateralEnforcer.sol";
 import {Cast} from "starport-test/utils/Cast.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {LoanSettledCallback} from "starport-core/LoanManager.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 
-import {Enforcer} from "starport-core/Enforcer.sol";
-import {BorrowerEnforcer} from "starport-core/BorrowerEnforcer.sol";
-import {LenderEnforcer} from "starport-core/LenderEnforcer.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
+import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+
+import {BaseEnforcer} from "starport-core/enforcers/BaseEnforcer.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -154,6 +154,9 @@ contract StarPortTest is BaseOrderTest {
     Custodian custodian;
     StrategistOriginator SO;
 
+    BorrowerEnforcer borrowerEnforcer;
+    LenderEnforcer lenderEnforcer;
+
     bytes32 conduitKeyRefinancer;
 
     function _deployAndConfigureConsideration() public {
@@ -218,6 +221,11 @@ contract StarPortTest is BaseOrderTest {
             erc1155s[1].mint(lender.addr, 2, 10);
             erc721s[2].mint(lender.addr, 1);
         }
+        borrowerEnforcer = new BorrowerEnforcer();
+        lenderEnforcer = new LenderEnforcer();
+        vm.label(address(borrowerEnforcer), "BorrowerEnforcer");
+        vm.label(address(lenderEnforcer), "LenderEnforcer");
+
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
         conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
 
@@ -264,50 +272,207 @@ contract StarPortTest is BaseOrderTest {
         return this.onERC721Received.selector;
     }
 
-    ConsiderationItem[] selectedCollateral;
-    ConsiderationItem[] collateral20;
-    SpentItem[] debt;
+    // ConsiderationItem[] selectedCollateral;
+    // ConsiderationItem[] collateral20;
+    SpentItem[] activeDebt;
 
     struct NewLoanData {
         address custodian;
         LoanManager.Caveat[] caveats;
         bytes details;
     }
-
-    function newLoan(
-        NewLoanData memory loanData,
-        StrategistOriginator originator,
-        ConsiderationItem[] storage collateral
-    ) internal returns (LoanManager.Loan memory) {
-        return newLoan(loanData, originator, collateral, "");
+    
+    function _setApprovalsForSpentItems(address approver, SpentItem[] memory items) internal {
+        vm.startPrank(approver);
+        uint256 i = 0;
+        for(;i<items.length;){
+            if(items[i].itemType == ItemType.ERC20){
+                ERC20(items[i].token).approve(address(LM), items[i].amount);
+            }
+            else if(items[i].itemType == ItemType.ERC721){
+                ERC721(items[i].token).setApprovalForAll(address(LM), true);
+            }
+            else if(items[i].itemType == ItemType.ERC1155){
+                ERC1155(items[i].token).setApprovalForAll(address(LM), true);
+            }
+            
+            unchecked {
+                ++i;
+            }
+        }
+        vm.stopPrank();
     }
 
-    function newLoan(
-        NewLoanData memory loanData,
-        StrategistOriginator originator,
-        ConsiderationItem[] storage collateral,
-        bytes memory revertMessage
+    // function newLoan(
+    //     LoanManager.Loan memory loan,
+    //     bytes32 borrowerSalt,
+    //     bytes32 lenderSalt
+    // ) internal returns (LoanManager.Loan memory) {
+    //     return newLoanSpecifySigner(loan, borrowerSalt, lenderSalt);
+    // }
+
+    // loan.borrower and signer.addr could be mismatched
+    function _generateSignedCaveatBorrower(LoanManager.Loan memory loan, Account memory signer, bytes32 salt) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
+        loan = loanCopy(loan);
+        loan.issuer = address(0);
+
+        return _generateSignedCaveat(loan, signer, address(borrowerEnforcer), salt);
+    }
+
+    // loan.issuer and signer.addr could be mismatched
+    function _generateSignedCaveatLender(LoanManager.Loan memory loan, Account memory signer, bytes32 salt) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
+        loan = loanCopy(loan);
+        loan.borrower = address(0);
+
+        return _generateSignedCaveat(loan, signer, address(lenderEnforcer), salt);
+    }
+
+    function loanCopy(LoanManager.Loan memory loan) public pure returns(LoanManager.Loan memory) {
+        bytes memory copyBytes = abi.encode(loan);
+
+        return abi.decode(copyBytes, (LoanManager.Loan));
+    }
+
+    function _generateSignedCaveat(LoanManager.Loan memory loan, Account memory signer, address enforcer, bytes32 salt) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
+
+        BaseEnforcer.Details memory details = BaseEnforcer.Details({
+            loan: loan
+        });
+        return signCaveatForAccount(CaveatEnforcer.Caveat({
+            enforcer: enforcer,
+            salt: salt,
+            deadline: block.timestamp + 1 days,
+            data: abi.encode(details)
+        }), signer);
+    }
+    
+    function signCaveatForAccount(CaveatEnforcer.Caveat memory caveat, Account memory signer) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
+        caveatWithApproval = CaveatEnforcer.CaveatWithApproval({
+            v: 0,
+            r: bytes32(0),
+            s: bytes32(0),
+            caveat: caveat
+        });
+
+        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, caveat);
+        (caveatWithApproval.v, caveatWithApproval.r, caveatWithApproval.s) = vm.sign(signer.key, hash);
+    }
+
+    function newLoanOriginationSetup(
+        LoanManager.Loan memory loan,
+        Account memory borrowerSigner,
+        bytes32 borrowerSalt,
+        Account memory lenderSigner,
+        bytes32 lenderSalt
+    ) public returns (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat) {
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+
+        borrowerCaveat = _generateSignedCaveatBorrower(loan, borrowerSigner, borrowerSalt);
+        lenderCaveat = _generateSignedCaveatLender(loan, lenderSigner, lenderSalt);
+    }
+
+    function newLoanWithProvidedSigners(
+        LoanManager.Loan memory loan,
+        bytes32 borrowerSalt,
+        Account memory borrowerSigner,
+        bytes32 lenderSalt,
+        Account memory lenderSigner,
+        address fulfiller
     ) internal returns (LoanManager.Loan memory) {
-        {
-            bytes32 detailsHash = keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details)));
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(strategist.key, detailsHash);
-            return _executeNLR(
-                LoanManager.Obligation({
-                    custodian: address(loanData.custodian),
-                    borrower: borrower.addr,
-                    debt: debt,
-                    salt: bytes32(0),
-                    details: loanData.details,
-                    approval: abi.encodePacked(r, s, v),
-                    caveats: loanData.caveats,
-                    originator: address(originator)
-                }),
-                collateral // for building contract offer
-            );
+        (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat) = newLoanOriginationSetup(loan, borrowerSigner, borrowerSalt, lenderSigner, lenderSalt);
+        return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
+    }
+    function newLoan(
+        LoanManager.Loan memory loan,
+        bytes32 borrowerSalt,
+        bytes32 lenderSalt,
+        address fulfiller
+    ) internal returns (LoanManager.Loan memory) {
+        (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat) = newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt);
+        return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
+    }
+    function newLoan(
+        LoanManager.Loan memory loan,
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
+        address fulfiller
+    ) internal returns (LoanManager.Loan memory originatedLoan) {
+        vm.recordLogs();
+        vm.startPrank(fulfiller);
+        LM.originate(
+            new ConduitTransfer[](0),
+            borrowerCaveat,
+            lenderCaveat,
+            loan
+        );
+        vm.stopPrank();
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        
+        bytes32 lienOpenTopic = bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17);
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == lienOpenTopic) {
+                (, originatedLoan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                break;
+            }
         }
     }
 
-    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho, Enforcer.Caveat memory lenderCaveat, address lender)
+    function newLoanWithDefaultTerms() public returns(LoanManager.Loan memory) {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        return newLoan(loan, bytes32(uint256(1)), bytes32(uint256(1)), fulfiller.addr);
+    }
+    // function newLoan(
+    //     LoanManager.Loan memory loan
+    // ) internal returns (LoanManager.Loan memory originatedLoan) {
+    //     return newLoan(loan, bytes32(uint256(1)), bytes32(uint256(1)), fulfiller.addr);
+    // }
+
+    function generateDefaultLoanTerms() public view returns(LoanManager.Loan memory) {
+        SpentItem[] memory newCollateral = new SpentItem[](1);
+        newCollateral[0] = SpentItem({
+            itemType: ItemType.ERC721,
+            token: address(erc721s[0]),
+            identifier: 1,
+            amount: 1
+        });
+        SpentItem[] memory newDebt = new SpentItem[](1);
+        newDebt[0] = SpentItem({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            identifier: 0,
+            amount: 1e18
+        });
+        return LoanManager.Loan({
+            start: 0,
+            custodian: address(custodian),
+            borrower: borrower.addr,
+            issuer: lender.addr,
+            originator: address(0),
+            collateral: newCollateral,
+            debt: newDebt,
+            terms: LoanManager.Terms({
+                hook: address(hook),
+                handler: address(handler),
+                pricing: address(pricing),
+                pricingData: defaultPricingData,
+                handlerData: defaultHandlerData,
+                hookData: defaultHookData
+            })
+        });
+    }
+
+
+    // function newLoan(
+    //     LoanManager.Loan memory loan,
+    //     bytes32 borrowerSalt,
+    //     bytes32 lenderSalt
+    // ) internal returns (LoanManager.Loan memory originatedLoan) {
+    //     newLoanSpecifySigner(loan, borrowerSalt, borrower, lenderSalt, lender);
+    // }
+
+    function refinanceLoan(LoanManager.Loan memory loan, bytes memory newPricingData, address asWho, CaveatEnforcer.CaveatWithApproval memory lenderCaveat, address lender)
         internal
         returns (LoanManager.Loan memory newLoan)
     {
@@ -323,7 +488,7 @@ contract StarPortTest is BaseOrderTest {
         LoanManager.Loan memory loan,
         bytes memory pricingData,
         address asWho,
-        Enforcer.Caveat memory lenderCaveat,
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
         address lender,
         bytes memory revertMessage
     ) internal returns (LoanManager.Loan memory newLoan) {
@@ -361,34 +526,34 @@ contract StarPortTest is BaseOrderTest {
         StrategistOriginator originator,
         ConsiderationItem[] storage collateral
     ) internal {
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(strategist.key, keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details))));
+        // (uint8 v, bytes32 r, bytes32 s) =
+        //     vm.sign(strategist.key, keccak256(originator.encodeWithAccountCounter(keccak256(loanData.details))));
 
-        LoanManager.Loan memory loan = LoanManager.Loan({
-            custodian: address(loanData.custodian),
-            issuer: address(0),
-            borrower: borrower.addr,
-            originator: address(0),
-            terms: abi.decode(loanData.details, (StrategistOriginator.Details)).offer.terms,
-            debt: debt,
-            collateral: ConsiderationItemLib.toSpentItemArray(collateral),
-            start: uint256(0)
-        });
+        // LoanManager.Loan memory loan = LoanManager.Loan({
+        //     custodian: address(loanData.custodian),
+        //     issuer: address(0),
+        //     borrower: borrower.addr,
+        //     originator: address(0),
+        //     terms: abi.decode(loanData.details, (StrategistOriginator.Details)).offer.terms,
+        //     debt: debt,
+        //     collateral: ConsiderationItemLib.toSpentItemArray(collateral),
+        //     start: uint256(0)
+        // });
 
-        _buyNowPLNLR(
-            thingToBuy,
-            LoanManager.Obligation({
-                custodian: address(loanData.custodian),
-                borrower: borrower.addr,
-                debt: debt,
-                details: loanData.details,
-                salt: bytes32(0),
-                approval: abi.encodePacked(r, s, v),
-                caveats: loanData.caveats,
-                originator: address(originator)
-            }),
-            collateral // for building contract offer
-        );
+        // _buyNowPLNLR(
+        //     thingToBuy,
+        //     LoanManager.Obligation({
+        //         custodian: address(loanData.custodian),
+        //         borrower: borrower.addr,
+        //         debt: debt,
+        //         details: loanData.details,
+        //         salt: bytes32(0),
+        //         approval: abi.encodePacked(r, s, v),
+        //         caveats: loanData.caveats,
+        //         originator: address(originator)
+        //     }),
+        //     collateral // for building contract offer
+        // );
     }
 
     function _buildContractOrder(address offerer, OfferItem[] memory offer, ConsiderationItem[] memory consider)
@@ -561,132 +726,132 @@ contract StarPortTest is BaseOrderTest {
         LoanManager.Obligation memory nlr,
         ConsiderationItem[] memory collateral // collateral (nft) and weth (purchase price is incoming weth plus debt)
     ) internal returns (LoanManager.Loan memory loan) {
-        //use murky to create a tree that is good
+        // //use murky to create a tree that is good
 
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
-        OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
+        // bytes32 caveatHash = bytes32(uint256(0));
+        //     // keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
+        // OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
-        for (uint256 i; i < debt.length;) {
-            offer[i] = OfferItem({
-                itemType: debt[i].itemType,
-                token: debt[i].token,
-                identifierOrCriteria: debt[i].identifier,
-                startAmount: debt[i].amount,
-                endAmount: debt[i].amount
-            });
-            unchecked {
-                ++i;
-            }
-        }
+        // for (uint256 i; i < debt.length;) {
+        //     offer[i] = OfferItem({
+        //         itemType: debt[i].itemType,
+        //         token: debt[i].token,
+        //         identifierOrCriteria: debt[i].identifier,
+        //         startAmount: debt[i].amount,
+        //         endAmount: debt[i].amount
+        //     });
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
 
-        offer[nlr.debt.length] = OfferItem({
-            itemType: ItemType.ERC721,
-            token: address(LM),
-            identifierOrCriteria: uint256(caveatHash),
-            startAmount: 1,
-            endAmount: 1
-        });
+        // offer[nlr.debt.length] = OfferItem({
+        //     itemType: ItemType.ERC721,
+        //     token: address(LM),
+        //     identifierOrCriteria: uint256(caveatHash),
+        //     startAmount: 1,
+        //     endAmount: 1
+        // });
 
-        OfferItem[] memory zOffer = new OfferItem[](1);
-        zOffer[0] = OfferItem({
-            itemType: nlr.debt[0].itemType,
-            token: nlr.debt[0].token,
-            identifierOrCriteria: nlr.debt[0].identifier,
-            startAmount: x.parameters.consideration[0].startAmount - nlr.debt[0].amount,
-            endAmount: x.parameters.consideration[0].startAmount - nlr.debt[0].amount
-        });
-        ConsiderationItem[] memory zConsider = new ConsiderationItem[](1);
-        zConsider[0] = ConsiderationItem({
-            itemType: ItemType.ERC721,
-            token: address(LM),
-            identifierOrCriteria: uint256(caveatHash),
-            startAmount: 1,
-            endAmount: 1,
-            recipient: payable(address(nlr.borrower))
-        });
-        OrderParameters memory zOP = OrderParameters({
-            offerer: address(nlr.borrower),
-            zone: address(0),
-            offer: zOffer,
-            consideration: zConsider,
-            orderType: OrderType.FULL_OPEN,
-            startTime: block.timestamp,
-            endTime: block.timestamp + 100,
-            zoneHash: bytes32(0),
-            salt: 0,
-            conduitKey: bytes32(0),
-            totalOriginalConsiderationItems: 1
-        });
-        AdvancedOrder memory z =
-            AdvancedOrder({parameters: zOP, numerator: 1, denominator: 1, signature: "", extraData: ""});
+        // OfferItem[] memory zOffer = new OfferItem[](1);
+        // zOffer[0] = OfferItem({
+        //     itemType: nlr.debt[0].itemType,
+        //     token: nlr.debt[0].token,
+        //     identifierOrCriteria: nlr.debt[0].identifier,
+        //     startAmount: x.parameters.consideration[0].startAmount - nlr.debt[0].amount,
+        //     endAmount: x.parameters.consideration[0].startAmount - nlr.debt[0].amount
+        // });
+        // ConsiderationItem[] memory zConsider = new ConsiderationItem[](1);
+        // zConsider[0] = ConsiderationItem({
+        //     itemType: ItemType.ERC721,
+        //     token: address(LM),
+        //     identifierOrCriteria: uint256(caveatHash),
+        //     startAmount: 1,
+        //     endAmount: 1,
+        //     recipient: payable(address(nlr.borrower))
+        // });
+        // OrderParameters memory zOP = OrderParameters({
+        //     offerer: address(nlr.borrower),
+        //     zone: address(0),
+        //     offer: zOffer,
+        //     consideration: zConsider,
+        //     orderType: OrderType.FULL_OPEN,
+        //     startTime: block.timestamp,
+        //     endTime: block.timestamp + 100,
+        //     zoneHash: bytes32(0),
+        //     salt: 0,
+        //     conduitKey: bytes32(0),
+        //     totalOriginalConsiderationItems: 1
+        // });
+        // AdvancedOrder memory z =
+        //     AdvancedOrder({parameters: zOP, numerator: 1, denominator: 1, signature: "", extraData: ""});
 
-        AdvancedOrder[] memory orders = new AdvancedOrder[](3);
-        orders[0] = x;
-        orders[1] = AdvancedOrder({
-            parameters: _buildContractOrder(address(LM), offer, collateral),
-            numerator: 1,
-            denominator: 1,
-            signature: "",
-            extraData: abi.encode(Actions.Origination, nlr)
-        });
-        orders[2] = z;
+        // AdvancedOrder[] memory orders = new AdvancedOrder[](3);
+        // orders[0] = x;
+        // orders[1] = AdvancedOrder({
+        //     parameters: _buildContractOrder(address(LM), offer, collateral),
+        //     numerator: 1,
+        //     denominator: 1,
+        //     signature: "",
+        //     extraData: abi.encode(Actions.Origination, nlr)
+        // });
+        // orders[2] = z;
 
-        // x is offering erc721 1 to satisfy y consideration
-        Fulfillment[] memory fill = new Fulfillment[](4);
-        fill[0] = Fulfillment({
-            offerComponents: new FulfillmentComponent[](1),
-            considerationComponents: new FulfillmentComponent[](1)
-        });
+        // // x is offering erc721 1 to satisfy y consideration
+        // Fulfillment[] memory fill = new Fulfillment[](4);
+        // fill[0] = Fulfillment({
+        //     offerComponents: new FulfillmentComponent[](1),
+        //     considerationComponents: new FulfillmentComponent[](1)
+        // });
 
-        fill[0].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
-        fill[0].considerationComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
-        fill[1] = Fulfillment({
-            offerComponents: new FulfillmentComponent[](1),
-            considerationComponents: new FulfillmentComponent[](1)
-        });
+        // fill[0].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
+        // fill[0].considerationComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
+        // fill[1] = Fulfillment({
+        //     offerComponents: new FulfillmentComponent[](1),
+        //     considerationComponents: new FulfillmentComponent[](1)
+        // });
 
-        fill[1].offerComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
+        // fill[1].offerComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
 
-        fill[1].considerationComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
+        // fill[1].considerationComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
 
-        fill[2] = Fulfillment({
-            offerComponents: new FulfillmentComponent[](1),
-            considerationComponents: new FulfillmentComponent[](1)
-        });
+        // fill[2] = Fulfillment({
+        //     offerComponents: new FulfillmentComponent[](1),
+        //     considerationComponents: new FulfillmentComponent[](1)
+        // });
 
-        fill[2].offerComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
+        // fill[2].offerComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
 
-        fill[2].considerationComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
+        // fill[2].considerationComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
 
-        fill[3] = Fulfillment({
-            offerComponents: new FulfillmentComponent[](1),
-            considerationComponents: new FulfillmentComponent[](1)
-        });
+        // fill[3] = Fulfillment({
+        //     offerComponents: new FulfillmentComponent[](1),
+        //     considerationComponents: new FulfillmentComponent[](1)
+        // });
 
-        fill[3].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 1});
+        // fill[3].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 1});
 
-        fill[3].considerationComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
+        // fill[3].considerationComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
 
-        uint256 balanceBefore = erc20s[0].balanceOf(seller.addr);
-        vm.recordLogs();
-        vm.startPrank(borrower.addr);
+        // uint256 balanceBefore = erc20s[0].balanceOf(seller.addr);
+        // vm.recordLogs();
+        // vm.startPrank(borrower.addr);
 
-        consideration.matchAdvancedOrders(orders, new CriteriaResolver[](0), fill, address(borrower.addr));
+        // consideration.matchAdvancedOrders(orders, new CriteriaResolver[](0), fill, address(borrower.addr));
 
-        Vm.Log[] memory logs = vm.getRecordedLogs();
+        // Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        //    console.logBytes32(logs[logs.length - 4].topics[0]);
-        for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
-                (, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
-                break;
-            }
-        }
+        // //    console.logBytes32(logs[logs.length - 4].topics[0]);
+        // for (uint256 i = 0; i < logs.length; i++) {
+        //     if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
+        //         (, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+        //         break;
+        //     }
+        // }
 
-        assertEq(erc721s[1].ownerOf(1), address(nlr.custodian));
-        assertEq(erc20s[0].balanceOf(seller.addr), balanceBefore + x.parameters.consideration[0].startAmount);
-        vm.stopPrank();
+        // assertEq(erc721s[1].ownerOf(1), address(nlr.custodian));
+        // assertEq(erc20s[0].balanceOf(seller.addr), balanceBefore + x.parameters.consideration[0].startAmount);
+        // vm.stopPrank();
     }
 
     function _executeNLR(LoanManager.Obligation memory nlr, ConsiderationItem[] memory collateral)
@@ -701,98 +866,98 @@ contract StarPortTest is BaseOrderTest {
         ConsiderationItem[] memory collateral,
         bytes memory revertReason
     ) internal returns (LoanManager.Loan memory loan) {
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
-        OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
+        // bytes32 caveatHash = bytes32(uint256(0));
+        //     // keccak256(LM.encodeWithSaltAndBorrowerCounter(nlr.borrower, nlr.salt, keccak256(abi.encode(nlr.caveats))));
+        // OfferItem[] memory offer = new OfferItem[](nlr.debt.length + 1);
 
-        for (uint256 i; i < debt.length;) {
-            offer[i] = OfferItem({
-                itemType: debt[i].itemType,
-                token: debt[i].token,
-                identifierOrCriteria: debt[i].identifier,
-                startAmount: debt[i].amount,
-                endAmount: debt[i].amount
-            });
-            unchecked {
-                ++i;
-            }
-        }
+        // for (uint256 i; i < debt.length;) {
+        //     offer[i] = OfferItem({
+        //         itemType: debt[i].itemType,
+        //         token: debt[i].token,
+        //         identifierOrCriteria: debt[i].identifier,
+        //         startAmount: debt[i].amount,
+        //         endAmount: debt[i].amount
+        //     });
+        //     unchecked {
+        //         ++i;
+        //     }
+        // }
 
-        offer[nlr.debt.length] = OfferItem({
-            itemType: ItemType.ERC721,
-            token: address(LM),
-            identifierOrCriteria: uint256(caveatHash),
-            startAmount: 1,
-            endAmount: 1
-        });
+        // offer[nlr.debt.length] = OfferItem({
+        //     itemType: ItemType.ERC721,
+        //     token: address(LM),
+        //     identifierOrCriteria: uint256(caveatHash),
+        //     startAmount: 1,
+        //     endAmount: 1
+        // });
 
-        OrderParameters memory op =
-            _buildContractOrder(address(LM), nlr.caveats.length == 0 ? new OfferItem[](0) : offer, collateral);
+        // OrderParameters memory op =
+        //     _buildContractOrder(address(LM), nlr.caveats.length == 0 ? new OfferItem[](0) : offer, collateral);
 
-        AdvancedOrder memory x = AdvancedOrder({
-            parameters: op,
-            numerator: 1,
-            denominator: 1,
-            signature: "0x",
-            extraData: abi.encode(Actions.Origination, nlr)
-        });
+        // AdvancedOrder memory x = AdvancedOrder({
+        //     parameters: op,
+        //     numerator: 1,
+        //     denominator: 1,
+        //     signature: "0x",
+        //     extraData: abi.encode(Actions.Origination, nlr)
+        // });
 
-        uint256 balanceBefore;
-        if (debt[0].token == address(0)) {
-            balanceBefore = borrower.addr.balance;
-        } else {
-            balanceBefore = ERC20(debt[0].token).balanceOf(borrower.addr);
-        }
-        vm.recordLogs();
-        vm.startPrank(borrower.addr);
-        if (revertReason.length > 0) {
-            vm.expectRevert(revertReason);
-        }
-        if (collateral[0].itemType == ItemType.NATIVE) {
-            consideration.fulfillAdvancedOrder{value: collateral[0].endAmount}({
-                advancedOrder: x,
-                criteriaResolvers: new CriteriaResolver[](0),
-                fulfillerConduitKey: bytes32(0),
-                recipient: address(borrower.addr)
-            });
-        } else {
-            consideration.fulfillAdvancedOrder({
-                advancedOrder: x,
-                criteriaResolvers: new CriteriaResolver[](0),
-                fulfillerConduitKey: bytes32(0),
-                recipient: address(borrower.addr)
-            });
-        }
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        uint256 loanId;
+        // uint256 balanceBefore;
+        // if (debt[0].token == address(0)) {
+        //     balanceBefore = borrower.addr.balance;
+        // } else {
+        //     balanceBefore = ERC20(debt[0].token).balanceOf(borrower.addr);
+        // }
+        // vm.recordLogs();
+        // vm.startPrank(borrower.addr);
+        // if (revertReason.length > 0) {
+        //     vm.expectRevert(revertReason);
+        // }
+        // if (collateral[0].itemType == ItemType.NATIVE) {
+        //     consideration.fulfillAdvancedOrder{value: collateral[0].endAmount}({
+        //         advancedOrder: x,
+        //         criteriaResolvers: new CriteriaResolver[](0),
+        //         fulfillerConduitKey: bytes32(0),
+        //         recipient: address(borrower.addr)
+        //     });
+        // } else {
+        //     consideration.fulfillAdvancedOrder({
+        //         advancedOrder: x,
+        //         criteriaResolvers: new CriteriaResolver[](0),
+        //         fulfillerConduitKey: bytes32(0),
+        //         recipient: address(borrower.addr)
+        //     });
+        // }
+        // Vm.Log[] memory logs = vm.getRecordedLogs();
+        // uint256 loanId;
 
-        //    console.logBytes32(logs[logs.length - 4].topics[0]);
-        bytes32 lienOpenTopic = bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17);
-        for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == lienOpenTopic) {
-                (loanId, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
-                break;
-            }
-        }
+        // //    console.logBytes32(logs[logs.length - 4].topics[0]);
+        // bytes32 lienOpenTopic = bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17);
+        // for (uint256 i = 0; i < logs.length; i++) {
+        //     if (logs[i].topics[0] == lienOpenTopic) {
+        //         (loanId, loan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+        //         break;
+        //     }
+        // }
 
-        uint256 balanceAfter;
-        if (debt[0].token == address(0)) {
-            balanceAfter = borrower.addr.balance;
-        } else {
-            balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
-        }
+        // uint256 balanceAfter;
+        // if (debt[0].token == address(0)) {
+        //     balanceAfter = borrower.addr.balance;
+        // } else {
+        //     balanceAfter = ERC20(debt[0].token).balanceOf(borrower.addr);
+        // }
 
-        uint256 feeReceiverBalance;
-        if (LM.feeTo() != address(0)) {
-            if (debt[0].token == address(0)) {
-                feeReceiverBalance = LM.feeTo().balance;
-            } else {
-                feeReceiverBalance = ERC20(debt[0].token).balanceOf(LM.feeTo());
-            }
-        }
+        // uint256 feeReceiverBalance;
+        // if (LM.feeTo() != address(0)) {
+        //     if (debt[0].token == address(0)) {
+        //         feeReceiverBalance = LM.feeTo().balance;
+        //     } else {
+        //         feeReceiverBalance = ERC20(debt[0].token).balanceOf(LM.feeTo());
+        //     }
+        // }
 
-        assertEq(balanceAfter - balanceBefore + feeReceiverBalance, debt[0].amount);
-        vm.stopPrank();
+        // assertEq(balanceAfter - balanceBefore + feeReceiverBalance, debt[0].amount);
+        // vm.stopPrank();
     }
 
     function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
@@ -806,26 +971,26 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory loan)
     {
-        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
-        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
-        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+        // uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        // assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+        // uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
 
-        loan = _createLoan({
-            lender: lender,
-            terms: terms,
-            collateralItem: ConsiderationItem({
-                token: address(erc721s[0]),
-                startAmount: 1,
-                endAmount: 1,
-                identifierOrCriteria: 1,
-                itemType: ItemType.ERC721,
-                recipient: payable(address(custodian))
-            }),
-            debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
-        });
+        // loan = _createLoan({
+        //     lender: lender,
+        //     terms: terms,
+        //     collateralItem: ConsiderationItem({
+        //         token: address(erc721s[0]),
+        //         startAmount: 1,
+        //         endAmount: 1,
+        //         identifierOrCriteria: 1,
+        //         itemType: ItemType.ERC721,
+        //         recipient: payable(address(custodian))
+        //     }),
+        //     debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
+        // });
 
-        assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
-        assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
+        // assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
+        // assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
     }
 
     // TODO update or overload to take interest rate
@@ -835,29 +1000,29 @@ contract StarPortTest is BaseOrderTest {
         uint256 borrowAmount,
         LoanManager.Terms memory terms
     ) internal returns (LoanManager.Loan memory loan) {
-        uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
-        assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
+        // uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
+        // assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
 
-        uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
+        // uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
 
-        loan = _createLoan({
-            lender: lender,
-            terms: terms,
-            collateralItem: ConsiderationItem({
-                token: address(erc20s[1]),
-                startAmount: collateralAmount,
-                endAmount: collateralAmount,
-                identifierOrCriteria: 0,
-                itemType: ItemType.ERC20,
-                recipient: payable(address(custodian))
-            }),
-            debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
-        });
+        // loan = _createLoan({
+        //     lender: lender,
+        //     terms: terms,
+        //     collateralItem: ConsiderationItem({
+        //         token: address(erc20s[1]),
+        //         startAmount: collateralAmount,
+        //         endAmount: collateralAmount,
+        //         identifierOrCriteria: 0,
+        //         itemType: ItemType.ERC20,
+        //         recipient: payable(address(custodian))
+        //     }),
+        //     debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
+        // });
 
-        assertEq(
-            initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out"
-        );
-        assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
+        // assertEq(
+        //     initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out"
+        // );
+        // assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
     }
 
     // TODO fix
@@ -865,79 +1030,60 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory loan)
     {
-        return _createLoan({
-            lender: lender,
-            terms: terms,
-            collateralItem: ConsiderationItem({
-                token: address(erc20s[0]),
-                startAmount: 20,
-                endAmount: 20,
-                identifierOrCriteria: 0,
-                itemType: ItemType.ERC20,
-                recipient: payable(address(custodian))
-            }),
-            debtItem: SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), amount: 1, identifier: 0})
-        });
+        // return _createLoan({
+        //     lender: lender,
+        //     terms: terms,
+        //     collateralItem: ConsiderationItem({
+        //         token: address(erc20s[0]),
+        //         startAmount: 20,
+        //         endAmount: 20,
+        //         identifierOrCriteria: 0,
+        //         itemType: ItemType.ERC20,
+        //         recipient: payable(address(custodian))
+        //     }),
+        //     debtItem: SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), amount: 1, identifier: 0})
+        // });
     }
 
     function _generateOriginationDetails(
-        ConsiderationItem memory collateral,
-        SpentItem memory debtRequested,
+        SpentItem memory collateral,
+        SpentItem memory debt,
         address incomingIssuer
-    ) internal returns (StrategistOriginator.Details memory) {
-        return _generateOriginationDetails(collateral, debtRequested, incomingIssuer, address(custodian));
+    ) internal view returns (LoanManager.Loan memory loan) {
+        return _generateOriginationDetails(collateral, debt, incomingIssuer, address(custodian));
     }
 
     function _generateOriginationDetails(
-        ConsiderationItem memory collateral,
-        SpentItem memory debtRequested,
+        SpentItem memory collateral,
+        SpentItem memory debt,
         address incomingIssuer,
         address incomingCustodian
-    ) internal returns (StrategistOriginator.Details memory details) {
-        delete selectedCollateral;
-        delete debt;
-        selectedCollateral.push(collateral);
-        debt.push(debtRequested);
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
-        });
-        details = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(incomingCustodian),
-            issuer: incomingIssuer,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
+    ) internal view returns (LoanManager.Loan memory loan) {
+        loan = generateDefaultLoanTerms();
+        loan.issuer = incomingIssuer;
+        loan.debt[0] = debt;
+        loan.collateral[0] = collateral;
+        loan.custodian = incomingCustodian;
     }
 
-    function _createLoan(
-        address lender,
-        LoanManager.Terms memory terms,
-        ConsiderationItem memory collateralItem,
-        SpentItem memory debtItem
-    ) internal returns (LoanManager.Loan memory loan) {
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
+    // function _createLoan(
+    //     address lender,
+    //     LoanManager.Terms memory terms,
+    //     ConsiderationItem memory collateralItem,
+    //     SpentItem memory debtItem
+    // ) internal returns (LoanManager.Loan memory loan) {
+    //     StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
 
-        loan = newLoan(
-            NewLoanData({
-                custodian: address(custodian),
-                caveats: new LoanManager.Caveat[](0), // TODO check
-                details: abi.encode(loanDetails)
-            }),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
-    }
+    //     loan = newLoan(
+    //         NewLoanData({
+    //             custodian: address(custodian),
+    //             caveats: new LoanManager.Caveat[](0), // TODO check
+    //             details: abi.encode(loanDetails)
+    //         }),
+    //         StrategistOriginator(SO),
+    //         selectedCollateral
+    //     );
+    // }
 
     function _createLoanWithCaveat(
         address lender,
@@ -946,39 +1092,48 @@ contract StarPortTest is BaseOrderTest {
         SpentItem memory debtItem,
         LoanManager.Caveat[] memory caveats
     ) internal returns (LoanManager.Loan memory loan) {
-        selectedCollateral.push(collateralItem);
-        debt.push(debtItem);
+        // selectedCollateral.push(collateralItem);
+        // debt.push(debtItem);
 
-        StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-            conduit: address(lenderConduit),
-            custodian: address(custodian),
-            issuer: lender,
-            deadline: block.timestamp + 100,
-            offer: StrategistOriginator.Offer({
-                salt: bytes32(0),
-                terms: terms,
-                collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-                debt: debt
-            })
-        });
+        // StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
+        //     conduit: address(lenderConduit),
+        //     custodian: address(custodian),
+        //     issuer: lender,
+        //     deadline: block.timestamp + 100,
+        //     offer: StrategistOriginator.Offer({
+        //         salt: bytes32(0),
+        //         terms: terms,
+        //         collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
+        //         debt: debt
+        //     })
+        // });
 
-        loan = newLoan(
-            NewLoanData({
-                custodian: address(custodian),
-                caveats: caveats, // TODO check
-                details: abi.encode(loanDetails)
-            }),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        // loan = newLoan(
+        //     NewLoanData({
+        //         custodian: address(custodian),
+        //         caveats: caveats, // TODO check
+        //         details: abi.encode(loanDetails)
+        //     }),
+        //     StrategistOriginator(SO),
+        //     selectedCollateral
+        // );
     }
 
-    function _getERC20SpentItem(TestERC20 token, uint256 amount) internal view returns (SpentItem memory) {
+    function _getERC20SpentItem(TestERC20 token, uint256 amount) internal pure returns (SpentItem memory) {
         return SpentItem({
             itemType: ItemType.ERC20,
             token: address(token),
             amount: amount,
             identifier: 0 // 0 for ERC20
+        });
+    }
+
+    function _getERC1155SpentItem(TestERC1155 token) internal pure returns (SpentItem memory) {
+        return SpentItem({
+            itemType: ItemType.ERC1155,
+            token: address(token),
+            amount: 1,
+            identifier: 1
         });
     }
 

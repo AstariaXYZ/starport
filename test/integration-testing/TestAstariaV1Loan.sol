@@ -53,37 +53,42 @@ contract TestAstariaV1Loan is AstariaV1Test {
         })
       });
 
-        BaseEnforcer.Details memory caveat = BaseEnforcer.Details({
+        BaseEnforcer.Details memory details = BaseEnforcer.Details({
             loan: loan
         });
 
-        Enforcer.Caveat memory borrowerCaveat = Enforcer.Caveat({
-        enforcer: address(borrowerEnforcer),
-        salt: bytes32(uint256(2)),
-        caveat: abi.encode(caveat),
-        approval: Enforcer.Approval({
-            v: 0,
-            r: bytes32(0),
-            s: bytes32(0)
-        })
-        });
-
-        (borrowerCaveat.approval.v, borrowerCaveat.approval.r, borrowerCaveat.approval.s) = vm.sign(borrower.key, keccak256(abi.encode(borrowerCaveat.enforcer, borrowerCaveat.caveat, borrowerCaveat.salt)));
-
-        caveat.loan.borrower = address(0);
-        caveat.loan.issuer = lender.addr;
-        Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
-            enforcer: address(lenderEnforcer),
-            salt: bytes32(uint256(1)),
-            caveat: abi.encode(caveat),
-            approval: Enforcer.Approval({
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = CaveatEnforcer.CaveatWithApproval({
                 v: 0,
                 r: bytes32(0),
-                s: bytes32(0)
+                s: bytes32(0),
+                caveat: CaveatEnforcer.Caveat({
+                enforcer: address(borrowerEnforcer),
+                salt: bytes32(uint256(0)),
+                deadline: block.timestamp + 1 days,
+                data: abi.encode(details)
             })
         });
 
-        (lenderCaveat.approval.v, lenderCaveat.approval.r, lenderCaveat.approval.s) = vm.sign(lender.key, keccak256(abi.encode(lenderCaveat.enforcer, lenderCaveat.caveat, lenderCaveat.salt)));
+        bytes32 borrowerHash = LM.hashCaveatWithSaltAndNonce(borrower.addr, borrowerCaveat.caveat);
+        (borrowerCaveat.v, borrowerCaveat.r, borrowerCaveat.s) = vm.sign(borrower.key, borrowerHash);
+
+        details.loan.borrower = address(0);
+        details.loan.issuer = lender.addr;
+
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0),
+                caveat: CaveatEnforcer.Caveat({
+                enforcer: address(lenderEnforcer),
+                salt: bytes32(uint256(1)),
+                deadline: block.timestamp + 1 days,
+                data: abi.encode(details)
+            })
+        });
+
+        bytes32 lenderHash = LM.hashCaveatWithSaltAndNonce(lender.addr, lenderCaveat.caveat);
+        (lenderCaveat.v, lenderCaveat.r, lenderCaveat.s) = vm.sign(lender.key, lenderHash);
 
 
         loan.borrower = borrower.addr;
@@ -117,14 +122,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with before recall is initiated
-            Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
-                enforcer: address(0),
-                salt: bytes32(uint256(1)),
-                caveat: new bytes(uint256(1)),
-                approval: Enforcer.Approval({
-                    v: 0,
-                    r: bytes32(0),
-                    s: bytes32(0)
+            CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0),
+                caveat: CaveatEnforcer.Caveat({
+                    enforcer: address(lenderEnforcer),
+                    salt: bytes32(uint256(1)),
+                    deadline: block.timestamp + 1 days,
+                    data: abi.encode(uint256(0))
                 })
             });
 
@@ -181,14 +187,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         {
             // refinance with incorrect terms
-            Enforcer.Caveat memory lenderCaveat = Enforcer.Caveat({
-                enforcer: address(0),
-                salt: bytes32(uint256(1)),
-                caveat: new bytes(uint256(1)),
-                approval: Enforcer.Approval({
-                    v: 0,
-                    r: bytes32(0),
-                    s: bytes32(0)
+            CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
+                v: 0,
+                r: bytes32(0),
+                s: bytes32(0),
+                caveat: CaveatEnforcer.Caveat({
+                    enforcer: address(lenderEnforcer),
+                    salt: bytes32(uint256(1)),
+                    deadline: block.timestamp + 1 days,
+                    data: abi.encode(uint256(0))
                 })
             });
 
@@ -214,7 +221,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
             {
                 BaseEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
-                Enforcer.Caveat memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
+                CaveatEnforcer.CaveatWithApproval memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
                 // vm.startPrank(refinancer.addr);
 
                 vm.startPrank(refinancer.addr);

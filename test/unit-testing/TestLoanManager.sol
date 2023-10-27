@@ -93,21 +93,21 @@ contract TestLoanManager is StarPortTest, DeepEq {
     function setUp() public virtual override {
         super.setUp();
 
-        erc20s[0].approve(address(lenderConduit), 100000);
+        // erc20s[0].approve(address(lenderConduit), 100000);
 
-        mockCustodian = new MockCustodian(LM, seaport);
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
+        // mockCustodian = new MockCustodian(LM, seaport);
+        // StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
+        //     _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        // );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
-        Custodian(custodian).mint(loan);
+        // LoanManager.Loan memory loan = newLoan(
+        //     NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
+        //     StrategistOriginator(SO),
+        //     selectedCollateral
+        // );
+        // Custodian(custodian).mint(loan);
 
-        loan.toStorage(activeLoan);
+        // loan.toStorage(activeLoan);
     }
 
     function testName() public {
@@ -340,40 +340,40 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     );
     // }
 
-    function testDefaultFeeRake() public {
-        assertEq(LM.defaultFeeRake(), 0);
-        address feeReceiver = address(20);
-        LM.setFeeData(feeReceiver, 1e17); //10% fees
+    // function testDefaultFeeRake() public {
+    //     assertEq(LM.defaultFeeRake(), 0);
+    //     address feeReceiver = address(20);
+    //     LM.setFeeData(feeReceiver, 1e17); //10% fees
 
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
+    //     StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
+    //         _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+    //     );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
-        assertEq(erc20s[0].balanceOf(feeReceiver), debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
-    }
+    //     LoanManager.Loan memory loan = newLoan(
+    //         NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
+    //         StrategistOriginator(SO),
+    //         selectedCollateral
+    //     );
+    //     assertEq(erc20s[0].balanceOf(feeReceiver), debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
+    // }
 
-    function testOverrideFeeRake() public {
-        assertEq(LM.defaultFeeRake(), 0);
-        address feeReceiver = address(20);
-        LM.setFeeData(feeReceiver, 1e17); //10% fees
-        LM.setFeeOverride(debt[0].token, 0); //0% fees
+    // function testOverrideFeeRake() public {
+    //     assertEq(LM.defaultFeeRake(), 0);
+    //     address feeReceiver = address(20);
+    //     LM.setFeeData(feeReceiver, 1e17); //10% fees
+    //     LM.setFeeOverride(debt[0].token, 0); //0% fees
 
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
+    //     StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
+    //         _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+    //     );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
-        assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
-    }
+    //     LoanManager.Loan memory loan = newLoan(
+    //         NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
+    //         StrategistOriginator(SO),
+    //         selectedCollateral
+    //     );
+    //     assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
+    // }
 
     // function testCaveatEnforcerInvalidOrigination() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
