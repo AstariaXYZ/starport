@@ -92,22 +92,12 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
     function setUp() public virtual override {
         super.setUp();
+        mockCustodian = new MockCustodian(LM, seaport);
 
-        // erc20s[0].approve(address(lenderConduit), 100000);
+        LoanManager.Loan memory loan = newLoanWithDefaultTerms();
+        Custodian(custodian).mint(loan);
 
-        // mockCustodian = new MockCustodian(LM, seaport);
-        // StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-        //     _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        // );
-
-        // LoanManager.Loan memory loan = newLoan(
-        //     NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-        // Custodian(custodian).mint(loan);
-
-        // loan.toStorage(activeLoan);
+        loan.toStorage(activeLoan);
     }
 
     function testName() public {
@@ -314,6 +304,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.getSeaportMetadata();
     }
 
+    // not applicable in the new origination flow
     // function testInvalidMaximumSpentEmpty() public {
     //     LoanManager.Obligation memory obligation = LoanManager.Obligation({
     //         custodian: address(mockCustodian),
@@ -340,45 +331,53 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     );
     // }
 
-    // function testDefaultFeeRake() public {
-    //     assertEq(LM.defaultFeeRake(), 0);
-    //     address feeReceiver = address(20);
-    //     LM.setFeeData(feeReceiver, 1e17); //10% fees
+    function testDefaultFeeRake() public {
+        assertEq(LM.defaultFeeRake(), 0);
+        address feeReceiver = address(20);
+        LM.setFeeData(feeReceiver, 1e17); //10% fees
 
-    //     StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-    //         _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-    //     );
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0], uint256(2)),
+            _getERC20SpentItem(erc20s[0], borrowAmount),
+            lender.addr
+        );
 
-    //     LoanManager.Loan memory loan = newLoan(
-    //         NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-    //         StrategistOriginator(SO),
-    //         selectedCollateral
-    //     );
-    //     assertEq(erc20s[0].balanceOf(feeReceiver), debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
-    // }
+        LoanManager.Loan memory loan = newLoan(
+            originationDetails,
+            bytes32(bytes32(msg.sig)),
+            bytes32(bytes32(msg.sig)),
+            lender.addr
+        );
+        assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
+    }
 
-    // function testOverrideFeeRake() public {
-    //     assertEq(LM.defaultFeeRake(), 0);
-    //     address feeReceiver = address(20);
-    //     LM.setFeeData(feeReceiver, 1e17); //10% fees
-    //     LM.setFeeOverride(debt[0].token, 0); //0% fees
+    function testOverrideFeeRake() public {
+        assertEq(LM.defaultFeeRake(), 0);
+        address feeReceiver = address(20);
+        LM.setFeeData(feeReceiver, 1e17); //10% fees
+        LM.setFeeOverride(address(erc20s[0]), 0); //0% fees
 
-    //     StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-    //         _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-    //     );
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0], uint256(2)),
+            _getERC20SpentItem(erc20s[0], borrowAmount),
+            lender.addr
+        );
 
-    //     LoanManager.Loan memory loan = newLoan(
-    //         NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-    //         StrategistOriginator(SO),
-    //         selectedCollateral
-    //     );
-    //     assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
-    // }
+        newLoan(
+            originationDetails,
+            bytes32(bytes32(msg.sig)),
+            bytes32(bytes32(msg.sig)),
+            lender.addr
+        );
+        assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
+    }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testCaveatEnforcerInvalidOrigination() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
-    //     debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
+    //     SpentItem[] memory debt = new SpentItem[](1);
+    //     debt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0});
 
     //     SpentItem[] memory maxSpent = new SpentItem[](1);
     //     maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
@@ -425,6 +424,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testGenerateOrderInvalidAction() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -450,6 +450,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderInvalidAction() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -473,6 +474,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderOriginationWithNoCaveatsSetNotBorrowerNoFee() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -513,8 +515,9 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //         LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
     //     _deepEq(offer, expectedOffer);
     //     _deepEq(consider, expectedConsider);
-    }
+    // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderOriginationWithNoCaveatsSetNotBorrowerFeeOn() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -558,6 +561,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     _deepEq(consider, expectedConsider);
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderOriginationWithNoCaveatsSetAsBorrowerNoFee() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -595,6 +599,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     _deepEq(consider, expectedConsider);
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderOriginationWithNoCaveatsSetAsBorrowerFeeOn() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -634,6 +639,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     _deepEq(consider, expectedConsider);
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderRefinanceAsRefinancerFeeOn() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -655,6 +661,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     _deepEq(originationConsideration, expectedConsideration);
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testPreviewOrderRefinanceAsRefinancerFeeOff() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -675,6 +682,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     _deepEq(originationConsideration, expectedConsideration);
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testRefinanceNoRefinanceConsideration() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -704,6 +712,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     );
     // }
 
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     // function testExoticDebtWithNoCaveatsNotAsBorrower() public {
     //     Originator originator = new MockOriginator(LM, address(0), 0);
     //     address seaport = address(LM.seaport());
@@ -1120,4 +1129,4 @@ contract TestLoanManager is StarPortTest, DeepEq {
     //     vm.expectRevert(LoanManager.LoanExists.selector);
     //     LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
     // }
-// }
+}

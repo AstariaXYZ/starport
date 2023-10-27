@@ -68,7 +68,7 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 
-import {BaseEnforcer} from "starport-core/enforcers/BaseEnforcer.sol";
+import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -303,14 +303,6 @@ contract StarPortTest is BaseOrderTest {
         vm.stopPrank();
     }
 
-    // function newLoan(
-    //     LoanManager.Loan memory loan,
-    //     bytes32 borrowerSalt,
-    //     bytes32 lenderSalt
-    // ) internal returns (LoanManager.Loan memory) {
-    //     return newLoanSpecifySigner(loan, borrowerSalt, lenderSalt);
-    // }
-
     // loan.borrower and signer.addr could be mismatched
     function _generateSignedCaveatBorrower(LoanManager.Loan memory loan, Account memory signer, bytes32 salt) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
         loan = loanCopy(loan);
@@ -335,7 +327,7 @@ contract StarPortTest is BaseOrderTest {
 
     function _generateSignedCaveat(LoanManager.Loan memory loan, Account memory signer, address enforcer, bytes32 salt) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatWithApproval) {
 
-        BaseEnforcer.Details memory details = BaseEnforcer.Details({
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({
             loan: loan
         });
         return signCaveatForAccount(CaveatEnforcer.Caveat({
@@ -421,13 +413,8 @@ contract StarPortTest is BaseOrderTest {
 
     function newLoanWithDefaultTerms() public returns(LoanManager.Loan memory) {
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
-        return newLoan(loan, bytes32(uint256(1)), bytes32(uint256(1)), fulfiller.addr);
+        return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), fulfiller.addr);
     }
-    // function newLoan(
-    //     LoanManager.Loan memory loan
-    // ) internal returns (LoanManager.Loan memory originatedLoan) {
-    //     return newLoan(loan, bytes32(uint256(1)), bytes32(uint256(1)), fulfiller.addr);
-    // }
 
     function generateDefaultLoanTerms() public view returns(LoanManager.Loan memory) {
         SpentItem[] memory newCollateral = new SpentItem[](1);
@@ -492,9 +479,7 @@ contract StarPortTest is BaseOrderTest {
         address lender,
         bytes memory revertMessage
     ) internal returns (LoanManager.Loan memory newLoan) {
-        // if (revertMessage.length > 0) {
-        //     vm.expectRevert(revertMessage);
-        // }
+ 
         vm.recordLogs();
         vm.startPrank(asWho);
 
@@ -971,26 +956,23 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory loan)
     {
-        // uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
-        // assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
-        // uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
 
-        // loan = _createLoan({
-        //     lender: lender,
-        //     terms: terms,
-        //     collateralItem: ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custodian))
-        //     }),
-        //     debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
-        // });
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender
+        );
+        originationDetails.terms = terms;
+        loan = newLoan(
+            originationDetails,
+            bytes32(msg.sig),
+            bytes32(msg.sig),
+            fulfiller.addr
+        );
 
-        // assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
-        // assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
+        assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
+        assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
     }
 
     // TODO update or overload to take interest rate
@@ -1000,29 +982,26 @@ contract StarPortTest is BaseOrderTest {
         uint256 borrowAmount,
         LoanManager.Terms memory terms
     ) internal returns (LoanManager.Loan memory loan) {
-        // uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
-        // assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
+        uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
+        assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
 
-        // uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
+        uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
 
-        // loan = _createLoan({
-        //     lender: lender,
-        //     terms: terms,
-        //     collateralItem: ConsiderationItem({
-        //         token: address(erc20s[1]),
-        //         startAmount: collateralAmount,
-        //         endAmount: collateralAmount,
-        //         identifierOrCriteria: 0,
-        //         itemType: ItemType.ERC20,
-        //         recipient: payable(address(custodian))
-        //     }),
-        //     debtItem: SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: borrowAmount, identifier: 0})
-        // });
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC20SpentItem(erc20s[1], collateralAmount), _getERC20SpentItem(erc20s[0], borrowAmount), lender
+        );
+        originationDetails.terms = terms;
+        loan = newLoan(
+            originationDetails,
+            bytes32(msg.sig),
+            bytes32(msg.sig),
+            fulfiller.addr
+        );
 
-        // assertEq(
-        //     initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out"
-        // );
-        // assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
+        assertEq(
+            initial20Balance1 - collateralAmount, erc20s[1].balanceOf(borrower.addr), "Borrower ERC20 was not sent out"
+        );
+        assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
     }
 
     // TODO fix
@@ -1030,19 +1009,16 @@ contract StarPortTest is BaseOrderTest {
         internal
         returns (LoanManager.Loan memory loan)
     {
-        // return _createLoan({
-        //     lender: lender,
-        //     terms: terms,
-        //     collateralItem: ConsiderationItem({
-        //         token: address(erc20s[0]),
-        //         startAmount: 20,
-        //         endAmount: 20,
-        //         identifierOrCriteria: 0,
-        //         itemType: ItemType.ERC20,
-        //         recipient: payable(address(custodian))
-        //     }),
-        //     debtItem: SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), amount: 1, identifier: 0})
-        // });
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC20SpentItem(erc20s[0], 20), _getERC721SpentItem(erc721s[2]), lender
+        );
+        originationDetails.terms = terms;
+        return newLoan(
+            originationDetails,
+            bytes32(msg.sig),
+            bytes32(msg.sig),
+            fulfiller.addr
+        );
     }
 
     function _generateOriginationDetails(
@@ -1065,25 +1041,6 @@ contract StarPortTest is BaseOrderTest {
         loan.collateral[0] = collateral;
         loan.custodian = incomingCustodian;
     }
-
-    // function _createLoan(
-    //     address lender,
-    //     LoanManager.Terms memory terms,
-    //     ConsiderationItem memory collateralItem,
-    //     SpentItem memory debtItem
-    // ) internal returns (LoanManager.Loan memory loan) {
-    //     StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(collateralItem, debtItem, lender);
-
-    //     loan = newLoan(
-    //         NewLoanData({
-    //             custodian: address(custodian),
-    //             caveats: new LoanManager.Caveat[](0), // TODO check
-    //             details: abi.encode(loanDetails)
-    //         }),
-    //         StrategistOriginator(SO),
-    //         selectedCollateral
-    //     );
-    // }
 
     function _createLoanWithCaveat(
         address lender,
@@ -1128,6 +1085,23 @@ contract StarPortTest is BaseOrderTest {
         });
     }
 
+    function _getERC721SpentItem(TestERC721 token) internal pure returns (SpentItem memory) {
+        return SpentItem({
+            itemType: ItemType.ERC721,
+            token: address(token),
+            amount: 1,
+            identifier: 1
+        });
+    }
+
+    function _getERC721SpentItem(TestERC721 token, uint256 tokenId) internal pure returns (SpentItem memory) {
+        return SpentItem({
+            itemType: ItemType.ERC721,
+            token: address(token),
+            amount: 1,
+            identifier: tokenId
+        });
+    }
     function _getERC1155SpentItem(TestERC1155 token) internal pure returns (SpentItem memory) {
         return SpentItem({
             itemType: ItemType.ERC1155,

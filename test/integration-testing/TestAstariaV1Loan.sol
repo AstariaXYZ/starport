@@ -10,108 +10,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
     using {StarPortLib.getId} for LoanManager.Loan;
     
-    function setupBasicLoan() public returns(LoanManager.Loan memory) {
-        vm.startPrank(borrower.addr);
-        erc721s[0].setApprovalForAll(address(LM), true);
-        vm.stopPrank();
-
-        vm.startPrank(lender.addr);
-        erc20s[0].approve(address(LM), 1e18);
-        vm.stopPrank();
-
-        SpentItem[] memory collateral = new SpentItem[](1);
-        collateral[0] = SpentItem({
-            itemType: ItemType.ERC721,
-            token: address(erc721s[0]),
-            identifier: 1,
-            amount: 1
-        });
-
-        SpentItem[] memory debt = new SpentItem[](1);
-        debt[0] = SpentItem({
-            itemType: ItemType.ERC20,
-            token: address(erc20s[0]),
-            identifier: 0,
-            amount: 1e18
-        });
-
-      LoanManager.Loan memory loan = LoanManager.Loan({
-        start: 0,
-        custodian: address(custodian),
-        borrower: borrower.addr,
-        issuer: address(0),
-        originator: address(0),
-        collateral: collateral,
-        debt: debt,
-        terms: LoanManager.Terms({
+    function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(hook),
             handler: address(handler),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             handlerData: defaultHandlerData,
             hookData: defaultHookData
-        })
-      });
-
-        BaseEnforcer.Details memory details = BaseEnforcer.Details({
-            loan: loan
         });
-
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = CaveatEnforcer.CaveatWithApproval({
-                v: 0,
-                r: bytes32(0),
-                s: bytes32(0),
-                caveat: CaveatEnforcer.Caveat({
-                enforcer: address(borrowerEnforcer),
-                salt: bytes32(uint256(0)),
-                deadline: block.timestamp + 1 days,
-                data: abi.encode(details)
-            })
-        });
-
-        bytes32 borrowerHash = LM.hashCaveatWithSaltAndNonce(borrower.addr, borrowerCaveat.caveat);
-        (borrowerCaveat.v, borrowerCaveat.r, borrowerCaveat.s) = vm.sign(borrower.key, borrowerHash);
-
-        details.loan.borrower = address(0);
-        details.loan.issuer = lender.addr;
-
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
-                v: 0,
-                r: bytes32(0),
-                s: bytes32(0),
-                caveat: CaveatEnforcer.Caveat({
-                enforcer: address(lenderEnforcer),
-                salt: bytes32(uint256(1)),
-                deadline: block.timestamp + 1 days,
-                data: abi.encode(details)
-            })
-        });
-
-        bytes32 lenderHash = LM.hashCaveatWithSaltAndNonce(lender.addr, lenderCaveat.caveat);
-        (lenderCaveat.v, lenderCaveat.r, lenderCaveat.s) = vm.sign(lender.key, lenderHash);
-
-
-        loan.borrower = borrower.addr;
-        loan.issuer = lender.addr;
-
-        // vm.startPrank(borrower.addr);
-        vm.startPrank(fulfiller.addr);
-        LM.originate(
-            new ConduitTransfer[](0),
-            borrowerCaveat,
-            lenderCaveat,
-            loan
-        );
-        vm.stopPrank();
-        loan.start = block.timestamp;
-        loan.originator = fulfiller.addr;
-
-        uint256 loanId = loan.getId();
-        assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
-        return loan;
-    }
-    function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
-        LoanManager.Loan memory loan = setupBasicLoan();
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
         {
             vm.startPrank(recaller.addr);
@@ -220,7 +129,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             
             bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
             {
-                BaseEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
+                LenderEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
                 CaveatEnforcer.CaveatWithApproval memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
                 // vm.startPrank(refinancer.addr);
 
@@ -310,7 +219,16 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // lender is recaller, liquidation amount is 0
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
-        LoanManager.Loan memory loan = setupBasicLoan();
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         uint256 stake;
@@ -412,7 +330,16 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // recaller is not the lender, liquidation amount is a dutch auction
     function testNewLoanERC721CollateralDefaultTermsRecallLiquidation() public {
-        LoanManager.Loan memory loan = setupBasicLoan();
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         uint256 stake;

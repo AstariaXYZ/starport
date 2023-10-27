@@ -1,11 +1,17 @@
 pragma solidity =0.8.17;
 
-import {BaseEnforcer} from "starport-core/enforcers/BaseEnforcer.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
-contract LenderEnforcer is BaseEnforcer {
+contract LenderEnforcer is CaveatEnforcer {
 
   error LenderOnlyEnforcer();
+  error InvalidLoanTerms();
+  error InvalidAdditionalTransfer();
+
+  struct Details {
+    LoanManager.Loan loan;
+  }
 
   function validate(ConduitTransfer[] calldata additionalTransfers, LoanManager.Loan calldata loan, bytes calldata caveatData) public view virtual override {
     bytes32 loanHash = keccak256(abi.encode(loan));

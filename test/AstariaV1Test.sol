@@ -12,7 +12,8 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 
 import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
-import {BaseEnforcer} from "starport-core/enforcers/BaseEnforcer.sol";
+import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 // import "forge-std/console2.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
@@ -60,7 +61,7 @@ contract AstariaV1Test is StarPortTest {
         );
     }
 
-    function getLenderSignedCaveat(BaseEnforcer.Details memory details, Account memory signer, bytes32 salt, address enforcer) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
+    function getLenderSignedCaveat(LenderEnforcer.Details memory details, Account memory signer, bytes32 salt, address enforcer) public view returns(CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
          caveatApproval.caveat = CaveatEnforcer.Caveat({
             enforcer: enforcer,
             salt: salt,
@@ -73,11 +74,10 @@ contract AstariaV1Test is StarPortTest {
         (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
     }
 
-    function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor) public view returns(BaseEnforcer.Details memory) {
+    function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor) public view returns(LenderEnforcer.Details memory) {
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
-            ConduitTransfer[] memory additionalTransfers
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, transactor);
 
         loan = LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
@@ -85,7 +85,7 @@ contract AstariaV1Test is StarPortTest {
         loan.start = 0;
         loan.originator = address(0);
         
-        return BaseEnforcer.Details({
+        return LenderEnforcer.Details({
             loan: loan
         });
     }
