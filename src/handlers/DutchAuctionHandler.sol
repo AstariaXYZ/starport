@@ -46,7 +46,6 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         returns (ReceivedItem[] memory consideration, address restricted)
     {
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
-        
 
         uint256 start = _getAuctionStart(loan);
 
@@ -62,13 +61,14 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
             endTime: start + details.window,
             roundUp: true
         });
-        
+
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest = BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
+        uint256 interest =
+            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
 
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
 
-        if(loan.debt[0].amount + interest <= settlementPrice){
+        if (loan.debt[0].amount + interest <= settlementPrice) {
             consideration = new ReceivedItem[](2);
             consideration[0] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
@@ -77,10 +77,9 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
                 token: loan.debt[0].token,
                 recipient: payable(loan.originator)
             });
-            
+
             settlementPrice -= consideration[0].amount;
-        }
-        else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
+        } else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
             consideration = new ReceivedItem[](2);
             consideration[0] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
@@ -90,8 +89,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
                 recipient: payable(loan.originator)
             });
             settlementPrice -= consideration[0].amount;
-        }
-        else {
+        } else {
             consideration = new ReceivedItem[](1);
         }
 

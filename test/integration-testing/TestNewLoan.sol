@@ -102,7 +102,7 @@ contract TestNewLoan is StarPortTest {
         //         data: abi.encode(uint256(0))
         //     })
         // });
-        
+
         // // getLenderSignedCaveat();
         // refinanceLoan(
         //     loan,
@@ -212,67 +212,67 @@ contract TestNewLoan is StarPortTest {
     }
 
     function testSettleLoan() public {
-    //     //default is 14 day term
-    //     LoanManager.Loan memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
+        //     //default is 14 day term
+        //     LoanManager.Loan memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
 
-    //     skip(14 days);
+        //     skip(14 days);
 
-    //     minimumReceived.push(
-    //         SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 600 ether, identifier: 0})
-    //     );
+        //     minimumReceived.push(
+        //         SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 600 ether, identifier: 0})
+        //     );
 
-    //     (ReceivedItem[] memory settlementConsideration, address restricted) =
-    //         SettlementHandler(activeLoan.terms.handler).getSettlement(activeLoan);
+        //     (ReceivedItem[] memory settlementConsideration, address restricted) =
+        //         SettlementHandler(activeLoan.terms.handler).getSettlement(activeLoan);
 
-    //     ConsiderationItem[] memory consider = new ConsiderationItem[](
-    //       settlementConsideration.length
-    //     );
-    //     uint256 i = 0;
-    //     for (; i < settlementConsideration.length;) {
-    //         consider[i].token = settlementConsideration[i].token;
-    //         consider[i].itemType = settlementConsideration[i].itemType;
-    //         consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
-    //         consider[i].startAmount = settlementConsideration[i].amount;
-    //         //TODO: update this
-    //         consider[i].endAmount = settlementConsideration[i].amount;
-    //         consider[i].recipient = settlementConsideration[i].recipient;
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-    //     OfferItem[] memory repayOffering = new OfferItem[](
-    //   activeLoan.collateral.length
-    // );
-    //     i = 0;
-    //     for (; i < activeLoan.collateral.length;) {
-    //         repayOffering[i] = OfferItem({
-    //             itemType: activeLoan.collateral[i].itemType,
-    //             token: address(activeLoan.collateral[i].token),
-    //             identifierOrCriteria: activeLoan.collateral[i].identifier,
-    //             endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
-    //             startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
-    //         });
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
+        //     ConsiderationItem[] memory consider = new ConsiderationItem[](
+        //       settlementConsideration.length
+        //     );
+        //     uint256 i = 0;
+        //     for (; i < settlementConsideration.length;) {
+        //         consider[i].token = settlementConsideration[i].token;
+        //         consider[i].itemType = settlementConsideration[i].itemType;
+        //         consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
+        //         consider[i].startAmount = settlementConsideration[i].amount;
+        //         //TODO: update this
+        //         consider[i].endAmount = settlementConsideration[i].amount;
+        //         consider[i].recipient = settlementConsideration[i].recipient;
+        //         unchecked {
+        //             ++i;
+        //         }
+        //     }
+        //     OfferItem[] memory repayOffering = new OfferItem[](
+        //   activeLoan.collateral.length
+        // );
+        //     i = 0;
+        //     for (; i < activeLoan.collateral.length;) {
+        //         repayOffering[i] = OfferItem({
+        //             itemType: activeLoan.collateral[i].itemType,
+        //             token: address(activeLoan.collateral[i].token),
+        //             identifierOrCriteria: activeLoan.collateral[i].identifier,
+        //             endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
+        //             startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
+        //         });
+        //         unchecked {
+        //             ++i;
+        //         }
+        //     }
 
-    //     OrderParameters memory op = _buildContractOrder(address(activeLoan.custodian), repayOffering, consider);
-    //     if (restricted == address(0)) {
-    //         AdvancedOrder memory settlementOrder = AdvancedOrder({
-    //             numerator: 1,
-    //             denominator: 1,
-    //             parameters: op,
-    //             extraData: abi.encode(Actions.Settlement, activeLoan),
-    //             signature: ""
-    //         });
+        //     OrderParameters memory op = _buildContractOrder(address(activeLoan.custodian), repayOffering, consider);
+        //     if (restricted == address(0)) {
+        //         AdvancedOrder memory settlementOrder = AdvancedOrder({
+        //             numerator: 1,
+        //             denominator: 1,
+        //             parameters: op,
+        //             extraData: abi.encode(Actions.Settlement, activeLoan),
+        //             signature: ""
+        //         });
 
-    //         consideration.fulfillAdvancedOrder({
-    //             advancedOrder: settlementOrder,
-    //             criteriaResolvers: new CriteriaResolver[](0),
-    //             fulfillerConduitKey: bytes32(0),
-    //             recipient: address(0)
-    //         });
-    //     }
+        //         consideration.fulfillAdvancedOrder({
+        //             advancedOrder: settlementOrder,
+        //             criteriaResolvers: new CriteriaResolver[](0),
+        //             fulfillerConduitKey: bytes32(0),
+        //             recipient: address(0)
+        //         });
+        //     }
     }
 }

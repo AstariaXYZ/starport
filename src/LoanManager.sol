@@ -43,7 +43,7 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-import "forge-std/console2.sol";
+import "seaport/lib/seaport-sol/src/lib/SpentItemLib.sol";
 
 interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
@@ -67,14 +67,16 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
+    //    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
+    //        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
+        keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
     address public feeTo;
     uint96 public defaultFeeRake;
-    mapping(address => mapping(bytes32 => bool)) public usedSalts;
-    mapping(address => uint256) public borrowerNonce; //needs to be invalidated
-
+    mapping(address => mapping(bytes32 => bool)) public invalidHashes;
+    mapping(address => mapping(address => bool)) public approvals;
+    mapping(address => uint256) public caveatNonces;
     //contract to token //fee rake
     mapping(address => Fee) public feeOverride;
 
@@ -169,47 +171,53 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         emit SeaportCompatibleContractDeployed();
     }
 
-
-    mapping(address => mapping(bytes32 => bool)) invalidHashes;
-    mapping(address => mapping(address => bool)) approvals;
-    mapping(address => uint256) caveatNonces;
+    function transferFrom(address from, address to, uint256 tokenId) public payable override {
+        if (msg.sender != address(this)) {
+            revert CannotTransferLoans();
+        }
+    }
 
     function originate(
         ConduitTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        LoanManager.Loan memory loan) external payable {
-
-        if(msg.sender != loan.borrower){
+        LoanManager.Loan memory loan
+    ) external payable {
+        if (msg.sender != loan.borrower) {
             _validateAndEnforceCaveats(borrowerCaveat, loan.borrower, additionalTransfers, loan);
         }
 
-        if(msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]){
+        if (msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]) {
             _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
-        _transferSpentItems(loan.debt, loan.issuer, loan.borrower);
         _transferSpentItems(loan.collateral, loan.borrower, loan.custodian);
+        address feeRecipient = feeTo;
+        if (feeRecipient == address(0)) {
+            _transferSpentItems(loan.debt, loan.issuer, loan.borrower);
+        } else {
+            (SpentItem[] memory feeItems, SpentItem[] memory sentToBorrower) = _feeRake(loan.debt);
+            if (feeItems.length > 0) {
+                _transferSpentItems(feeItems, loan.issuer, feeRecipient);
+            }
+            _transferSpentItems(sentToBorrower, loan.issuer, loan.borrower);
+        }
 
-        
-        if(additionalTransfers.length > 0){
-            _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+        if (additionalTransfers.length > 0) {
+            _validateAdditionalTransfersCalldata(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
             _transferConduitTransfers(additionalTransfers);
         }
 
-        loan.start = block.timestamp;
-        loan.originator = msg.sender;
-        //mint LM
-        _issueLoanManager(loan, true);
+        //sets originator and start time
+        _issueLoanManager(loan);
     }
 
     function refinance(
         address lender,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan,
-        bytes memory pricingData
-        ) external
-    {
+        bytes calldata pricingData
+    ) external {
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -218,7 +226,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
 
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-        
+
         _transferSpentItems(considerationPayment, lender, loan.issuer);
         _transferSpentItems(carryPayment, lender, loan.originator);
 
@@ -226,41 +234,47 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         loan.originator = address(0);
         loan.start = 0;
 
-        if(msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]){
+        if (msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]) {
             _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
-        if(additionalTransfers.length > 0){
+        if (additionalTransfers.length > 0) {
             _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
             _transferConduitTransfers(additionalTransfers);
         }
 
-        loan.originator = msg.sender;
-        loan.start = block.timestamp;
-
-        _issueLoanManager(loan, msg.sender.code.length > 0);
+        //sets originator and start time
+        _issueLoanManager(loan);
     }
 
-    function applyRefinanceConsiderationToLoan(LoanManager.Loan memory loan, SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment, bytes memory pricingData) public pure returns(LoanManager.Loan memory) {
-        if(considerationPayment.length == 0 || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length) || considerationPayment.length != loan.debt.length) {
-        revert MalformedRefinance();
+    function applyRefinanceConsiderationToLoan(
+        LoanManager.Loan memory loan,
+        SpentItem[] memory considerationPayment,
+        SpentItem[] memory carryPayment,
+        bytes memory pricingData
+    ) public pure returns (LoanManager.Loan memory) {
+        if (
+            considerationPayment.length == 0
+                || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length)
+                || considerationPayment.length != loan.debt.length
+        ) {
+            revert MalformedRefinance();
         }
 
-        uint256 i=0;
-        if(carryPayment.length > 0){
-            for(;i<considerationPayment.length;){
+        uint256 i = 0;
+        if (carryPayment.length > 0) {
+            for (; i < considerationPayment.length;) {
                 loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
 
                 unchecked {
-                ++i;
+                    ++i;
                 }
             }
-        }
-        else {
-            for(;i<considerationPayment.length;){
+        } else {
+            for (; i < considerationPayment.length;) {
                 loan.debt[i].amount = considerationPayment[i].amount;
                 unchecked {
-                ++i;
+                    ++i;
                 }
             }
         }
@@ -268,89 +282,139 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         return loan;
     }
 
-    function _validateAdditionalTransfers(address borrower, address lender, address fulfiller, ConduitTransfer[] memory additionalTransfers) internal pure {
+    function _validateAdditionalTransfers(
+        address borrower,
+        address lender,
+        address fulfiller,
+        ConduitTransfer[] memory additionalTransfers
+    ) internal pure {
         uint256 i = 0;
-        for(i; i<additionalTransfers.length;){
-        if(additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender && additionalTransfers[i].from != fulfiller) revert UnauthorizedAdditionalTransferIncluded();
-        unchecked {
-            ++i;
-        }
+        for (i; i < additionalTransfers.length;) {
+            if (
+                additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
+                    && additionalTransfers[i].from != fulfiller
+            ) {
+                revert UnauthorizedAdditionalTransferIncluded();
+            }
+            unchecked {
+                ++i;
+            }
         }
     }
-    function _validateAndEnforceCaveats(CaveatEnforcer.CaveatWithApproval memory caveatApproval, address validator, ConduitTransfer[] memory additionalTransfers, LoanManager.Loan memory loan) internal {
-        invalidHashes.validateSalt(validator, caveatApproval.caveat.salt);
 
-        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.caveat);
-        address signer = ecrecover(hash, caveatApproval.v, caveatApproval.r, caveatApproval.s);
+    function _validateAdditionalTransfersCalldata(
+        address borrower,
+        address lender,
+        address fulfiller,
+        ConduitTransfer[] calldata additionalTransfers
+    ) internal pure {
+        uint256 i = 0;
+        for (i; i < additionalTransfers.length;) {
+            if (
+                additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
+                    && additionalTransfers[i].from != fulfiller
+            ) revert UnauthorizedAdditionalTransferIncluded();
+            unchecked {
+                ++i;
+            }
+        }
+    }
 
-        console2.log("bark", validator, msg.sender);
-        if(signer != validator) revert InvalidCaveatSigner();
+    function _validateAndEnforceCaveats(
+        CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
+        address validator,
+        ConduitTransfer[] memory additionalTransfers,
+        LoanManager.Loan memory loan
+    ) internal {
+        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
+        invalidHashes.validateSalt(validator, caveatApproval.salt);
 
-        // will revert if invalid
-        CaveatEnforcer(caveatApproval.caveat.enforcer).validate(additionalTransfers, loan, caveatApproval.caveat.data);
+        if (
+            !SignatureCheckerLib.isValidSignatureNow(
+                validator, hash, caveatApproval.v, caveatApproval.r, caveatApproval.s
+            )
+        ) {
+            revert InvalidCaveatSigner();
+        }
+
+        for (uint256 i = 0; i < caveatApproval.caveat.length;) {
+            CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
+                additionalTransfers, loan, caveatApproval.caveat[i].data
+            );
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     function _transferConduitTransfers(ConduitTransfer[] memory transfers) internal {
-        uint256 i=0;
-        for(i; i<transfers.length;){
-            if(transfers[i].amount != 0){
-            if(transfers[i].itemType == ConduitItemType.ERC20){
-                // erc20 transfer
-                ERC20(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].amount);
-            }
-            else if(transfers[i].itemType == ConduitItemType.ERC721){
-                // erc721 transfer
-                ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
-            }
-            else if(transfers[i].itemType == ConduitItemType.ERC1155){
-                // erc1155 transfer
-                ERC1155(transfers[i].token).safeTransferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0));
-            }
-            else revert NativeAssetsNotSupported();
-
+        uint256 i = 0;
+        for (i; i < transfers.length;) {
+            if (transfers[i].amount != 0) {
+                if (transfers[i].itemType == ConduitItemType.ERC20) {
+                    // erc20 transfer
+                    ERC20(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].amount);
+                } else if (transfers[i].itemType == ConduitItemType.ERC721) {
+                    // erc721 transfer
+                    ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
+                } else if (transfers[i].itemType == ConduitItemType.ERC1155) {
+                    // erc1155 transfer
+                    ERC1155(transfers[i].token).safeTransferFrom(
+                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                    );
+                } else {
+                    revert NativeAssetsNotSupported();
+                }
             }
             unchecked {
-            ++i;
+                ++i;
             }
         }
     }
 
     function _transferSpentItems(SpentItem[] memory transfers, address from, address to) internal {
-        uint256 i=0;
-        for(i; i<transfers.length;){
-        if(transfers[i].amount != 0){
-            if(transfers[i].itemType == ItemType.ERC20){
-            // erc20 transfer
-            ERC20(transfers[i].token).transferFrom(from, to, transfers[i].amount);
+        uint256 i = 0;
+        for (i; i < transfers.length;) {
+            if (transfers[i].amount != 0) {
+                if (transfers[i].itemType == ItemType.ERC20) {
+                    // erc20 transfer
+                    ERC20(transfers[i].token).transferFrom(from, to, transfers[i].amount);
+                } else if (transfers[i].itemType == ItemType.ERC721) {
+                    // erc721 transfer
+                    ERC721(transfers[i].token).transferFrom(from, to, transfers[i].identifier);
+                } else if (transfers[i].itemType == ItemType.ERC1155) {
+                    // erc1155 transfer
+                    ERC1155(transfers[i].token).safeTransferFrom(
+                        from, to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                    );
+                } else {
+                    revert NativeAssetsNotSupported();
+                }
             }
-            else if(transfers[i].itemType == ItemType.ERC721){
-            // erc721 transfer
-            ERC721(transfers[i].token).transferFrom(from, to, transfers[i].identifier);
+            unchecked {
+                ++i;
             }
-            else if(transfers[i].itemType == ItemType.ERC1155){
-            // erc1155 transfer
-            ERC1155(transfers[i].token).safeTransferFrom(from, to, transfers[i].identifier, transfers[i].amount, new bytes(0));
-            }
-            else revert NativeAssetsNotSupported();
-        }
-        unchecked {
-            ++i;
-        }
         }
     }
 
-    function hashCaveatWithSaltAndNonce(address validator, CaveatEnforcer.Caveat memory caveat)
+    function hashCaveatWithSaltAndNonce(address validator, bytes32 salt, CaveatEnforcer.Caveat[] calldata caveat)
         public
         view
         virtual
         returns (bytes32)
     {
-        return keccak256(abi.encodePacked(
-            bytes1(0x19),
-            bytes1(0x01),
-            _DOMAIN_SEPARATOR,
-            keccak256(abi.encode(INTENT_ORIGINATION_TYPEHASH, caveat.enforcer, caveatNonces[validator], caveat.salt, caveat.deadline, caveat.data))
-        ));
+        return keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                _DOMAIN_SEPARATOR,
+                keccak256(
+                    abi.encode(
+                        INTENT_ORIGINATION_TYPEHASH, caveatNonces[validator], salt, keccak256(abi.encode(caveat))
+                    )
+                )
+            )
+        );
     }
 
     /**
@@ -367,16 +431,6 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      */
     function symbol() public pure override returns (string memory) {
         return "SLM";
-    }
-
-    /**
-     * @dev  modifier to check if the caller is seaport
-     */
-    modifier onlySeaport() {
-        if (msg.sender != address(seaport)) {
-            revert NotSeaport();
-        }
-        _;
     }
 
     /**
@@ -499,8 +553,13 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      * @param debt The debt to rake
      * @return feeItems SpentItem[] of fee's
      */
-    function _feeRake(SpentItem[] memory debt) internal view returns (SpentItem[] memory feeItems) {
+    function _feeRake(SpentItem[] memory debt)
+        internal
+        view
+        returns (SpentItem[] memory feeItems, SpentItem[] memory paymentToBorrower)
+    {
         feeItems = new SpentItem[](debt.length);
+        paymentToBorrower = new SpentItem[](debt.length);
         uint256 totalDebtItems;
         for (uint256 i = 0; i < debt.length;) {
             Fee memory feeOverride = feeOverride[debt[i].token];
@@ -512,6 +571,12 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
                 );
                 feeItems[i].token = debt[i].token;
                 feeItems[i].itemType = debt[i].itemType;
+                paymentToBorrower[i] = SpentItem({
+                    token: debt[i].token,
+                    itemType: debt[i].itemType,
+                    identifier: debt[i].identifier,
+                    amount: debt[i].amount - feeItems[i].amount
+                });
                 ++totalDebtItems;
             }
             unchecked {
@@ -527,9 +592,11 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
      * @dev issues a LM token if needed
      * only owner can call
      * @param loan  the loan to issue
-     * @param mint if true, mint the token
      */
-    function _issueLoanManager(Loan memory loan, bool mint) internal {
+    function _issueLoanManager(Loan memory loan) internal {
+        loan.start = block.timestamp;
+        loan.originator = msg.sender;
+
         bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = loan.getId();
@@ -537,21 +604,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
             revert LoanExists();
         }
         _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
-        if (mint) {
-            _safeMint(loan.issuer, loanId, encodedLoan);
-        }
-        emit Open(loanId, loan);
-    }
-
-    function issueLoanManager(Loan memory loan, bool mint) external {
-        bytes memory encodedLoan = abi.encode(loan);
-
-        uint256 loanId = loan.getId();
-        if (_issued(loanId)) {
-            revert LoanExists();
-        }
-        _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
-        if (mint) {
+        if (loan.issuer.code.length > 0) {
             _safeMint(loan.issuer, loanId, encodedLoan);
         }
         emit Open(loanId, loan);

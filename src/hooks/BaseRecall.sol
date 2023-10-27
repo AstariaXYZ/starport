@@ -101,18 +101,16 @@ abstract contract BaseRecall is ConduitHelper {
             revert RecallBeforeHoneymoonExpiry();
         }
 
-        if(loan.issuer != msg.sender && loan.borrower != msg.sender){
+        if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
             (,, address conduitController) = seaport.information();
             // validate that the provided conduit is owned by the msg.sender
             if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
                 revert InvalidConduit();
             }
-            ConduitTransfer[] memory recallConsideration =
-                _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this)));
-            if (
-                ConduitInterface(conduit).execute(recallConsideration)
-                    != ConduitInterface.execute.selector
-            ) {
+            ConduitTransfer[] memory recallConsideration = _generateRecallConsideration(
+                loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
+            );
+            if (ConduitInterface(conduit).execute(recallConsideration) != ConduitInterface.execute.selector) {
                 revert ConduitTransferError();
             }
         }
@@ -142,8 +140,8 @@ abstract contract BaseRecall is ConduitHelper {
         if (recall.start == 0 || recall.recaller == address(0)) {
             revert WithdrawDoesNotExist();
         }
-        
-        if(loan.issuer != recall.recaller && loan.borrower != recall.recaller ){
+
+        if (loan.issuer != recall.recaller && loan.borrower != recall.recaller) {
             ConduitTransfer[] memory recallConsideration =
                 _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
             recall.recaller = payable(address(0));
@@ -179,11 +177,12 @@ abstract contract BaseRecall is ConduitHelper {
         }
     }
 
-    function generateRecallConsideration(LoanManager.Loan memory loan, uint256 proportion, address from, address payable to)
-        external
-        view
-        returns (ConduitTransfer[] memory consideration)
-    {
+    function generateRecallConsideration(
+        LoanManager.Loan memory loan,
+        uint256 proportion,
+        address from,
+        address payable to
+    ) external view returns (ConduitTransfer[] memory consideration) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
         return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, from, to);
     }
@@ -214,16 +213,15 @@ abstract contract BaseRecall is ConduitHelper {
         }
     }
 
-    function _convertItemTypeToConduitItemType(ItemType itemType) internal pure returns (ConduitItemType){
-        if(itemType == ItemType.ERC20){
+    function _convertItemTypeToConduitItemType(ItemType itemType) internal pure returns (ConduitItemType) {
+        if (itemType == ItemType.ERC20) {
             return ConduitItemType.ERC20;
-        }
-        else if(itemType == ItemType.ERC721){
+        } else if (itemType == ItemType.ERC721) {
             return ConduitItemType.ERC721;
-        }
-        else if(itemType == ItemType.ERC1155){
+        } else if (itemType == ItemType.ERC1155) {
             return ConduitItemType.ERC1155;
+        } else {
+            revert InvalidItemType();
         }
-        else revert InvalidItemType();
     }
 }

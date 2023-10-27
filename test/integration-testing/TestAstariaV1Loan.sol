@@ -9,7 +9,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
     using {StarPortLib.getId} for LoanManager.Loan;
-    
+
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(hook),
@@ -35,12 +35,13 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 v: 0,
                 r: bytes32(0),
                 s: bytes32(0),
-                caveat: CaveatEnforcer.Caveat({
-                    enforcer: address(lenderEnforcer),
-                    salt: bytes32(uint256(1)),
-                    deadline: block.timestamp + 1 days,
-                    data: abi.encode(uint256(0))
-                })
+                salt: bytes32(uint256(1)),
+                caveat: new CaveatEnforcer.Caveat[](1)
+            });
+            lenderCaveat.caveat[0] = CaveatEnforcer.Caveat({
+                enforcer: address(lenderEnforcer),
+                deadline: block.timestamp + 1 days,
+                data: abi.encode(uint256(0))
             });
 
             refinanceLoan(
@@ -100,14 +101,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 v: 0,
                 r: bytes32(0),
                 s: bytes32(0),
-                caveat: CaveatEnforcer.Caveat({
-                    enforcer: address(lenderEnforcer),
-                    salt: bytes32(uint256(1)),
-                    deadline: block.timestamp + 1 days,
-                    data: abi.encode(uint256(0))
-                })
+                salt: bytes32(uint256(1)),
+                caveat: new CaveatEnforcer.Caveat[](1)
             });
 
+            lenderCaveat.caveat[0] = CaveatEnforcer.Caveat({
+                enforcer: address(lenderEnforcer),
+                deadline: block.timestamp + 1 days,
+                data: abi.encode(uint256(0))
+            });
             refinanceLoan(
                 loan,
                 abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
@@ -126,33 +128,33 @@ contract TestAstariaV1Loan is AstariaV1Test {
             uint256 newFullfillerBefore = erc20s[0].balanceOf(address(this));
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
-            
+
             bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
             {
                 LenderEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
-                CaveatEnforcer.CaveatWithApproval memory refinancerCaveat = getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
+                console.log("here");
+                CaveatEnforcer.CaveatWithApproval memory refinancerCaveat =
+                    getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
                 // vm.startPrank(refinancer.addr);
-
+                console.logBytes32(
+                    LM.hashCaveatWithSaltAndNonce(refinancer.addr, bytes32(uint256(1)), refinancerCaveat.caveat)
+                );
+                emit log_caveatapproval(refinancerCaveat);
                 vm.startPrank(refinancer.addr);
                 erc20s[0].approve(address(LM), refinanceDetails.loan.debt[0].amount);
                 vm.stopPrank();
 
                 erc20s[0].approve(address(LM), stake);
-                refinanceLoan(
-                    loan,
-                    pricingData,
-                    address(this),
-                    refinancerCaveat,
-                    refinancer.addr
-                );
+                refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
+                console.log("here2");
             }
 
-            
             uint256 delta_t = block.timestamp - loan.start;
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest =
-                CompoundInterestPricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
-            
+            uint256 interest = CompoundInterestPricing(address(pricing)).calculateInterest(
+                delta_t, loan.debt[0].amount, pricingDetails.rate
+            );
+
             {
                 uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
                 assertEq(
@@ -161,7 +163,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                     "Payment to old lender calculated incorrectly"
                 );
             }
-            
+
             {
                 uint256 newLenderAfter = erc20s[0].balanceOf(refinancer.addr);
                 assertEq(
@@ -216,6 +218,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
         }
     }
+
+    event log_caveatapproval(CaveatEnforcer.CaveatWithApproval caveatApproval);
 
     // lender is recaller, liquidation amount is 0
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
@@ -394,7 +398,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 SettlementHandler(loan.terms.handler).getSettlement(loan);
 
             assertEq(
-                settlementConsideration.length, 3, "Settlement consideration length for a dutch auction should be 3 (carry, recaller, and the lender)"
+                settlementConsideration.length,
+                3,
+                "Settlement consideration length for a dutch auction should be 3 (carry, recaller, and the lender)"
             );
             assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
             {
@@ -402,8 +408,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 uint256 settlementPrice = 500 ether - carry;
                 uint256 recallerReward = settlementPrice.mulWad(10e16);
                 assertEq(settlementConsideration[0].amount, carry, "Settlement consideration for carry incorrect");
-                assertEq(settlementConsideration[1].amount, recallerReward, "Settlement consideration for recaller incorrect");
-                assertEq(settlementConsideration[2].amount, settlementPrice - recallerReward, "Settlement consideration for lender incorrect");
+                assertEq(
+                    settlementConsideration[1].amount, recallerReward, "Settlement consideration for recaller incorrect"
+                );
+                assertEq(
+                    settlementConsideration[2].amount,
+                    settlementPrice - recallerReward,
+                    "Settlement consideration for lender incorrect"
+                );
             }
             ConsiderationItem[] memory consider = new ConsiderationItem[](
                 settlementConsideration.length

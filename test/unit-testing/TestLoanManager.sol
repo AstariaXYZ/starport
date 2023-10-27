@@ -337,17 +337,11 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.setFeeData(feeReceiver, 1e17); //10% fees
 
         LoanManager.Loan memory originationDetails = _generateOriginationDetails(
-            _getERC721SpentItem(erc721s[0], uint256(2)),
-            _getERC20SpentItem(erc20s[0], borrowAmount),
-            lender.addr
+            _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            originationDetails,
-            bytes32(bytes32(msg.sig)),
-            bytes32(bytes32(msg.sig)),
-            lender.addr
-        );
+        LoanManager.Loan memory loan =
+            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
     }
 
@@ -358,17 +352,10 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.setFeeOverride(address(erc20s[0]), 0); //0% fees
 
         LoanManager.Loan memory originationDetails = _generateOriginationDetails(
-            _getERC721SpentItem(erc721s[0], uint256(2)),
-            _getERC20SpentItem(erc20s[0], borrowAmount),
-            lender.addr
+            _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
-        newLoan(
-            originationDetails,
-            bytes32(bytes32(msg.sig)),
-            bytes32(bytes32(msg.sig)),
-            lender.addr
-        );
+        newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
     }
 

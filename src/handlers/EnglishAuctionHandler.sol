@@ -56,6 +56,9 @@ contract EnglishAuctionHandler is SettlementHandler {
     }
 
     function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        if (fulfiller != address(this)) {
+            revert("must liquidate via the handler to trigger english auction");
+        }
         return SettlementHandler.execute.selector;
     }
 

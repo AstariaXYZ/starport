@@ -56,11 +56,7 @@ contract TestLoanCombinations is StarPortTest {
 
         skip(10 days);
 
-        _repayLoan({
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 
     function testLoan20For721SimpleInterestDutchFixedRepay() public {
@@ -72,10 +68,7 @@ contract TestLoanCombinations is StarPortTest {
             handlerData: defaultHandlerData,
             hookData: defaultHookData
         });
-        LoanManager.Loan memory loan = _createLoan20Collateral721Debt({
-            lender: lender.addr,
-            terms: terms
-        });
+        LoanManager.Loan memory loan = _createLoan20Collateral721Debt({lender: lender.addr, terms: terms});
         skip(10 days);
 
         _repayLoan({ // TODO different repay
@@ -98,11 +91,7 @@ contract TestLoanCombinations is StarPortTest {
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
         skip(10 days);
 
-        _repayLoan({
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 
     function testLoanSimpleInterestEnglishFixed() public {

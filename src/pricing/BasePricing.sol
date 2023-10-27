@@ -48,15 +48,15 @@ abstract contract BasePricing is Pricing {
         returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        if(details.carryRate > 0) carryConsideration = new SpentItem[](loan.debt.length);
+        if (details.carryRate > 0) carryConsideration = new SpentItem[](loan.debt.length);
         else carryConsideration = new SpentItem[](0);
         repayConsideration = new SpentItem[](loan.debt.length);
 
-        uint256 i=0;
-        for(;i<loan.debt.length;){
+        uint256 i = 0;
+        for (; i < loan.debt.length;) {
             uint256 interest = getInterest(loan, details.rate, loan.start, block.timestamp, i);
-            
-            if(details.carryRate > 0){
+
+            if (details.carryRate > 0) {
                 carryConsideration[i] = SpentItem({
                     itemType: loan.debt[i].itemType,
                     identifier: loan.debt[i].identifier,
@@ -69,8 +69,7 @@ abstract contract BasePricing is Pricing {
                     amount: loan.debt[i].amount + interest - carryConsideration[i].amount,
                     token: loan.debt[i].token
                 });
-            }
-            else {
+            } else {
                 repayConsideration[i] = SpentItem({
                     itemType: loan.debt[i].itemType,
                     identifier: loan.debt[i].identifier,
@@ -82,16 +81,13 @@ abstract contract BasePricing is Pricing {
                 ++i;
             }
         }
-
     }
 
-    function getInterest(
-        LoanManager.Loan memory loan,
-        uint256 rate,
-        uint256 start,
-        uint256 end,
-        uint256 index
-    ) public pure returns (uint256) {
+    function getInterest(LoanManager.Loan memory loan, uint256 rate, uint256 start, uint256 end, uint256 index)
+        public
+        pure
+        returns (uint256)
+    {
         uint256 delta_t = end - start;
         return calculateInterest(delta_t, rate, loan.debt[index].amount);
     }
@@ -101,5 +97,4 @@ abstract contract BasePricing is Pricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure virtual returns (uint256);
-
 }

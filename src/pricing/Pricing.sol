@@ -39,7 +39,7 @@ abstract contract Pricing {
         virtual
         returns (SpentItem[] memory, SpentItem[] memory);
 
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function isValidRefinance(LoanManager.Loan memory loan, bytes calldata newPricingData, address caller)
         external
         view
         virtual
