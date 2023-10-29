@@ -61,23 +61,6 @@ contract AstariaV1Test is StarPortTest {
         );
     }
 
-    function getLenderSignedCaveat(
-        LenderEnforcer.Details memory details,
-        Account memory signer,
-        bytes32 salt,
-        address enforcer
-    ) public view returns (CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
-        console.log("get lender signer caveat signer", signer.addr);
-        caveatApproval.caveat = new CaveatEnforcer.Caveat[](1);
-        caveatApproval.salt = salt;
-        caveatApproval.caveat[0] =
-            CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
-        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
-
-        console.logBytes32(hash);
-        (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
-    }
-
     function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor)
         public
         view

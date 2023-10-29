@@ -425,6 +425,21 @@ contract StarPortTest is BaseOrderTest {
         }
     }
 
+    function getLenderSignedCaveat(
+        LenderEnforcer.Details memory details,
+        Account memory signer,
+        bytes32 salt,
+        address enforcer
+    ) public view returns (CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
+        caveatApproval.caveat = new CaveatEnforcer.Caveat[](1);
+        caveatApproval.salt = salt;
+        caveatApproval.caveat[0] =
+            CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
+        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
+
+        (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
+    }
+
     function newLoanWithDefaultTerms() public returns (LoanManager.Loan memory) {
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
         return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);

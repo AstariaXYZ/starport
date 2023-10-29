@@ -7,12 +7,13 @@ import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 contract MockCustodian is Custodian {
     constructor(LoanManager LM_, ConsiderationInterface seaport_) Custodian(LM_, seaport_) {}
 
-    function custody(
-        ReceivedItem[] calldata consideration,
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce,
-        bytes calldata context
-    ) external virtual override onlyLoanManager returns (bytes4 selector) {
+    function custody(LoanManager.Loan memory loan)
+        external
+        virtual
+        override
+        onlyLoanManager
+        returns (bytes4 selector)
+    {
         selector = Custodian.custody.selector;
     }
 }
@@ -93,11 +94,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             )
         );
         vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                Custodian.custody.selector, new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0)
-            )
-        );
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.custody.selector, activeLoan));
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.getSeaportMetadata.selector));
         vm.expectRevert();
@@ -197,16 +194,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     function testCustodySelector() public {
         MockCustodian custodianMock = new MockCustodian(LM, seaport);
         vm.prank(address(custodianMock.LM()));
-        assert(
-            custodianMock.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))
-                == Custodian.custody.selector
-        );
+        assert(custodianMock.custody(activeLoan) == Custodian.custody.selector);
     }
 
     function testDefaultCustodySelectorRevert() public {
         vm.prank(address(custodian.LM()));
         vm.expectRevert(abi.encodeWithSelector(Custodian.ImplementInChild.selector));
-        custodian.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0));
+        custodian.custody(activeLoan);
     }
 
     //TODO: add assertions

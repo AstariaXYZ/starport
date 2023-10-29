@@ -25,7 +25,6 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
@@ -42,14 +41,13 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-import "seaport/lib/seaport-sol/src/lib/SpentItemLib.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
 }
 
-contract LoanManager is ConduitHelper, Ownable, ERC721 {
+contract LoanManager is Ownable, ERC721 {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
@@ -138,11 +136,10 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     error InvalidRefinance();
     error InvalidCustodian();
     error InvalidLoan();
-    error InvalidMaximumSpentEmpty();
-    error InvalidDebtLength();
-    error InvalidDebtType();
-    error InvalidOrigination();
-    error InvalidNoRefinanceConsideration();
+    error InvalidItemAmount();
+    error InvalidItemTokenNoCode();
+    error InvalidTransferLength();
+    //    error InvalidNoRefinanceConsideration();
     error LoanExists();
     error NotLoanCustodian();
     error NotPayingFees();
@@ -172,9 +169,7 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
-        if (msg.sender != address(this)) {
-            revert CannotTransferLoans();
-        }
+        revert CannotTransferLoans();
     }
 
     function originate(
@@ -183,28 +178,32 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan
     ) external payable {
-        if (msg.sender != loan.borrower) {
-            _validateAndEnforceCaveats(borrowerCaveat, loan.borrower, additionalTransfers, loan);
-        }
-
-        if (msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]) {
-            _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
-        }
-
-        _transferSpentItems(loan.collateral, loan.borrower, loan.custodian);
+        //cache the addresses
+        address borrower = loan.borrower;
+        address issuer = loan.issuer;
         address feeRecipient = feeTo;
+        if (msg.sender != loan.borrower) {
+            _validateAndEnforceCaveats(borrowerCaveat, borrower, additionalTransfers, loan);
+        }
+
+        if (msg.sender != issuer && !approvals[issuer][msg.sender]) {
+            _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
+        }
+
+        _transferSpentItems(loan.collateral, borrower, loan.custodian);
+        _callCustody(loan);
         if (feeRecipient == address(0)) {
-            _transferSpentItems(loan.debt, loan.issuer, loan.borrower);
+            _transferSpentItems(loan.debt, issuer, borrower);
         } else {
             (SpentItem[] memory feeItems, SpentItem[] memory sentToBorrower) = _feeRake(loan.debt);
             if (feeItems.length > 0) {
-                _transferSpentItems(feeItems, loan.issuer, feeRecipient);
+                _transferSpentItems(feeItems, issuer, feeRecipient);
             }
-            _transferSpentItems(sentToBorrower, loan.issuer, loan.borrower);
+            _transferSpentItems(sentToBorrower, issuer, borrower);
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfersCalldata(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+            _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
             _transferConduitTransfers(additionalTransfers);
         }
 
@@ -282,6 +281,26 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         return loan;
     }
 
+    /**
+     * @dev  internal method to call the custody selector of the custodian if it does not share
+     * the same codehash as the default custodian
+     * @param loan                  The loan being placed into custody
+     */
+    function _callCustody(LoanManager.Loan memory loan) internal {
+        address custodian = loan.custodian;
+        // Comparing the retrieved code hash with a known hash
+        bytes32 codeHash;
+        assembly {
+            codeHash := extcodehash(custodian)
+        }
+        if (
+            codeHash != DEFAULT_CUSTODIAN_CODE_HASH
+                && Custodian(payable(custodian)).custody(loan) != Custodian.custody.selector
+        ) {
+            revert InvalidCustodian();
+        }
+    }
+
     function _validateAdditionalTransfers(
         address borrower,
         address lender,
@@ -349,18 +368,23 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
 
     function _transferConduitTransfers(ConduitTransfer[] memory transfers) internal {
         uint256 i = 0;
+        uint256 amount = 0;
         for (i; i < transfers.length;) {
-            if (transfers[i].amount != 0) {
+            amount = transfers[i].amount;
+            if (amount > 0) {
                 if (transfers[i].itemType == ConduitItemType.ERC20) {
                     // erc20 transfer
-                    ERC20(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].amount);
+                    ERC20(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, amount);
                 } else if (transfers[i].itemType == ConduitItemType.ERC721) {
                     // erc721 transfer
+                    if (amount > 1) {
+                        revert InvalidItemAmount();
+                    }
                     ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
                 } else if (transfers[i].itemType == ConduitItemType.ERC1155) {
                     // erc1155 transfer
                     ERC1155(transfers[i].token).safeTransferFrom(
-                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                        transfers[i].from, transfers[i].to, transfers[i].identifier, amount, new bytes(0)
                     );
                 } else {
                     revert NativeAssetsNotSupported();
@@ -372,28 +396,51 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
         }
     }
 
+    function _transferItem(
+        ItemType itemType,
+        address token,
+        uint256 identifier,
+        uint256 amount,
+        address from,
+        address to
+    ) internal {
+        if (token.code.length == 0) {
+            revert InvalidItemTokenNoCode();
+        }
+        if (amount > 0) {
+            if (itemType == ItemType.ERC20) {
+                // erc20 transfer
+                SafeTransferLib.safeTransferFrom(token, from, to, amount);
+            } else if (itemType == ItemType.ERC721) {
+                // erc721 transfer
+                if (amount > 1) {
+                    revert InvalidItemAmount();
+                }
+                ERC721(token).transferFrom(from, to, identifier);
+            } else if (itemType == ItemType.ERC1155) {
+                // erc1155 transfer
+                ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
+            } else {
+                revert InvalidItemType();
+            }
+        } else {
+            revert InvalidItemAmount();
+        }
+    }
+
     function _transferSpentItems(SpentItem[] memory transfers, address from, address to) internal {
-        uint256 i = 0;
-        for (i; i < transfers.length;) {
-            if (transfers[i].amount != 0) {
-                if (transfers[i].itemType == ItemType.ERC20) {
-                    // erc20 transfer
-                    ERC20(transfers[i].token).transferFrom(from, to, transfers[i].amount);
-                } else if (transfers[i].itemType == ItemType.ERC721) {
-                    // erc721 transfer
-                    ERC721(transfers[i].token).transferFrom(from, to, transfers[i].identifier);
-                } else if (transfers[i].itemType == ItemType.ERC1155) {
-                    // erc1155 transfer
-                    ERC1155(transfers[i].token).safeTransferFrom(
-                        from, to, transfers[i].identifier, transfers[i].amount, new bytes(0)
-                    );
-                } else {
-                    revert NativeAssetsNotSupported();
+        if (transfers.length > 0) {
+            uint256 i = 0;
+            for (i; i < transfers.length;) {
+                _transferItem(
+                    transfers[i].itemType, transfers[i].token, transfers[i].identifier, transfers[i].amount, from, to
+                );
+                unchecked {
+                    ++i;
                 }
             }
-            unchecked {
-                ++i;
-            }
+        } else {
+            revert InvalidTransferLength();
         }
     }
 
@@ -514,18 +561,6 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     }
 
     /**
-     * @dev Gets the metadata for this contract offerer.
-     *
-     * @return name    The name of the contract offerer.
-     * @return schemas The schemas supported by the contract offerer.
-     */
-    function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
-        schemas = new Schema[](1);
-        schemas[0] = Schema(8, "");
-        return ("Loans", schemas);
-    }
-
-    /**
      * @dev set's the default fee Data
      * only owner can call
      * @param feeTo_  The feeToAddress
@@ -560,31 +595,35 @@ contract LoanManager is ConduitHelper, Ownable, ERC721 {
     {
         feeItems = new SpentItem[](debt.length);
         paymentToBorrower = new SpentItem[](debt.length);
-        uint256 totalDebtItems;
+        uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
             Fee memory feeOverride = feeOverride[debt[i].token];
             feeItems[i].identifier = 0; //fees are native or erc20
             if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
-                feeItems[i].amount = debt[i].amount.mulDiv(
+                uint256 amount = debt[i].amount.mulDiv(
                     !feeOverride.enabled ? defaultFeeRake : feeOverride.amount,
                     (debt[i].itemType == ItemType.NATIVE) ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
                 );
-                feeItems[i].token = debt[i].token;
-                feeItems[i].itemType = debt[i].itemType;
                 paymentToBorrower[i] = SpentItem({
                     token: debt[i].token,
                     itemType: debt[i].itemType,
                     identifier: debt[i].identifier,
-                    amount: debt[i].amount - feeItems[i].amount
+                    amount: debt[i].amount - amount
                 });
-                ++totalDebtItems;
+                if (amount > 0) {
+                    feeItems[i].amount = amount;
+                    feeItems[i].token = debt[i].token;
+                    feeItems[i].itemType = debt[i].itemType;
+
+                    ++totalFeeItems;
+                }
             }
             unchecked {
                 ++i;
             }
         }
         assembly {
-            mstore(feeItems, totalDebtItems)
+            mstore(feeItems, totalFeeItems)
         }
     }
 

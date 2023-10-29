@@ -252,20 +252,12 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     }
 
     /**
-     * @dev previews the order for this contract offerer.
+     * @dev If any additional state updates are needed when taking custody of a loan
      *
-     * @param consideration    The items received from the order completing
-     * @param orderHashes      The hashes of the orders completed
-     * @param contractNonce    The nonce of the contract in seaport
-     * @param context          The abi encoded bytes passed with the order
+     * @param loan             The loan that was just placed into custody
      * @return selector        The function selector of the custody method
      */
-    function custody(
-        ReceivedItem[] calldata consideration,
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce,
-        bytes calldata context
-    ) external virtual onlyLoanManager returns (bytes4 selector) {
+    function custody(LoanManager.Loan memory loan) external virtual onlyLoanManager returns (bytes4 selector) {
         revert ImplementInChild();
     }
 
@@ -359,9 +351,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
      */
     function _enableAssetWithSeaport(SpentItem memory offer) internal {
         //approve consideration based on item type
-        if (offer.itemType == ItemType.NATIVE) {
-            payable(address(seaport)).call{value: offer.amount}("");
-        } else if (offer.itemType == ItemType.ERC721) {
+        if (offer.itemType == ItemType.ERC721) {
             ERC721(offer.token).approve(address(seaport), offer.identifier);
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).setApprovalForAll(address(seaport), true);
@@ -389,9 +379,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
 
     function _transferCollateralToHandler(SpentItem memory offer, address handler) internal {
         //approve consideration based on item type
-        if (offer.itemType == ItemType.NATIVE) {
-            payable(address(handler)).call{value: offer.amount}("");
-        } else if (offer.itemType == ItemType.ERC721) {
+        if (offer.itemType == ItemType.ERC721) {
             ERC721(offer.token).transferFrom(address(this), handler, offer.identifier);
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).safeTransferFrom(address(this), handler, offer.identifier, offer.amount, "");
@@ -481,6 +469,4 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
      * @param loan              The loan being settled
      */
     function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
-
-    receive() external payable onlySeaport {}
 }
