@@ -488,4 +488,40 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.prank(loan.borrower);
         LM.originate(new ConduitTransfer[](0), be, le2, loan);
     }
+
+    function testAdditionalTransfers() public {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc20s[0]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
+
+        loan.debt = exoticDebt;
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 0, itemType: ItemType.ERC20});
+        loan.collateral = maxSpent;
+        CaveatEnforcer.CaveatWithApproval memory be;
+        CaveatEnforcer.CaveatWithApproval memory le1 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        ConduitTransfer[] memory additionalTransfers = new ConduitTransfer[](1);
+        additionalTransfers[0] = ConduitTransfer({
+            itemType: ConduitItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(loan.borrower),
+            to: address(address(20)),
+            identifier: 0,
+            amount: 20
+        });
+        vm.prank(loan.borrower);
+        ERC20(address(erc20s[0])).approve(address(LM), type(uint256).max);
+        vm.prank(loan.borrower);
+        LM.originate(additionalTransfers, be, le1, loan);
+        assert(erc20s[0].balanceOf(address(20)) == 20);
+        assert(erc20s[0].balanceOf(address(loan.custodian)) == 20);
+    }
 }

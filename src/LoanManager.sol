@@ -374,7 +374,8 @@ contract LoanManager is Ownable, ERC721 {
             if (amount > 0) {
                 if (transfers[i].itemType == ConduitItemType.ERC20) {
                     // erc20 transfer
-                    ERC20(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, amount);
+
+                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, amount);
                 } else if (transfers[i].itemType == ConduitItemType.ERC721) {
                     // erc721 transfer
                     if (amount > 1) {
