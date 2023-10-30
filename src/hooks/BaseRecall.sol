@@ -36,6 +36,7 @@ import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {ConduitControllerInterface} from "seaport-sol/src/ConduitControllerInterface.sol";
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
+import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
@@ -59,6 +60,7 @@ abstract contract BaseRecall is ConduitHelper {
     error RecallBeforeHoneymoonExpiry();
     error LoanHasNotBeenRefinanced();
     error WithdrawDoesNotExist();
+    error InvalidItemType();
 
     ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     mapping(uint256 => Recall) public recalls;
@@ -99,20 +101,20 @@ abstract contract BaseRecall is ConduitHelper {
             revert RecallBeforeHoneymoonExpiry();
         }
 
+        if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
+            (,, address conduitController) = seaport.information();
+            // validate that the provided conduit is owned by the msg.sender
+            if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
+                revert InvalidConduit();
+            }
+            ConduitTransfer[] memory recallConsideration = _generateRecallConsideration(
+                loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
+            );
+            if (ConduitInterface(conduit).execute(recallConsideration) != ConduitInterface.execute.selector) {
+                revert ConduitTransferError();
+            }
+        }
         // get conduitController
-        (,, address conduitController) = seaport.information();
-        // validate that the provided conduit is owned by the msg.sender
-        if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-            revert InvalidConduit();
-        }
-        ReceivedItem[] memory recallConsideration =
-            _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, payable(address(this)));
-        if (
-            ConduitInterface(conduit).execute(_packageTransfers(recallConsideration, msg.sender))
-                != ConduitInterface.execute.selector
-        ) {
-            revert ConduitTransferError();
-        }
 
         bytes memory encodedLoan = abi.encode(loan);
 
@@ -139,18 +141,20 @@ abstract contract BaseRecall is ConduitHelper {
             revert WithdrawDoesNotExist();
         }
 
-        ReceivedItem[] memory recallConsideration =
-            _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
-        recall.recaller = payable(address(0));
-        recall.start = 0;
+        if (loan.issuer != recall.recaller && loan.borrower != recall.recaller) {
+            ConduitTransfer[] memory recallConsideration =
+                _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
+            recall.recaller = payable(address(0));
+            recall.start = 0;
 
-        for (uint256 i; i < recallConsideration.length;) {
-            if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
+            for (uint256 i; i < recallConsideration.length;) {
+                if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
 
-            ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
+                ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
 
@@ -165,7 +169,7 @@ abstract contract BaseRecall is ConduitHelper {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         recallStake = new uint256[](loan.debt.length);
         for (uint256 i; i < loan.debt.length;) {
-            recallStake[i] = BasePricing(loan.terms.pricing).getInterest(loan, details, start, end, i);
+            recallStake[i] = BasePricing(loan.terms.pricing).getInterest(loan, details.rate, start, end, i);
 
             unchecked {
                 ++i;
@@ -173,13 +177,14 @@ abstract contract BaseRecall is ConduitHelper {
         }
     }
 
-    function generateRecallConsideration(LoanManager.Loan memory loan, uint256 proportion, address payable receiver)
-        external
-        view
-        returns (ReceivedItem[] memory consideration)
-    {
+    function generateRecallConsideration(
+        LoanManager.Loan memory loan,
+        uint256 proportion,
+        address from,
+        address payable to
+    ) external view returns (ConduitTransfer[] memory consideration) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-        return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, receiver);
+        return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, from, to);
     }
 
     function _generateRecallConsideration(
@@ -187,22 +192,36 @@ abstract contract BaseRecall is ConduitHelper {
         uint256 start,
         uint256 end,
         uint256 proportion,
-        address payable receiver
-    ) internal view returns (ReceivedItem[] memory consideration) {
+        address from,
+        address payable to
+    ) internal view returns (ConduitTransfer[] memory additionalTransfers) {
         uint256[] memory stake = _getRecallStake(loan, start, end);
-        consideration = new ReceivedItem[](stake.length);
+        additionalTransfers = new ConduitTransfer[](stake.length);
 
-        for (uint256 i; i < consideration.length;) {
-            consideration[i] = ReceivedItem({
-                itemType: loan.debt[i].itemType,
+        for (uint256 i; i < additionalTransfers.length;) {
+            additionalTransfers[i] = ConduitTransfer({
+                itemType: _convertItemTypeToConduitItemType(loan.debt[i].itemType),
                 identifier: loan.debt[i].identifier,
                 amount: stake[i].mulWad(proportion),
                 token: loan.debt[i].token,
-                recipient: receiver
+                from: from,
+                to: to
             });
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    function _convertItemTypeToConduitItemType(ItemType itemType) internal pure returns (ConduitItemType) {
+        if (itemType == ItemType.ERC20) {
+            return ConduitItemType.ERC20;
+        } else if (itemType == ItemType.ERC721) {
+            return ConduitItemType.ERC721;
+        } else if (itemType == ItemType.ERC1155) {
+            return ConduitItemType.ERC1155;
+        } else {
+            revert InvalidItemType();
         }
     }
 }

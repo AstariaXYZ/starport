@@ -15,6 +15,7 @@ import {LoanManager, SettlementHandler} from "starport-core/handlers/SettlementH
 
 import {ConduitHelper} from "starport-core/ConduitHelper.sol";
 import "forge-std/console2.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
     constructor(LoanManager LM_) SettlementHandler(LM_) {
@@ -45,16 +46,15 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         returns (ReceivedItem[] memory consideration, address restricted)
     {
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
-        uint256 settlementPrice;
 
         uint256 start = _getAuctionStart(loan);
 
-        // DutchAuction has failed
+        // DutchAuction has failed, allow lender to redeem
         if (start + details.window < block.timestamp) {
             return (new ReceivedItem[](0), loan.issuer);
         }
 
-        settlementPrice = _locateCurrentAmount({
+        uint256 settlementPrice = _locateCurrentAmount({
             startAmount: details.startingPrice,
             endAmount: details.endingPrice,
             startTime: start,
@@ -62,19 +62,44 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
             roundUp: true
         });
 
-        (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
-            Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        uint256 interest =
+            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
 
-        if (paymentConsiderations[0].amount <= settlementPrice) {
-            carryFeeConsideration = new ReceivedItem[](0);
+        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+
+        if (loan.debt[0].amount + interest <= settlementPrice) {
+            consideration = new ReceivedItem[](2);
+            consideration[0] = ReceivedItem({
+                itemType: loan.debt[0].itemType,
+                identifier: loan.debt[0].identifier,
+                amount: carry,
+                token: loan.debt[0].token,
+                recipient: payable(loan.originator)
+            });
+
+            settlementPrice -= consideration[0].amount;
+        } else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
+            consideration = new ReceivedItem[](2);
+            consideration[0] = ReceivedItem({
+                itemType: loan.debt[0].itemType,
+                identifier: loan.debt[0].identifier,
+                amount: (settlementPrice - loan.debt[0].amount + interest - carry),
+                token: loan.debt[0].token,
+                recipient: payable(loan.originator)
+            });
+            settlementPrice -= consideration[0].amount;
         } else {
-            carryFeeConsideration[0].amount =
-                settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
+            consideration = new ReceivedItem[](1);
         }
-        paymentConsiderations[0].amount = settlementPrice;
 
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-        consideration = _removeZeroAmounts(consideration);
+        consideration[consideration.length - 1] = ReceivedItem({
+            itemType: loan.debt[0].itemType,
+            identifier: loan.debt[0].identifier,
+            amount: settlementPrice,
+            token: loan.debt[0].token,
+            recipient: payable(loan.issuer)
+        });
     }
 
     function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {

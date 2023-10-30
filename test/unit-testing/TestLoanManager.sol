@@ -71,12 +71,13 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
 contract MockCustodian is Custodian {
     constructor(LoanManager LM_, ConsiderationInterface seaport) Custodian(LM_, seaport) {}
 
-    function custody(
-        ReceivedItem[] calldata consideration,
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce,
-        bytes calldata context
-    ) external virtual override onlyLoanManager returns (bytes4 selector) {}
+    function custody(LoanManager.Loan memory loan)
+        external
+        virtual
+        override
+        onlyLoanManager
+        returns (bytes4 selector)
+    {}
 }
 
 contract TestLoanManager is StarPortTest, DeepEq {
@@ -92,19 +93,9 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
     function setUp() public virtual override {
         super.setUp();
-
-        erc20s[0].approve(address(lenderConduit), 100000);
-
         mockCustodian = new MockCustodian(LM, seaport);
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan = newLoanWithDefaultTerms();
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
@@ -119,43 +110,10 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     function testSupportsInterface() public {
-        assertTrue(LM.supportsInterface(type(ContractOffererInterface).interfaceId));
-        assertTrue(LM.supportsInterface(type(ERC721).interfaceId));
+        assertTrue(LM.supportsInterface(bytes4(0x01ffc9a7)));
+        assertTrue(LM.supportsInterface(bytes4(0x80ac58cd)));
         assertTrue(LM.supportsInterface(bytes4(0x5b5e139f)));
         assertTrue(LM.supportsInterface(bytes4(0x01ffc9a7)));
-    }
-
-    function testGenerateOrderNotSeaport() public {
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.NotSeaport.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
-    }
-
-    function testGenerateOrder() public {
-        StrategistOriginator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        //
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        //        OrderParameters memory op = _buildContractOrder(address(LM), new OfferItem[](0), selectedCollateral);
-        vm.startPrank(seaport);
-        (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        //TODO:: validate return data matches request
-        //        assertEq(keccak256(abi.encode(consideration)), keccak256(abi.encode(maxSpent)));
     }
 
     function testCannotSettleUnlessValidCustodian() public {
@@ -188,156 +146,218 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.tokenURI(uint256(0));
     }
 
-    function testTransferFromFailFromSeaport() public {
-        vm.startPrank(address(LM.seaport()));
+    function testTransferFromFail() public {
         vm.expectRevert(abi.encodeWithSelector(LoanManager.CannotTransferLoans.selector));
         LM.transferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.CannotTransferLoans.selector));
         LM.safeTransferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))));
         vm.expectRevert(abi.encodeWithSelector(LoanManager.CannotTransferLoans.selector));
         LM.safeTransferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))), "");
-        vm.stopPrank();
     }
 
     function testNonDefaultCustodianCustodyCallFails() public {
-        LoanManager.Obligation memory obligation = LoanManager.Obligation({
-            custodian: address(mockCustodian),
-            borrower: address(0),
-            debt: new SpentItem[](0),
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.custodian = address(mockCustodian);
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(SO)
+            enforcer: address(lenderEnforcer)
         });
-        vm.prank(address(LM.seaport()));
+        vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
-        LM.ratifyOrder(
-            new SpentItem[](0),
-            new ReceivedItem[](0),
-            abi.encode(Actions.Origination, obligation),
-            new bytes32[](0),
-            uint256(0)
-        );
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
     }
 
     function testNonDefaultCustodianCustodyCallSuccess() public {
-        LoanManager.Obligation memory obligation = LoanManager.Obligation({
-            custodian: address(mockCustodian),
-            borrower: address(0),
-            debt: new SpentItem[](0),
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(SO)
-        });
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
 
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.custodian = address(mockCustodian);
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.mockCall(
             address(mockCustodian),
-            abi.encodeWithSelector(
-                Custodian.custody.selector,
-                new ReceivedItem[](0),
-                new bytes32[](0),
-                uint256(0),
-                abi.encode(Actions.Origination, obligation)
-            ),
+            abi.encodeWithSelector(Custodian.custody.selector, loan),
             abi.encode(bytes4(Custodian.custody.selector))
         );
-        vm.prank(address(LM.seaport()));
-        LM.ratifyOrder(
-            new SpentItem[](0),
-            new ReceivedItem[](0),
-            abi.encode(Actions.Origination, obligation),
-            new bytes32[](0),
-            uint256(0)
-        );
+        vm.startPrank(loan.borrower);
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
     }
 
-    function testInvalidDebtLength() public {
-        LoanManager.Obligation memory obligation = LoanManager.Obligation({
-            custodian: address(mockCustodian),
-            borrower: address(0),
-            debt: new SpentItem[](0),
+    function testInvalidTransferLengthDebt() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        delete loan.debt;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(SO)
+            enforcer: address(lenderEnforcer)
         });
-        vm.prank(address(LM.seaport()));
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebtLength.selector));
-        LM.generateOrder(
-            address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebtLength.selector));
-        LM.previewOrder(
-            address(seaport),
-            address(this),
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Origination, obligation)
-        );
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidTransferLength.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
     }
 
-    function testInvalidDebtType() public {
-        MockOriginator MO = new MockOriginator(LM, address(0), 0);
-        delete debt;
-        debt.push(
-            SpentItem({itemType: ItemType.ERC721_WITH_CRITERIA, token: address(erc721s[0]), amount: 100, identifier: 0})
-        );
-        LoanManager.Obligation memory obligation = LoanManager.Obligation({
-            custodian: address(mockCustodian),
-            borrower: address(0),
-            debt: debt,
+    function testInvalidAmountDebt() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.debt[0].amount = 0;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(MO)
+            enforcer: address(lenderEnforcer)
         });
-        vm.prank(address(LM.seaport()));
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebtType.selector));
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, obligation));
-
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidDebtType.selector));
-        LM.previewOrder(
-            address(seaport), address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, obligation)
-        );
-    }
-    //TODO: make this test meaningful
-
-    function testSeaportMetadata() public view {
-        LM.getSeaportMetadata();
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
     }
 
-    function testInvalidMaximumSpentEmpty() public {
-        LoanManager.Obligation memory obligation = LoanManager.Obligation({
-            custodian: address(mockCustodian),
-            borrower: address(0),
-            debt: debt,
+    function testInvalidAmountCollateral() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.collateral[0].amount = 0;
+        loan.debt[0].amount = 0;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(SO)
+            enforcer: address(lenderEnforcer)
         });
-        vm.prank(address(LM.seaport()));
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
-        LM.generateOrder(
-            address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Origination, obligation)
-        );
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidMaximumSpentEmpty.selector));
-        LM.previewOrder(
-            address(seaport),
-            address(this),
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Origination, obligation)
-        );
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testInvalidItemType() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].itemType = ItemType.ERC721_WITH_CRITERIA;
+        loan.debt[0].token = address(0);
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemType.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testTokenNoCodeDebt() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.debt[0].token = address(0);
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemTokenNoCode.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testTokenNoCodeCollateral() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].token = address(0);
+        loan.collateral[0].identifier = uint256(2);
+        loan.collateral[0].amount = 0;
+        loan.debt[0].amount = 0;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        //        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        //        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemTokenNoCode.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testInvalidAmountCollateral721() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.collateral[0].amount = uint256(2);
+        loan.debt[0].amount = 0;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testInvalidTransferLengthCollateral() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        delete loan.collateral;
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidTransferLength.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
     }
 
     function testDefaultFeeRake() public {
@@ -345,779 +365,163 @@ contract TestLoanManager is StarPortTest, DeepEq {
         address feeReceiver = address(20);
         LM.setFeeData(feeReceiver, 1e17); //10% fees
 
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
-        assertEq(erc20s[0].balanceOf(feeReceiver), debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
+        LoanManager.Loan memory loan =
+            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
+        assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
     }
 
     function testOverrideFeeRake() public {
         assertEq(LM.defaultFeeRake(), 0);
         address feeReceiver = address(20);
         LM.setFeeData(feeReceiver, 1e17); //10% fees
-        LM.setFeeOverride(debt[0].token, 0); //0% fees
+        LM.setFeeOverride(address(erc20s[0]), 0); //0% fees
 
-        StrategistOriginator.Details memory defaultLoanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(defaultLoanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
     }
 
-    function testCaveatEnforcerInvalidOrigination() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        TermEnforcer TE = new TermEnforcer();
-
-        LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-        caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: ""});
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
+    // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
+    function testCaveatEnforcerRevert() public {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        CaveatEnforcer.CaveatWithApproval memory borrowerEnforcer;
+        CaveatEnforcer.CaveatWithApproval memory lenderEnforcer = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: caveats,
-            originator: address(originator)
+            enforcer: address(lenderEnforcer)
         });
-
-        LoanManager.Loan memory mockLoan = LoanManager.Loan({
-            start: block.timestamp,
-            borrower: O.borrower,
-            collateral: maxSpent,
-            issuer: O.originator,
-            custodian: O.custodian,
-            debt: debt,
-            originator: O.originator,
-            terms: LoanManager.Terms({
-                hook: address(0),
-                hookData: new bytes(0),
-                pricing: address(0),
-                pricingData: new bytes(0),
-                handler: address(0),
-                handlerData: new bytes(0)
-            })
-        });
-        vm.mockCall(
-            address(TE),
-            abi.encodeWithSelector(TermEnforcer.enforceCaveat.selector, bytes(""), mockLoan),
-            abi.encode(false)
-        );
-        vm.startPrank(seaport);
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidOrigination.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
+        loan.custodian = address(mockCustodian);
+        vm.expectRevert();
+        LM.originate(new ConduitTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
 
-    function testGenerateOrderInvalidAction() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        //
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        vm.startPrank(seaport);
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidAction.selector));
-        LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
-    }
-
-    function testPreviewOrderInvalidAction() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        vm.startPrank(seaport);
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidAction.selector));
-        LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Repayment, O));
-    }
-
-    function testPreviewOrderOriginationWithNoCaveatsSetNotBorrowerNoFee() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        delete debt;
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(O.borrower, O.salt, keccak256(abi.encode(O.caveats))));
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](2);
-        expectedOffer[0] = debt[0];
-        expectedOffer[1] =
-            SpentItem({itemType: ItemType.ERC721, token: address(LM), identifier: uint256(caveatHash), amount: 1});
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(consider, expectedConsider);
-    }
-
-    function testPreviewOrderOriginationWithNoCaveatsSetNotBorrowerFeeOn() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        LM.setFeeData(address(20), 1e17); //10% fees
-        delete debt;
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(O.borrower, O.salt, keccak256(abi.encode(O.caveats))));
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](2);
-        expectedOffer[0] = debt[0];
-        expectedOffer[0].amount = debt[0].amount - debt[0].amount.mulDiv(1e17, 1e18);
-        expectedOffer[1] =
-            SpentItem({itemType: ItemType.ERC721, token: address(LM), identifier: uint256(caveatHash), amount: 1});
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.previewOrder(seaport, address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(consider, expectedConsider);
-    }
-
-    function testPreviewOrderOriginationWithNoCaveatsSetAsBorrowerNoFee() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        console.log(LM.feeTo());
-        delete debt;
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](0);
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.previewOrder(seaport, borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(consider, expectedConsider);
-    }
-
-    function testPreviewOrderOriginationWithNoCaveatsSetAsBorrowerFeeOn() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        LM.setFeeData(address(20), 1e17); //10% fees
-        delete debt;
-        debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: debt,
-            salt: bytes32(0),
-            details: "",
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](1);
-        expectedOffer[0] = debt[0];
-        expectedOffer[0].amount = debt[0].amount - debt[0].amount.mulDiv(1e17, 1e18);
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.previewOrder(seaport, borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(consider, expectedConsider);
-    }
-
-    function testPreviewOrderRefinanceAsRefinancerFeeOn() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        LM.setFeeData(address(20), 1e17); //10% fees
-
-        ReceivedItem[] memory expectedConsideration = new ReceivedItem[](1);
-        for (uint256 i; i < debt.length; i++) {
-            expectedConsideration[i] = ReceivedItem({
-                itemType: debt[i].itemType,
-                token: debt[i].token,
-                identifier: debt[i].identifier,
-                amount: debt[i].amount,
-                recipient: payable(activeLoan.issuer)
-            });
-        }
-        (SpentItem[] memory offer, ReceivedItem[] memory originationConsideration) = LM.previewOrder(
-            seaport, refinancer.addr, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Refinance, activeLoan)
-        );
-        _deepEq(originationConsideration, expectedConsideration);
-    }
-
-    function testPreviewOrderRefinanceAsRefinancerFeeOff() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-
-        ReceivedItem[] memory expectedConsideration = new ReceivedItem[](1);
-        for (uint256 i; i < debt.length; i++) {
-            expectedConsideration[i] = ReceivedItem({
-                itemType: debt[i].itemType,
-                token: debt[i].token,
-                identifier: debt[i].identifier,
-                amount: debt[i].amount,
-                recipient: payable(activeLoan.issuer)
-            });
-        }
-        (SpentItem[] memory offer, ReceivedItem[] memory originationConsideration) = LM.previewOrder(
-            seaport, refinancer.addr, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Refinance, activeLoan)
-        );
-        _deepEq(originationConsideration, expectedConsideration);
-    }
-
-    function testRefinanceNoRefinanceConsideration() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-        bytes memory newPricingData =
-            abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0}));
-
-        vm.mockCall(
-            address(activeLoan.terms.pricing),
-            abi.encodeWithSelector(Pricing.isValidRefinance.selector, activeLoan, newPricingData, refinancer.addr),
-            abi.encode(new ReceivedItem[](0), new ReceivedItem[](0), new ReceivedItem[](0))
-        );
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidNoRefinanceConsideration.selector));
-        LM.previewOrder(
-            seaport,
-            refinancer.addr,
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Refinance, activeLoan, newPricingData)
-        );
-        vm.prank(address(LM.seaport()));
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidNoRefinanceConsideration.selector));
-        LM.generateOrder(
-            refinancer.addr,
-            new SpentItem[](0),
-            new SpentItem[](0),
-            abi.encode(Actions.Refinance, activeLoan, newPricingData)
-        );
-    }
-
+    //     needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     function testExoticDebtWithNoCaveatsNotAsBorrower() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
 
         SpentItem[] memory exoticDebt = new SpentItem[](2);
         exoticDebt[0] = SpentItem({token: address(erc1155s[1]), amount: 1, identifier: 1, itemType: ItemType.ERC1155});
         exoticDebt[1] = SpentItem({token: address(erc721s[2]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
 
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        StrategistOriginator.Details memory OD;
-        OD.issuer = lender.addr;
-        OD.conduit = lenderConduit;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
+        loan.debt = exoticDebt;
+        loan.collateral[0] =
+            SpentItem({token: address(erc721s[0]), amount: 1, identifier: 2, itemType: ItemType.ERC721});
+        CaveatEnforcer.CaveatWithApproval memory borrowerEnforcer;
+        CaveatEnforcer.CaveatWithApproval memory lenderEnforcer = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
+            enforcer: address(lenderEnforcer)
         });
-
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(O.borrower, O.salt, keccak256(abi.encode(O.caveats))));
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](3);
-        expectedOffer[0] = exoticDebt[0];
-        expectedOffer[1] = exoticDebt[1];
-        expectedOffer[2] =
-            SpentItem({itemType: ItemType.ERC721, token: address(LM), identifier: uint256(caveatHash), amount: 1});
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) = LM.previewOrder(
-            address(LM.seaport()), address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O)
-        );
-        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(offer, previewOffer);
-        _deepEq(consider, previewConsider);
-        _deepEq(consider, expectedConsider);
-    }
-
-    function testExoticDebtWithNoCaveatsAsBorrower() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        address seaport = address(LM.seaport());
-
-        SpentItem[] memory exoticDebt = new SpentItem[](2);
-        exoticDebt[0] = SpentItem({token: address(erc1155s[1]), amount: 1, identifier: 1, itemType: ItemType.ERC1155});
-        exoticDebt[1] = SpentItem({token: address(erc721s[2]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        StrategistOriginator.Details memory OD;
-        OD.issuer = lender.addr;
-        OD.conduit = lenderConduit;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
-            salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) = LM.previewOrder(
-            address(LM.seaport()), borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O)
-        );
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, new SpentItem[](0));
-        _deepEq(previewOffer, offer);
-        _deepEq(consider, previewConsider);
-        _deepEq(consider, expectedConsider);
-        assert(erc721s[2].ownerOf(1) == borrower.addr);
-        assert(erc1155s[1].balanceOf(borrower.addr, 1) == 1);
-    }
-
-    function testNativeDebtWithNoCaveatsAsBorrower() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        vm.deal(address(originator), 1 ether);
-        address seaport = address(LM.seaport());
-
-        SpentItem[] memory exoticDebt = new SpentItem[](1);
-        exoticDebt[0] = SpentItem({token: address(erc1155s[1]), amount: 100, identifier: 1, itemType: ItemType.NATIVE});
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        StrategistOriginator.Details memory OD;
-        OD.issuer = lender.addr;
-        OD.conduit = lenderConduit;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
-            salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        ReceivedItem[] memory expectedConsideration = new ReceivedItem[](1);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsideration[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) = LM.previewOrder(
-            address(LM.seaport()), borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O)
-        );
-
-        uint256 balanceBefore = borrower.addr.balance;
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-
-        _deepEq(offer, new SpentItem[](0));
-        _deepEq(previewOffer, offer);
-
-        _deepEq(consider, previewConsider);
-        _deepEq(consider, expectedConsideration);
-
-        assert(borrower.addr.balance == balanceBefore + exoticDebt[0].amount);
-    }
-
-    function testNativeDebtWithNoCaveatsNotAsBorrower() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        vm.deal(address(originator), 1 ether);
-        address seaport = address(LM.seaport());
-
-        SpentItem[] memory exoticDebt = new SpentItem[](1);
-        exoticDebt[0] = SpentItem({token: address(0), amount: 100, identifier: 1, itemType: ItemType.NATIVE});
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        StrategistOriginator.Details memory OD;
-        OD.issuer = lender.addr;
-        OD.conduit = lenderConduit;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
-            salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) = LM.previewOrder(
-            address(LM.seaport()), address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O)
-        );
-
-        uint256 balanceOfLM = address(LM).balance;
-        //enable re entrancy guard
-        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
-
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(O.borrower, O.salt, keccak256(abi.encode(O.caveats))));
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](2);
-        expectedOffer[0] = exoticDebt[0];
-        expectedOffer[1] =
-            SpentItem({itemType: ItemType.ERC721, token: address(LM), identifier: uint256(caveatHash), amount: 1});
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, abi.encode(Actions.Origination, O));
-        _deepEq(offer, expectedOffer);
-        _deepEq(previewOffer, offer);
-        _deepEq(consider, previewConsider);
-        _deepEq(consider, expectedConsider);
-        assert(address(LM).balance == balanceOfLM + exoticDebt[0].amount);
-    }
-
-    function testNativeDebtWithNoCaveatsNotAsBorrowerFeesOn() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        vm.deal(address(originator), 1 ether);
-        address seaport = address(LM.seaport());
-
-        LM.setFeeData(address(20), 1e17); //10% fees
-        SpentItem[] memory exoticDebt = new SpentItem[](1);
-        exoticDebt[0] = SpentItem({token: address(0), amount: 100, identifier: 1, itemType: ItemType.NATIVE});
-
-        SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
-        StrategistOriginator.Details memory OD;
-        OD.issuer = lender.addr;
-        OD.conduit = lenderConduit;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
-            salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
-        });
-
-        bytes memory encodedObligation = abi.encode(Actions.Origination, O);
-
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) =
-            LM.previewOrder(address(LM.seaport()), address(this), new SpentItem[](0), maxSpent, encodedObligation);
-
-        uint256 balanceOfLM = address(LM).balance;
-        //enable re entrancy guard
-        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
-
-        bytes32 caveatHash =
-            keccak256(LM.encodeWithSaltAndBorrowerCounter(O.borrower, O.salt, keccak256(abi.encode(O.caveats))));
-
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-        SpentItem[] memory expectedOffer = new SpentItem[](2);
-        expectedOffer[0] = SpentItemLib.copy(exoticDebt[0]);
-        expectedOffer[0].amount = expectedOffer[0].amount - expectedOffer[0].amount.mulDiv(1e17, 1e18);
-        expectedOffer[1] =
-            SpentItem({itemType: ItemType.ERC721, token: address(LM), identifier: uint256(caveatHash), amount: 1});
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(address(this), new SpentItem[](0), maxSpent, encodedObligation);
-        _deepEq(offer, expectedOffer);
-        _deepEq(previewOffer, offer);
-        _deepEq(consider, expectedConsider);
-        _deepEq(consider, previewConsider);
-
-        assert(address(LM).balance == balanceOfLM + expectedOffer[0].amount);
-        assert(address(LM.feeTo()).balance == 10);
-    }
-
-    function testPayableFunctions() public {
-        vm.deal(seaportAddr, 2 ether);
-        vm.prank(seaportAddr);
-        payable(address(LM)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.prank(seaportAddr);
-        payable(address(LM)).call{value: 1 ether}("");
-
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.NotSeaport.selector));
-        payable(address(LM)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.NotSeaport.selector));
-        payable(address(LM)).call{value: 1 ether}("");
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.prank(loan.borrower);
+        LM.originate(new ConduitTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
 
     function testNonPayableFunctions() public {
         vm.expectRevert();
         payable(address(LM)).call{value: 1 ether}(abi.encodeWithSelector(LoanManager.tokenURI.selector, uint256(0)));
         vm.expectRevert();
-        payable(address(LM)).call{value: 1 ether}(
-            abi.encodeWithSelector(LoanManager.supportsInterface.selector, bytes4(0))
-        );
+        payable(address(LM)).call{value: 1 ether}(abi.encodeWithSelector(ERC721.supportsInterface.selector, bytes4(0)));
         vm.expectRevert();
         payable(address(LM)).call{value: 1 ether}(abi.encodeWithSelector(LoanManager.name.selector));
         vm.expectRevert();
         payable(address(LM)).call{value: 1 ether}(abi.encodeWithSelector(LoanManager.symbol.selector));
+        CaveatEnforcer.CaveatWithApproval memory be;
         vm.expectRevert();
         payable(address(LM)).call{value: 1 ether}(
             abi.encodeWithSelector(
-                LoanManager.ratifyOrder.selector,
-                new SpentItem[](0),
-                new ReceivedItem[](0),
-                new bytes(0),
-                new bytes32[](0),
-                uint256(0)
+                LoanManager.originate.selector, new ConduitTransfer[](0), be, be, generateDefaultLoanTerms()
             )
         );
         vm.expectRevert();
+        //address lender,
+        //        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        //        LoanManager.Loan memory loan,
+        //        bytes calldata pricingData
         payable(address(LM)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                LoanManager.generateOrder.selector, address(0), new SpentItem[](0), new SpentItem[](0), new bytes(0)
-            )
-        );
-        vm.expectRevert();
-        payable(address(LM)).call{value: 1 ether}(abi.encodeWithSelector(LoanManager.getSeaportMetadata.selector));
-        vm.expectRevert();
-        payable(address(LM)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                LoanManager.previewOrder.selector,
-                address(0),
-                address(0),
-                new SpentItem[](0),
-                new SpentItem[](0),
-                new bytes(0)
-            )
-        );
-        vm.expectRevert();
-        payable(address(LM)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                LoanManager.onERC1155Received.selector, address(0), address(0), uint256(0), uint256(0), new bytes(0)
-            )
+            abi.encodeWithSelector(LoanManager.refinance.selector, address(0), be, generateDefaultLoanTerms(), "")
         );
     }
 
-    function testSafeTransfer1155Receive() public {
-        erc1155s[0].mint(address(this), 1, 1);
-
-        vm.store(address(LM.seaport()), bytes32(uint256(0)), bytes32(uint256(2)));
-        erc1155s[0].safeTransferFrom(address(this), address(LM), 1, 1, new bytes(0));
-    }
-
+    //cavets prevent this flow i think, as borrower needs 2 lender caveats to
     function testCannotIssueSameLoanTwice() public {
-        Originator originator = new MockOriginator(LM, address(0), 0);
-        vm.deal(address(originator), 1 ether);
-        address seaport = address(LM.seaport());
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
 
         SpentItem[] memory exoticDebt = new SpentItem[](1);
-        exoticDebt[0] = SpentItem({token: address(0), amount: 100, identifier: 1, itemType: ItemType.NATIVE});
+        exoticDebt[0] = SpentItem({token: address(erc20s[0]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
 
+        loan.debt = exoticDebt;
         SpentItem[] memory maxSpent = new SpentItem[](1);
-        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 1, itemType: ItemType.ERC20});
-        StrategistOriginator.Details memory OD;
-        vm.prank(lender.addr);
-        conduitController.updateChannel(lenderConduit, address(originator), true);
-
-        LoanManager.Obligation memory O = LoanManager.Obligation({
-            custodian: address(custodian),
-            borrower: borrower.addr,
-            debt: exoticDebt,
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 0, itemType: ItemType.ERC20});
+        loan.collateral = maxSpent;
+        CaveatEnforcer.CaveatWithApproval memory be;
+        CaveatEnforcer.CaveatWithApproval memory le1 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
             salt: bytes32(0),
-            details: abi.encode(OD),
-            approval: "",
-            caveats: new LoanManager.Caveat[](0),
-            originator: address(originator)
+            enforcer: address(lenderEnforcer)
         });
+        CaveatEnforcer.CaveatWithApproval memory le2 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(uint256(1)),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
 
-        bytes memory encodedObligation = abi.encode(Actions.Origination, O);
+        vm.prank(loan.borrower);
+        LM.originate(new ConduitTransfer[](0), be, le1, loan);
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.LoanExists.selector));
+        vm.prank(loan.borrower);
+        LM.originate(new ConduitTransfer[](0), be, le2, loan);
+    }
 
-        (SpentItem[] memory previewOffer, ReceivedItem[] memory previewConsider) =
-            LM.previewOrder(address(LM.seaport()), borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
+    function testAdditionalTransfers() public {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
 
-        uint256 balanceOfLM = address(LM).balance;
-        //enable re entrancy guard
-        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc20s[0]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
 
-        ReceivedItem[] memory expectedConsider = new ReceivedItem[](maxSpent.length);
-        for (uint256 i; i < maxSpent.length; i++) {
-            expectedConsider[i] = ReceivedItem({
-                itemType: maxSpent[i].itemType,
-                token: maxSpent[i].token,
-                identifier: maxSpent[i].identifier,
-                amount: maxSpent[i].amount,
-                recipient: payable(O.custodian)
-            });
-        }
-
-        vm.prank(address(LM.seaport()));
-        (SpentItem[] memory offer, ReceivedItem[] memory consider) =
-            LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
-        _deepEq(offer, new SpentItem[](0));
-        _deepEq(previewOffer, offer);
-        _deepEq(consider, expectedConsider);
-        _deepEq(consider, previewConsider);
-        vm.prank(address(LM.seaport()));
-        vm.expectRevert(LoanManager.LoanExists.selector);
-        LM.generateOrder(borrower.addr, new SpentItem[](0), maxSpent, encodedObligation);
+        loan.debt = exoticDebt;
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 0, itemType: ItemType.ERC20});
+        loan.collateral = maxSpent;
+        CaveatEnforcer.CaveatWithApproval memory be;
+        CaveatEnforcer.CaveatWithApproval memory le1 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        ConduitTransfer[] memory additionalTransfers = new ConduitTransfer[](1);
+        additionalTransfers[0] = ConduitTransfer({
+            itemType: ConduitItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(loan.borrower),
+            to: address(address(20)),
+            identifier: 0,
+            amount: 20
+        });
+        vm.prank(loan.borrower);
+        ERC20(address(erc20s[0])).approve(address(LM), type(uint256).max);
+        vm.prank(loan.borrower);
+        LM.originate(additionalTransfers, be, le1, loan);
+        assert(erc20s[0].balanceOf(address(20)) == 20);
+        assert(erc20s[0].balanceOf(address(loan.custodian)) == 20);
     }
 }
