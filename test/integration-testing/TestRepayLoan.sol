@@ -16,27 +16,32 @@ contract TestRepayLoan is StarPortTest {
             hookData: defaultHookData
         });
 
-        
         LoanManager.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
-        
+
         uint256 borrowerBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBefore = erc20s[0].balanceOf(lender.addr);
 
         vm.startPrank(borrower.addr);
         skip(10 days);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest =
+            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
         erc20s[0].approve(address(LM.seaport()), borrowAmount + interest);
         vm.stopPrank();
 
         _executeRepayLoan(loan);
-        
-        
+
         uint256 borrowerAfter = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderAfter = erc20s[0].balanceOf(lender.addr);
 
-        assertEq(borrowerBefore - loan.debt[0].amount + interest, borrowerAfter, "Borrower repayment was not correct");
-        assertEq(lenderBefore + loan.debt[0].amount + interest, lenderAfter, "Borrower repayment was not correct");
+        assertEq(
+            borrowerBefore - loan.debt[0].amount + interest,
+            borrowerAfter,
+            "borrower: Borrower repayment was not correct"
+        );
+        assertEq(
+            lenderBefore + loan.debt[0].amount + interest, lenderAfter, "lender: Borrower repayment was not correct"
+        );
     }
 }

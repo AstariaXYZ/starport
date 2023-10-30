@@ -217,7 +217,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = StarPortLib.mergeSpentItemsToRecievedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
         } else if (action == Actions.Settlement && !SettlementHook(loan.terms.hook).isActive(loan)) {
@@ -311,7 +311,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
 
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-            StarPortLib.mergeSpentItemsToRecievedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);

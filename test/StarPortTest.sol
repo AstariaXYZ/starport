@@ -625,9 +625,14 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function _executeRepayLoan(LoanManager.Loan memory loan) internal {
-        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
-            payable(loan.custodian)
-        ).previewOrder(address(LM.seaport()), loan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan));
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
+            .previewOrder(
+            address(LM.seaport()),
+            loan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Repayment, loan)
+        );
 
         OrderParameters memory op = _buildContractOrder(
             address(loan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
@@ -655,7 +660,6 @@ contract StarPortTest is BaseOrderTest {
         //    Vm.Log[] memory logs = vm.getRecordedLogs();
 
         uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
-
     }
 
     function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
