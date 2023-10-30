@@ -1,61 +1,42 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarPortTest.sol";
+import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 contract TestRepayLoan is StarPortTest {
     function testRepayLoan() public {
-        // uint256 borrowAmount = 100;
-        // LoanManager.Terms memory terms = LoanManager.Terms({
-        //     hook: address(hook),
-        //     handler: address(handler),
-        //     pricing: address(pricing),
-        //     pricingData: defaultPricingData,
-        //     handlerData: defaultHandlerData,
-        //     hookData: defaultHookData
-        // });
+        uint256 borrowAmount = 1e18;
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
 
-        // selectedCollateral.push(
-        //     ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custodian))
-        //     })
-        // );
+        
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
+        
+        uint256 borrowerBefore = erc20s[0].balanceOf(borrower.addr);
+        uint256 lenderBefore = erc20s[0].balanceOf(lender.addr);
 
-        // debt.push(
-        //     SpentItem({
-        //         itemType: ItemType.ERC20,
-        //         token: address(erc20s[0]),
-        //         amount: borrowAmount,
-        //         identifier: 0 // 0 for ERC20
-        //     })
-        // );
+        vm.startPrank(borrower.addr);
+        skip(10 days);
+        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        erc20s[0].approve(address(LM.seaport()), borrowAmount + interest);
+        vm.stopPrank();
 
-        // StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-        //     conduit: address(lenderConduit),
-        //     custodian: address(custodian),
-        //     issuer: lender.addr,
-        //     deadline: block.timestamp + 100,
-        //     offer: StrategistOriginator.Offer({
-        //         salt: bytes32(0),
-        //         terms: terms,
-        //         collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-        //         debt: debt
-        //     })
-        // });
+        _executeRepayLoan(loan);
+        
+        
+        uint256 borrowerAfter = erc20s[0].balanceOf(borrower.addr);
+        uint256 lenderAfter = erc20s[0].balanceOf(lender.addr);
 
-        // LoanManager.Loan memory activeLoan = newLoan(
-        //     NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-        // vm.startPrank(borrower.addr);
-        // skip(10 days);
-        // erc20s[0].approve(address(consideration), 375);
-        // vm.stopPrank();
-        // _executeRepayLoan(activeLoan);
+        assertEq(borrowerBefore - loan.debt[0].amount + interest, borrowerAfter, "Borrower repayment was not correct");
+        assertEq(lenderBefore + loan.debt[0].amount + interest, lenderAfter, "Borrower repayment was not correct");
     }
 }

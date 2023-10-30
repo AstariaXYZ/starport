@@ -144,4 +144,55 @@ library StarPortLib {
             sstore(loc, 1)
         }
     }
+
+    function mergeSpentItemsToRecievedItems(SpentItem[] memory payment, address paymentRecipient, SpentItem[] memory carry, address carryRecipient) public pure returns(ReceivedItem[] memory consideration){
+        consideration = new ReceivedItem[](payment.length + carry.length);
+
+        uint256 i = 0;
+        uint256 j = 0;
+        for(;i<payment.length;){
+            if(payment[i].amount > 0){
+                consideration[j] = ReceivedItem({
+                    itemType: payment[i].itemType,
+                    identifier: payment[i].identifier,
+                    amount: payment[i].amount,
+                    token: payment[i].token,
+                    recipient: payable(paymentRecipient)
+                });
+
+                unchecked {
+                    ++j;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if(carry.length > 0) {
+            i = 0;
+            for(;i<carry.length;){
+                if(carry[i].amount > 0){
+                    consideration[j] = ReceivedItem({
+                        itemType: carry[i].itemType,
+                        identifier: carry[i].identifier,
+                        amount: carry[i].amount,
+                        token: carry[i].token,
+                        recipient: payable(carryRecipient)
+                    });
+
+                    unchecked {
+                        ++j;
+                    }
+                }
+                unchecked {
+                    ++i;
+                }
+            }
+        }
+
+        assembly {
+            mstore(consideration, j)
+        }
+    } 
 }
