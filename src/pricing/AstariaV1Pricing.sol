@@ -5,11 +5,13 @@ import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPri
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
@@ -25,9 +27,9 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         virtual
         override
         returns (
-            ReceivedItem[] memory repayConsideration,
-            ReceivedItem[] memory carryConsideration,
-            ReceivedItem[] memory recallConsideration
+            SpentItem[] memory repayConsideration,
+            SpentItem[] memory carryConsideration,
+            ConduitTransfer[] memory recallConsideration
         )
     {
         // borrowers can refinance a loan at any time
@@ -60,7 +62,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 // split is proportional to the difference in rate
                 proportion = 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
-            recallConsideration = hook.generateRecallConsideration(loan, proportion, receiver);
+            recallConsideration = hook.generateRecallConsideration(loan, proportion, caller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);

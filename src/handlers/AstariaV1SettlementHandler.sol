@@ -8,6 +8,7 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
     using {StarPortLib.getId} for LoanManager.Loan;
@@ -51,36 +52,72 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
             roundUp: true
         });
 
-        (ReceivedItem[] memory paymentConsiderations, ReceivedItem[] memory carryFeeConsideration) =
-            Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+        consideration = new ReceivedItem[](3);
+        uint256 i = 0;
+        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        uint256 interest =
+            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
 
-        // the settlementPrice does not cover carryFees
-        if (paymentConsiderations[0].amount <= settlementPrice) {
-            carryFeeConsideration = new ReceivedItem[](0);
+        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+
+        if (loan.debt[0].amount + interest <= settlementPrice) {
+            consideration[i] = ReceivedItem({
+                itemType: loan.debt[0].itemType,
+                identifier: loan.debt[0].identifier,
+                amount: carry,
+                token: loan.debt[0].token,
+                recipient: payable(loan.originator)
+            });
+            settlementPrice -= consideration[i].amount;
+            unchecked {
+                ++i;
+            }
+        } else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
+            consideration[i] = ReceivedItem({
+                itemType: loan.debt[0].itemType,
+                identifier: loan.debt[0].identifier,
+                amount: (settlementPrice - loan.debt[0].amount + interest - carry),
+                token: loan.debt[0].token,
+                recipient: payable(loan.originator)
+            });
+            settlementPrice -= consideration[i].amount;
+            unchecked {
+                ++i;
+            }
         }
-        // the settlementPrice covers at least some of the carry fees
-        else {
-            carryFeeConsideration[0].amount =
-                settlementPrice - paymentConsiderations[0].amount - carryFeeConsideration[0].amount;
-        }
-        paymentConsiderations[0].amount = settlementPrice;
+
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.hookData, (BaseRecall.Details));
 
-        uint256 recallerReward = paymentConsiderations[0].amount.mulWad(hookDetails.recallerRewardRatio);
+        uint256 recallerReward = (settlementPrice).mulWad(hookDetails.recallerRewardRatio);
+        if (recallerReward > 0) {
+            consideration[i] = ReceivedItem({
+                itemType: loan.debt[0].itemType,
+                identifier: loan.debt[0].identifier,
+                amount: settlementPrice.mulWad(hookDetails.recallerRewardRatio),
+                token: loan.debt[0].token,
+                recipient: payable(recaller)
+            });
+            settlementPrice -= consideration[i].amount;
+            unchecked {
+                ++i;
+            }
+        }
 
-        // recallerReward is taken directly from the repayment, carry is not subject to the recallerReward
-        paymentConsiderations[0].amount -= recallerReward;
-        ReceivedItem[] memory recallerPayment = new ReceivedItem[](1);
-        recallerPayment[0] = ReceivedItem({
-            itemType: paymentConsiderations[0].itemType,
-            identifier: paymentConsiderations[0].identifier,
-            amount: recallerReward,
-            token: paymentConsiderations[0].token,
-            recipient: payable(recaller)
+        consideration[i] = ReceivedItem({
+            itemType: loan.debt[0].itemType,
+            identifier: loan.debt[0].identifier,
+            amount: settlementPrice,
+            token: loan.debt[0].token,
+            recipient: payable(loan.issuer)
         });
 
-        consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, recallerPayment);
-        consideration = _removeZeroAmounts(consideration);
+        unchecked {
+            ++i;
+        }
+
+        assembly {
+            mstore(consideration, i)
+        }
     }
 
     function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
