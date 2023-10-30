@@ -1,3 +1,5 @@
+pragma solidity ^0.8.17;
+
 import "starport-test/StarPortTest.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
@@ -233,6 +235,26 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testInvalidIdentifierDebt() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.debt[0].identifier = uint256(2);
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemIdentifier.selector));
         LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }

@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
@@ -127,27 +127,20 @@ contract LoanManager is Ownable, ERC721 {
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
-    event SeaportCompatibleContractDeployed();
 
     error CannotTransferLoans();
     error ConduitTransferError();
-    error InvalidAction();
-    error InvalidConduit();
     error InvalidRefinance();
     error InvalidCustodian();
     error InvalidLoan();
     error InvalidItemAmount();
+    error InvalidItemIdentifier(); //must be zero for ERC20's
     error InvalidItemTokenNoCode();
     error InvalidTransferLength();
-    //    error InvalidNoRefinanceConsideration();
     error LoanExists();
     error NotLoanCustodian();
-    error NotPayingFees();
     error NotSeaport();
-    error NotEnteredViaSeaport();
-
     error NativeAssetsNotSupported();
-    error HashAlreadyInvalidated();
     error InvalidItemType();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
@@ -165,7 +158,36 @@ contract LoanManager is Ownable, ERC721 {
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
-        emit SeaportCompatibleContractDeployed();
+    }
+    //
+    //    function setApproval(address who, bool approved) external {
+    //        assembly {
+    //            // Compute the storage slot of approvals[msg.sender]
+    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
+    //
+    //            // Compute the storage slot of approvals[msg.sender][who]
+    //            slot := keccak256(add(who, slot), 0x20)
+    //
+    //            // Update the value at the computed storage slot
+    //            sstore(slot, approved)
+    //        }
+    //    }
+
+    //    function setApprovalTransient(address who) external {
+    //        assembly {
+    //            // Compute the storage slot of approvals[msg.sender]
+    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
+    //
+    //            // Compute the storage slot of approvals[msg.sender][who]
+    //            slot := keccak256(add(who, slot), 0x20)
+    //
+    //            // Update the value at the computed storage slot
+    //            tstore(slot, 1)
+    //        }
+    //    }
+
+    function setApproval(address who, bool approved) external {
+        approvals[msg.sender][who] = approved;
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
@@ -180,6 +202,9 @@ contract LoanManager is Ownable, ERC721 {
     ) external payable {
         //cache the addresses
         address borrower = loan.borrower;
+        //        address recipient = msg.sender != borrower && approvals[msg.sender][borrower] ? msg.sender : borrower;
+
+        //        address recipient = borrower;
         address issuer = loan.issuer;
         address feeRecipient = feeTo;
         if (msg.sender != loan.borrower) {
@@ -191,6 +216,7 @@ contract LoanManager is Ownable, ERC721 {
         }
 
         _transferSpentItems(loan.collateral, borrower, loan.custodian);
+
         _callCustody(loan);
         if (feeRecipient == address(0)) {
             _transferSpentItems(loan.debt, issuer, borrower);
@@ -411,6 +437,9 @@ contract LoanManager is Ownable, ERC721 {
         if (amount > 0) {
             if (itemType == ItemType.ERC20) {
                 // erc20 transfer
+                if (identifier > 0) {
+                    revert InvalidItemIdentifier();
+                }
                 SafeTransferLib.safeTransferFrom(token, from, to, amount);
             } else if (itemType == ItemType.ERC721) {
                 // erc721 transfer

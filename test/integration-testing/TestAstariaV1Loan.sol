@@ -1,3 +1,5 @@
+pragma solidity ^0.8.17;
+
 import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";

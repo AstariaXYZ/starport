@@ -1,3 +1,5 @@
+pragma solidity ^0.8.17;
+
 import "starport-test/StarPortTest.sol";
 
 contract TestRepayLoan is StarPortTest {

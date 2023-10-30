@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 interface TokenReceiverInterface {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)

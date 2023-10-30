@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -66,6 +66,7 @@ import {Actions} from "starport-core/lib/StarPortLib.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
+import {BorrowerEnforcerBNPL} from "starport-core/enforcers/BorrowerEnforcerBNPL.sol";
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
@@ -155,6 +156,7 @@ contract StarPortTest is BaseOrderTest {
     StrategistOriginator SO;
 
     BorrowerEnforcer borrowerEnforcer;
+    BorrowerEnforcerBNPL borrowerEnforcerBNPL;
     LenderEnforcer lenderEnforcer;
 
     bytes32 conduitKeyRefinancer;
@@ -221,8 +223,10 @@ contract StarPortTest is BaseOrderTest {
             erc721s[2].mint(lender.addr, 1);
         }
         borrowerEnforcer = new BorrowerEnforcer();
+        borrowerEnforcerBNPL = new BorrowerEnforcerBNPL();
         lenderEnforcer = new LenderEnforcer();
         vm.label(address(borrowerEnforcer), "BorrowerEnforcer");
+        vm.label(address(borrowerEnforcerBNPL), "BorrowerEnforcerBNPL");
         vm.label(address(lenderEnforcer), "LenderEnforcer");
 
         conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);

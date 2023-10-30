@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
