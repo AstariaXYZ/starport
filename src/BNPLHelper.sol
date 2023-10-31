@@ -41,17 +41,6 @@ interface IWETH9 {
 
 interface ERC20 {
     function transfer(address, uint256) external returns (bool);
-    function transferFrom(address, address, uint256) external returns (bool);
-    function approve(address, uint256) external returns (bool);
-    function balanceOf(address) external returns (uint256);
-}
-
-interface ERC721 {
-    function approve(address, uint256) external;
-}
-
-interface ERC1155 {
-    function setApprovalForAll(address, bool) external;
 }
 
 // fulfiller
@@ -96,17 +85,6 @@ contract BNPLHelper is IFlashLoanRecipient {
         //        }
         activeUserDataHash = keccak256(userData);
 
-        //        if (userProvidedAmounts.length > 0) {
-        //            require(userProvidedAmounts.length == tokens.length, "userProvidedAmounts must be same length as tokens");
-        //            for (uint256 i = 0; i < tokens.length;) {
-        //                ERC20 tkn = ERC20(tokens[i]);
-        //                tkn.transferFrom(msg.sender, address(this), userProvidedAmounts[i]);
-        //                unchecked {
-        //                    ++i;
-        //                }
-        //            }
-        //        }
-
         IVault(vault).flashLoan(this, tokens, amounts, userData);
     }
 
@@ -149,18 +127,7 @@ contract BNPLHelper is IFlashLoanRecipient {
                 ++i;
             }
         }
-        //        LoanManager(execution.lm).setApproval(execution.borrower, true);
         LoanManager(execution.lm).originate(transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan);
-
-        //        //repay the loan with debt from Starport
-        //        for (uint256 i = 0; i < tokens.length;) {
-        //            ERC20 tkn = ERC20(tokens[i]);
-        //            tkn.transfer(vault, amounts[i] + feeAmounts[i]);
-        //            tkn.transfer(execution.borrower, tkn.balanceOf(address(this))); //transfer any excess funds received to the borrower
-        //            unchecked {
-        //                ++i;
-        //            }
-        //        }
     }
 
     receive() external payable {

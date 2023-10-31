@@ -31,6 +31,7 @@ import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 contract StrategistOriginator is Ownable, Originator {
@@ -40,7 +41,6 @@ contract StrategistOriginator is Ownable, Originator {
 
     struct Details {
         address custodian;
-        address conduit;
         address issuer;
         uint256 deadline;
         Offer offer;
@@ -53,16 +53,9 @@ contract StrategistOriginator is Ownable, Originator {
         SpentItem[] debt;
     }
 
-    event CounterUpdated();
+    event CounterUpdated(uint256);
 
     event HashInvalidated(bytes32 hash);
-
-    modifier onlyLoanManager() {
-        if (msg.sender != address(LM)) {
-            revert NotLoanManager();
-        }
-        _;
-    }
 
     error NotLoanManager();
     error NotAuthorized();
@@ -110,14 +103,6 @@ contract StrategistOriginator is Ownable, Originator {
         emit StrategistTransferred(newStrategist);
     }
 
-    function _buildResponse(Request calldata params, Details memory details)
-        internal
-        virtual
-        returns (Response memory response)
-    {
-        response = Response({terms: details.offer.terms, issuer: details.issuer});
-    }
-
     // Encode the data with the account's nonce for generating a signature
     function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory) {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
@@ -135,11 +120,11 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     function incrementCounter() external {
-        if (msg.sender != strategist || msg.sender != owner()) {
+        if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
         _counter += uint256(blockhash(block.number - 1) << 0x80);
-        emit CounterUpdated();
+        emit CounterUpdated(_counter);
     }
 
     // Function to generate the domain separator for signatures
@@ -147,17 +132,23 @@ contract StrategistOriginator is Ownable, Originator {
         return _DOMAIN_SEPARATOR;
     }
 
-    function execute(Request calldata params)
-        external
-        virtual
-        override
-        onlyLoanManager
-        returns (Response memory response)
-    {
+    function originate(Request calldata params) external virtual override {
         Details memory details = abi.decode(params.details, (Details));
         _validateOffer(params, details);
-        _execute(params, details);
-        response = _buildResponse(params, details);
+
+        LoanManager.Loan memory loan = LoanManager.Loan({
+            start: uint256(0), // are set in the loan manager
+            originator: address(0), // are set in the loan manager
+            custodian: details.custodian,
+            issuer: details.issuer,
+            borrower: params.borrower,
+            collateral: params.collateral,
+            debt: params.debt,
+            terms: details.offer.terms
+        });
+
+        CaveatEnforcer.CaveatWithApproval memory le;
+        LM.originate(new ConduitTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     function _validateAsk(Request calldata request, Details memory details) internal virtual {
@@ -167,7 +158,7 @@ contract StrategistOriginator is Ownable, Originator {
 
         //loop through collateral and check if the collateral is the same
 
-        for (uint256 i = 0; i < request.collateral.length;) {
+        for (uint256 i = 0; i < request.debt.length;) {
             if (
                 request.debt[i].itemType != details.offer.debt[i].itemType
                     || request.debt[i].token != details.offer.debt[i].token
@@ -191,9 +182,6 @@ contract StrategistOriginator is Ownable, Originator {
     function _validateOffer(Request calldata request, Details memory details) internal virtual {
         bytes32 contextHash = keccak256(request.details);
         _validateSignature(keccak256(encodeWithAccountCounter(keccak256(request.details))), request.approval);
-        if (request.custodian != details.custodian) {
-            revert InvalidCustodian();
-        }
         if (request.debt.length != details.offer.debt.length) {
             revert InvalidDebtLength();
         }
@@ -209,15 +197,6 @@ contract StrategistOriginator is Ownable, Originator {
         }
         if (block.timestamp > details.deadline) {
             revert InvalidDeadline();
-        }
-    }
-
-    function _execute(Request calldata request, Details memory details) internal virtual {
-        if (
-            ConduitInterface(details.conduit).execute(_packageTransfers(request.debt, request.receiver, details.issuer))
-                != ConduitInterface.execute.selector
-        ) {
-            revert ConduitTransferError();
         }
     }
 

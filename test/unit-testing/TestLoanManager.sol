@@ -52,19 +52,23 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
         });
     }
 
-    function execute(Request calldata request) external override returns (Response memory response) {
-        address issuer = address(this);
-        if (request.details.length > 0) {
-            if (request.debt[0].itemType != ItemType.NATIVE) {
-                StrategistOriginator.Details memory details =
-                    abi.decode(request.details, (StrategistOriginator.Details));
-                issuer = details.issuer == address(0) ? issuer : details.issuer;
-                _execute(request, details);
-            } else {
-                payable(request.receiver).call{value: request.debt[0].amount}("");
-            }
-        }
-        return Response({terms: terms(request.details), issuer: address(this)});
+    function originate(Request calldata params) external virtual override {
+        StrategistOriginator.Details memory details = abi.decode(params.details, (StrategistOriginator.Details));
+        _validateOffer(params, details);
+
+        LoanManager.Loan memory loan = LoanManager.Loan({
+            start: uint256(0), // are set in the loan manager
+            originator: address(0), // are set in the loan manager
+            custodian: details.custodian,
+            issuer: details.issuer,
+            borrower: params.borrower,
+            collateral: params.collateral,
+            debt: params.debt,
+            terms: details.offer.terms
+        });
+
+        CaveatEnforcer.CaveatWithApproval memory le;
+        LM.originate(new ConduitTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     receive() external payable {}

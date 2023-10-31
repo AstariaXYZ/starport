@@ -4,6 +4,7 @@ import "starport-test/StarPortTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
 
 contract FlashLoan {
     function flashLoan(
@@ -307,6 +308,90 @@ contract TestNewLoan is StarPortTest {
                 )
             );
         }
+    }
+
+    function testNewLoanViaOriginatorLenderApproval() public {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+
+        StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
+            custodian: LM.defaultCustodian(),
+            issuer: lender.addr,
+            deadline: block.timestamp + 100,
+            offer: StrategistOriginator.Offer({
+                terms: loan.terms,
+                salt: bytes32(0),
+                collateral: loan.collateral,
+                debt: loan.debt
+            })
+        });
+
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(abi.encode(newLoanDetails)))));
+
+        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
+        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
+        vm.prank(lender.addr);
+        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        vm.prank(borrower.addr);
+        SO.originate(
+            Originator.Request({
+                borrower: borrower.addr,
+                borrowerCaveat: _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5))),
+                collateral: loan.collateral,
+                debt: loan.debt,
+                details: abi.encode(newLoanDetails),
+                approval: abi.encodePacked(r, s, v)
+            })
+        );
+        assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
+        assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(LM.defaultCustodian()));
+    }
+
+    function testNewLoanViaOriginatorBorrowerApprovalAndLenderApproval() public {
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+
+        StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
+            custodian: LM.defaultCustodian(),
+            issuer: lender.addr,
+            deadline: block.timestamp + 100,
+            offer: StrategistOriginator.Offer({
+                terms: loan.terms,
+                salt: bytes32(0),
+                collateral: loan.collateral,
+                debt: loan.debt
+            })
+        });
+
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+
+        (uint8 v, bytes32 r, bytes32 s) =
+            vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(abi.encode(newLoanDetails)))));
+
+        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
+        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
+        vm.prank(borrower.addr);
+        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.BORROWER);
+        vm.prank(lender.addr);
+        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        vm.prank(borrower.addr);
+        SO.originate(
+            Originator.Request({
+                borrower: borrower.addr,
+                borrowerCaveat: _emptyCaveat(),
+                collateral: loan.collateral,
+                debt: loan.debt,
+                details: abi.encode(newLoanDetails),
+                approval: abi.encodePacked(r, s, v)
+            })
+        );
+        assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
+        assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(LM.defaultCustodian()));
     }
 
     function testSettleLoan() public {

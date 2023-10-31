@@ -304,6 +304,16 @@ contract StarPortTest is BaseOrderTest {
         vm.stopPrank();
     }
 
+    function _emptyCaveat() internal returns (CaveatEnforcer.CaveatWithApproval memory) {
+        return CaveatEnforcer.CaveatWithApproval({
+            v: 0,
+            r: bytes32(0),
+            s: bytes32(0),
+            salt: bytes32(0),
+            caveat: new CaveatEnforcer.Caveat[](0)
+        });
+    }
+
     // loan.borrower and signer.addr could be mismatched
     function _generateSignedCaveatBorrower(LoanManager.Loan memory loan, Account memory signer, bytes32 salt)
         public

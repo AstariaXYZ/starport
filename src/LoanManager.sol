@@ -73,7 +73,15 @@ contract LoanManager is Ownable, ERC721 {
     address public feeTo;
     uint96 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
-    mapping(address => mapping(address => bool)) public approvals;
+    //    mapping(address => mapping(address => bool)) public approvals;
+
+    enum ApprovalType {
+        NOTHING,
+        BORROWER,
+        LENDER
+    }
+
+    mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => uint256) public caveatNonces;
     //contract to token //fee rake
     mapping(address => Fee) public feeOverride;
@@ -186,8 +194,8 @@ contract LoanManager is Ownable, ERC721 {
     //        }
     //    }
 
-    function setApproval(address who, bool approved) external {
-        approvals[msg.sender][who] = approved;
+    function setOriginateApproval(address who, ApprovalType approvalType) external {
+        approvals[msg.sender][who] = approvalType;
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
@@ -204,11 +212,11 @@ contract LoanManager is Ownable, ERC721 {
         address borrower = loan.borrower;
         address issuer = loan.issuer;
         address feeRecipient = feeTo;
-        if (msg.sender != loan.borrower) {
+        if (msg.sender != loan.borrower && !(approvals[borrower][msg.sender] == ApprovalType.BORROWER)) {
             _validateAndEnforceCaveats(borrowerCaveat, borrower, additionalTransfers, loan);
         }
 
-        if (msg.sender != issuer && !approvals[issuer][msg.sender]) {
+        if (msg.sender != issuer && !(approvals[issuer][msg.sender] == ApprovalType.LENDER)) {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
@@ -256,7 +264,7 @@ contract LoanManager is Ownable, ERC721 {
         loan.originator = address(0);
         loan.start = 0;
 
-        if (msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]) {
+        if (msg.sender != loan.issuer && !(approvals[loan.issuer][msg.sender] == ApprovalType.LENDER)) {
             _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
