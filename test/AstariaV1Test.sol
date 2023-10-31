@@ -12,7 +12,10 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 
 import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
+import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 // import "forge-std/console2.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 contract AstariaV1Test is StarPortTest {
     Account recaller;
@@ -35,7 +38,7 @@ contract AstariaV1Test is StarPortTest {
         vm.startPrank(recaller.addr);
         recallerConduit = conduitController.createConduit(conduitKeyRecaller, recaller.addr);
         conduitController.updateChannel(recallerConduit, address(hook), true);
-        erc20s[0].approve(address(recallerConduit), 100000);
+        erc20s[0].approve(address(recallerConduit), 1e18);
         vm.stopPrank();
 
         // // 1% interest rate per second
@@ -56,5 +59,21 @@ contract AstariaV1Test is StarPortTest {
                 recallerRewardRatio: uint256(1e16) * 10
             })
         );
+    }
+
+    function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor)
+        public
+        view
+        returns (LenderEnforcer.Details memory)
+    {
+        (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
+            Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, transactor);
+
+        loan = LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
+        loan.issuer = transactor;
+        loan.start = 0;
+        loan.originator = address(0);
+
+        return LenderEnforcer.Details({loan: loan});
     }
 }

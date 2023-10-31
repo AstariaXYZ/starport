@@ -7,12 +7,13 @@ import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 contract MockCustodian is Custodian {
     constructor(LoanManager LM_, ConsiderationInterface seaport_) Custodian(LM_, seaport_) {}
 
-    function custody(
-        ReceivedItem[] calldata consideration,
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce,
-        bytes calldata context
-    ) external virtual override onlyLoanManager returns (bytes4 selector) {
+    function custody(LoanManager.Loan memory loan)
+        external
+        virtual
+        override
+        onlyLoanManager
+        returns (bytes4 selector)
+    {
         selector = Custodian.custody.selector;
     }
 }
@@ -33,15 +34,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC721Consideration(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
-
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan = newLoanWithDefaultTerms();
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
@@ -101,11 +94,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             )
         );
         vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(
-                Custodian.custody.selector, new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0)
-            )
-        );
+        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.custody.selector, activeLoan));
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.getSeaportMetadata.selector));
         vm.expectRevert();
@@ -183,14 +172,15 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         custodian.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
     }
 
-    function testSafeTransfer1155Receive() public {
-        erc1155s[0].mint(address(this), 1, 2);
+    // no longer applicable since we do not enter through Seaport
+    // function testSafeTransfer1155Receive() public {
+    //     erc1155s[0].mint(address(this), 1, 2);
 
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotEnteredViaSeaport.selector));
-        erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
-        vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
-        erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
-    }
+    //     vm.expectRevert(abi.encodeWithSelector(Custodian.NotEnteredViaSeaport.selector));
+    //     erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
+    //     vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
+    //     erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
+    // }
 
     //TODO: make this test meaningful
     function testSeaportMetadata() public view {
@@ -204,23 +194,20 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     function testCustodySelector() public {
         MockCustodian custodianMock = new MockCustodian(LM, seaport);
         vm.prank(address(custodianMock.LM()));
-        assert(
-            custodianMock.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0))
-                == Custodian.custody.selector
-        );
+        assert(custodianMock.custody(activeLoan) == Custodian.custody.selector);
     }
 
     function testDefaultCustodySelectorRevert() public {
         vm.prank(address(custodian.LM()));
         vm.expectRevert(abi.encodeWithSelector(Custodian.ImplementInChild.selector));
-        custodian.custody(new ReceivedItem[](0), new bytes32[](0), uint256(0), new bytes(0));
+        custodian.custody(activeLoan);
     }
 
     //TODO: add assertions
     function testGenerateOrderRepay() public {
         vm.prank(seaportAddr);
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
     }
     //TODO: add assertions
@@ -229,21 +216,20 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         vm.prank(activeLoan.borrower);
         custodian.setRepayApproval(address(this), true);
         vm.prank(seaportAddr);
-        custodian.generateOrder(address(this), new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan));
+        custodian.generateOrder(
+            address(this), new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
+        );
     }
     //TODO: add assertions
 
     function testGenerateOrderRepayERC1155WithRevert() public {
-        //1155
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
+        // 1155
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC1155SpentItem(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan =
+            newLoan(originationDetails, bytes32(uint256(2)), bytes32(uint256(2)), address(issuer));
 
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
@@ -256,21 +242,18 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             new bytes(0)
         );
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
     }
 
     function testGenerateOrderRepayERC1155AndERC20AndNativeHandlerAuthorized() public {
         //1155
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC1155SpentItem(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan =
+            newLoan(originationDetails, bytes32(uint256(3)), bytes32(uint256(3)), address(issuer));
 
         loan.toStorage(activeLoan);
         mockHookCall(activeLoan.terms.hook, false);
@@ -278,104 +261,94 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(activeLoan.terms.handler));
         vm.prank(seaportAddr);
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
 
         //ERC20
-        loanDetails = _generateOriginationDetails(
-            _getERC20Consideration(erc20s[1]), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
+        originationDetails = _generateOriginationDetails(
+            _getERC20SpentItem(erc20s[1], borrowAmount + 1), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
         );
 
-        loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        loan = newLoan(originationDetails, bytes32(uint256(4)), bytes32(uint256(4)), address(this));
 
         loan.toStorage(activeLoan);
 
         vm.prank(seaportAddr);
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
 
+        // Native no longer supported unless we add conduti support
         //Native
-        loanDetails = _generateOriginationDetails(
-            _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
+        // loanDetails = _generateOriginationDetails(
+        //     _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        // );
 
-        loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        // loan = newLoan(
+        //     NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+        //     StrategistOriginator(SO),
+        //     selectedCollateral
+        // );
 
-        loan.toStorage(activeLoan);
+        // loan.toStorage(activeLoan);
 
-        vm.prank(seaportAddr);
-        custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan)
-        );
+        // vm.prank(seaportAddr);
+        // custodian.generateOrder(
+        //     activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
+        // );
     }
 
     function testGenerateOrderRepayERC1155AndERC20AndNative() public {
         //1155
-        StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-            _getERC1155Consideration(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
+        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC1155SpentItem(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
         );
 
-        LoanManager.Loan memory loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        LoanManager.Loan memory loan =
+            newLoan(originationDetails, bytes32(uint256(5)), bytes32(uint256(5)), address(issuer));
 
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
 
         //ERC20
-        loanDetails = _generateOriginationDetails(
-            _getERC20Consideration(erc20s[1]), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
+        originationDetails = _generateOriginationDetails(
+            _getERC20SpentItem(erc20s[1], borrowAmount + 1), _getERC20SpentItem(erc20s[0], borrowAmount), address(this)
         );
 
-        loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        loan = newLoan(originationDetails, bytes32(uint256(6)), bytes32(uint256(6)), address(this));
 
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
         custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
 
         //Native
-        loanDetails = _generateOriginationDetails(
-            _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        );
+        // loanDetails = _generateOriginationDetails(
+        //     _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
+        // );
 
-        loan = newLoan(
-            NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
-            StrategistOriginator(SO),
-            selectedCollateral
-        );
+        // loan = newLoan(
+        //     NewLoanData(address(custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+        //     StrategistOriginator(SO),
+        //     selectedCollateral
+        // );
 
-        loan.toStorage(activeLoan);
+        // loan.toStorage(activeLoan);
 
-        vm.prank(seaportAddr);
-        custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
-        );
+        // vm.prank(seaportAddr);
+        // custodian.generateOrder(
+        //     activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
+        // );
     }
 
     function testGenerateOrderRepayNotBorrower() public {
         vm.prank(seaportAddr);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan));
     }
 
     function testGenerateOrderSettlement() public {
@@ -385,7 +358,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-            custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+            custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
 
         vm.stopPrank();
 
@@ -399,7 +372,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(activeLoan.terms.handler));
 
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-            custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+            custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
 
         vm.stopPrank();
 
@@ -412,7 +385,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), alice);
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidFulfiller.selector));
-        custodian.generateOrder(borrower.addr, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+        custodian.generateOrder(
+            borrower.addr, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
+        );
     }
 
     function testGenerateOrderSettlementNoActiveLoan() public {
@@ -422,7 +397,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         activeLoan.borrower = address(bob);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidLoan.selector));
-        custodian.generateOrder(borrower.addr, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+        custodian.generateOrder(
+            borrower.addr, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
+        );
     }
 
     //TODO: add assertions
@@ -431,7 +408,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         bytes memory context = abi.encode(Actions.Repayment, activeLoan);
 
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
-            custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), debt, context);
+            custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), activeDebt, context);
 
         custodian.ratifyOrder(offer, consideration, context, new bytes32[](0), 0);
 
@@ -445,7 +422,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(activeLoan.terms.handler));
         mockHandlerExecuteFail(activeLoan.terms.handler);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidHandlerExecution.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), debt, context);
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, context);
 
         vm.stopPrank();
     }
@@ -457,7 +434,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) = custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
 
         mockHookCall(activeLoan.terms.hook, true);
@@ -467,7 +444,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             activeLoan.borrower,
             activeLoan.borrower,
             new SpentItem[](0),
-            debt,
+            activeDebt,
             abi.encode(Actions.Repayment, activeLoan)
         );
 
@@ -482,7 +459,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         vm.expectRevert();
         (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) = custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
     }
 
@@ -497,7 +474,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         vm.expectRevert();
         (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) = custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan)
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
     }
 
@@ -507,8 +484,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHookCall(activeLoan.terms.hook, false);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(1));
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidFulfiller.selector));
-        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedConsideration) =
-            custodian.previewOrder(alice, alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedConsideration) = custodian.previewOrder(
+            alice, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
+        );
     }
 
     function testPreviewOrderSettlementInvalidRepayer() public {
@@ -517,8 +495,9 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHookCall(activeLoan.terms.hook, true);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
-        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) =
-            custodian.previewOrder(alice, bob, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan));
+        (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
+            alice, bob, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
+        );
     }
 
     function testPreviewOrderSettlement() public {
@@ -528,13 +507,13 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) =
-            custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+            custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
 
         mockHookCall(activeLoan.terms.hook, false);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
-            seaportAddr, alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan)
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
 
         _deepEq(receivedOffer, expectedOffer);
@@ -547,7 +526,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         activeLoan.borrower = address(bob);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
-            seaportAddr, alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan)
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
     }
 
@@ -556,10 +535,12 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         mockHookCall(activeLoan.terms.hook, true);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.previewOrder(seaportAddr, alice, new SpentItem[](0), debt, abi.encode(Actions.Settlement, activeLoan));
+        custodian.previewOrder(
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
+        );
     }
 
     function testInvalidActionRepayInActiveLoan() public {
@@ -567,10 +548,12 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         mockHookCall(activeLoan.terms.hook, false);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan));
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.previewOrder(seaportAddr, alice, new SpentItem[](0), debt, abi.encode(Actions.Repayment, activeLoan));
+        custodian.previewOrder(
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
+        );
     }
 
     function testInvalidAction() public {
@@ -578,11 +561,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         mockHookCall(activeLoan.terms.hook, true);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), debt, abi.encode(Actions.Origination, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan));
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
         custodian.previewOrder(
-            seaportAddr, alice, new SpentItem[](0), debt, abi.encode(Actions.Origination, activeLoan)
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan)
         );
     }
 }
