@@ -134,6 +134,21 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.settle(activeLoan);
     }
 
+    event Paused();
+    event UnPaused();
+
+    function testPause() public {
+        vm.expectEmit();
+        emit Paused();
+        LM.pause();
+    }
+
+    function testUnPause() public {
+        vm.expectEmit();
+        emit UnPaused();
+        LM.unPause();
+    }
+
     function testIssued() public {
         assert(LM.issued(activeLoan.getId()));
     }
@@ -177,6 +192,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
         LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
+    }
+
+    function testCannotOriginateWhilePaused() public {
+        LM.pause();
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.IsPaused.selector));
+        LM.originate(new ConduitTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 
     function testNonDefaultCustodianCustodyCallSuccess() public {

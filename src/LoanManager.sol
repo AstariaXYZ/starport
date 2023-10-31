@@ -57,7 +57,6 @@ contract LoanManager is Ownable, ERC721 {
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
     ConsiderationInterface public immutable seaport;
-    //    bool public paused; //TODO:
 
     address payable public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
@@ -70,8 +69,9 @@ contract LoanManager is Ownable, ERC721 {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
+    bool public paused;
     address public feeTo;
-    uint96 public defaultFeeRake;
+    uint88 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
     //    mapping(address => mapping(address => bool)) public approvals;
 
@@ -80,17 +80,16 @@ contract LoanManager is Ownable, ERC721 {
         BORROWER,
         LENDER
     }
-
-    mapping(address => mapping(address => ApprovalType)) public approvals;
-    mapping(address => uint256) public caveatNonces;
-    //contract to token //fee rake
-    mapping(address => Fee) public feeOverride;
-
     enum FieldFlags {
         INITIALIZED,
         ACTIVE,
         INACTIVE
     }
+
+    mapping(address => mapping(address => ApprovalType)) public approvals;
+    mapping(address => uint256) public caveatNonces;
+    //contract to token //fee rake
+    mapping(address => Fee) public feeOverride;
 
     struct Terms {
         address hook; //the address of the hookmodule
@@ -112,29 +111,15 @@ contract LoanManager is Ownable, ERC721 {
         Terms terms; //the actionable terms of the loan
     }
 
-    struct Caveat {
-        address enforcer;
-        bytes terms;
-    }
-
-    struct Obligation {
-        address custodian;
-        SpentItem[] debt;
-        address originator;
-        address borrower;
-        bytes32 salt;
-        Caveat[] caveats;
-        bytes details;
-        bytes approval;
-    }
-
     struct Fee {
         bool enabled;
-        uint96 amount;
+        uint88 amount;
     }
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
+    event Paused();
+    event UnPaused();
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -153,6 +138,7 @@ contract LoanManager is Ownable, ERC721 {
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error MalformedRefinance();
+    error IsPaused();
 
     constructor(ConsiderationInterface seaport_) {
         address custodian = address(new Custodian(this, seaport_));
@@ -202,12 +188,25 @@ contract LoanManager is Ownable, ERC721 {
         revert CannotTransferLoans();
     }
 
+    function pause() external onlyOwner {
+        paused = true;
+        emit Paused();
+    }
+
+    function unPause() external onlyOwner {
+        paused = false;
+        emit UnPaused();
+    }
+
     function originate(
         ConduitTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan
     ) external payable {
+        if (paused) {
+            revert IsPaused();
+        }
         //cache the addresses
         address borrower = loan.borrower;
         address issuer = loan.issuer;
@@ -248,6 +247,9 @@ contract LoanManager is Ownable, ERC721 {
         LoanManager.Loan memory loan,
         bytes calldata pricingData
     ) external {
+        if (paused) {
+            revert IsPaused();
+        }
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -600,7 +602,7 @@ contract LoanManager is Ownable, ERC721 {
      * @param feeTo_  The feeToAddress
      * @param defaultFeeRake_ the default fee rake in WAD denomination(1e17 = 10%)
      */
-    function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
@@ -611,7 +613,7 @@ contract LoanManager is Ownable, ERC721 {
      * @param token  The token to override
      * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
      */
-    function setFeeOverride(address token, uint96 overrideValue) external onlyOwner {
+    function setFeeOverride(address token, uint88 overrideValue) external onlyOwner {
         feeOverride[token].enabled = true;
         feeOverride[token].amount = overrideValue;
     }
