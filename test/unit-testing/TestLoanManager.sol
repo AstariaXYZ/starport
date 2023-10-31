@@ -245,6 +245,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
         loan.collateral[0].identifier = uint256(2);
         loan.debt[0].identifier = uint256(2);
+
         CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,

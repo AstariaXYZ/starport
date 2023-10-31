@@ -18,8 +18,6 @@ contract LenderEnforcer is CaveatEnforcer {
         LoanManager.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
-        //        bytes32 loanHash = keccak256(abi.encode(loan));
-
         Details memory details = abi.decode(caveatData, (Details));
         if (details.loan.issuer != loan.issuer) revert LenderOnlyEnforcer();
         details.loan.borrower = loan.borrower;

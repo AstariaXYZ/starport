@@ -172,9 +172,8 @@ contract TestNewLoan is StarPortTest {
             itemType: ItemType.ERC20,
             recipient: payable(seller.addr)
         });
-
-        //order 1, which lets is the seller, they have something that we can borrower againt (ERC721)
-        //order 2 which is the
+        // //order 1, which lets is the seller, they have something that we can borrower againt (ERC721)
+        // //order 2 which is the
 
         OfferItem[] memory sellingNFT = new OfferItem[](1);
         sellingNFT[0] = OfferItem({
@@ -214,26 +213,6 @@ contract TestNewLoan is StarPortTest {
         loan.debt[0].amount = 100;
 
         BNPLHelper helper = new BNPLHelper(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
-        //address lm;
-        //        address seaport;
-        //        address borrower;
-        //        uint256 payableAmount;
-        //        CaveatEnforcer.CaveatWithApproval borrowerCaveat;
-        //        CaveatEnforcer.CaveatWithApproval lenderCaveat;
-        //        LoanManager.Loan loan;
-        //        AdvancedOrder[] orders;
-        //        CriteriaResolver[] resolvers;
-        //        Fulfillment[] fulfillments;
-
-        //        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(1)));
-
-        //        OrderParameters memory buyerOrderParams = OrderParameters({
-        //
-        //        });
-        // OrderParameters memory orderParameters,
-        //        address payable offerer,
-        //        address zone,
-        //        bytes32 conduitKey
 
         AdvancedOrder[] memory orders = new AdvancedOrder[](2);
         orders[0] = AdvancedOrder({
@@ -260,23 +239,6 @@ contract TestNewLoan is StarPortTest {
             _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         }
 
-        //        fill[2] = Fulfillment({
-        //            offerComponents: new FulfillmentComponent[](1),
-        //            considerationComponents: new FulfillmentComponent[](1)
-        //        });
-        //
-        //        fill[2].offerComponents[0] = FulfillmentComponent({orderIndex: 0, itemIndex: 0});
-        //
-        //        fill[2].considerationComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 0});
-
-        //        fill[3] = Fulfillment({
-        //            offerComponents: new FulfillmentComponent[](1),
-        //            considerationComponents: new FulfillmentComponent[](1)
-        //        });
-        //
-        //        fill[3].offerComponents[0] = FulfillmentComponent({orderIndex: 1, itemIndex: 1});
-        //
-        //        fill[3].considerationComponents[0] = FulfillmentComponent({orderIndex: 2, itemIndex: 0});
         address balancerVault = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
         vm.etch(balancerVault, address(new FlashLoan()).code);
         deal(address(erc20s[0]), balancerVault, type(uint128).max);

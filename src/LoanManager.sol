@@ -128,20 +128,20 @@ contract LoanManager is Ownable, ERC721 {
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
 
-    error CannotTransferLoans();
-    error ConduitTransferError();
     error InvalidRefinance();
     error InvalidCustodian();
     error InvalidLoan();
     error InvalidItemAmount();
     error InvalidItemIdentifier(); //must be zero for ERC20's
     error InvalidItemTokenNoCode();
+    error InvalidItemType();
     error InvalidTransferLength();
+    error CannotTransferLoans();
+    error ConduitTransferError();
     error LoanExists();
     error NotLoanCustodian();
     error NotSeaport();
     error NativeAssetsNotSupported();
-    error InvalidItemType();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error MalformedRefinance();
@@ -202,9 +202,6 @@ contract LoanManager is Ownable, ERC721 {
     ) external payable {
         //cache the addresses
         address borrower = loan.borrower;
-        //        address recipient = msg.sender != borrower && approvals[msg.sender][borrower] ? msg.sender : borrower;
-
-        //        address recipient = borrower;
         address issuer = loan.issuer;
         address feeRecipient = feeTo;
         if (msg.sender != loan.borrower) {
@@ -436,7 +433,6 @@ contract LoanManager is Ownable, ERC721 {
         }
         if (amount > 0) {
             if (itemType == ItemType.ERC20) {
-                // erc20 transfer
                 if (identifier > 0) {
                     revert InvalidItemIdentifier();
                 }

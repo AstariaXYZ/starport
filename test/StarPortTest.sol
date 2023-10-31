@@ -67,7 +67,6 @@ import {Actions} from "starport-core/lib/StarPortLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {BorrowerEnforcerBNPL} from "starport-core/enforcers/BorrowerEnforcerBNPL.sol";
-import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 
@@ -157,6 +156,7 @@ contract StarPortTest is BaseOrderTest {
 
     BorrowerEnforcer borrowerEnforcer;
     BorrowerEnforcerBNPL borrowerEnforcerBNPL;
+
     LenderEnforcer lenderEnforcer;
 
     bytes32 conduitKeyRefinancer;
