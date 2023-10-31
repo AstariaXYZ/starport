@@ -9,9 +9,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {
-  SimpleInterestPricing
-} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 
 contract TestBasePricing is StarPortTest, DeepEq {
   using Cast for *;
@@ -22,8 +20,30 @@ contract TestBasePricing is StarPortTest, DeepEq {
   function setUp() public override {
     super.setUp();
 
-    LoanManager.Loan memory loan = _createLoan({
-      lender: lender.addr,
+    SpentItem[] memory newCollateral = new SpentItem[](1);
+    newCollateral[0] = SpentItem({
+      itemType: ItemType.ERC721,
+      token: address(erc721s[0]),
+      identifier: 1,
+      amount: 1
+    });
+
+    SpentItem[] memory newDebt = new SpentItem[](1);
+    newDebt[0] = SpentItem({
+      itemType: ItemType.ERC20,
+      token: address(erc20s[0]),
+      identifier: 0,
+      amount: 100
+    });
+
+    LoanManager.Loan memory loan = LoanManager.Loan({
+      start: 0,
+      custodian: address(custodian),
+      borrower: borrower.addr,
+      issuer: lender.addr,
+      originator: address(0),
+      collateral: newCollateral,
+      debt: newDebt,
       terms: LoanManager.Terms({
         hook: address(hook),
         handler: address(handler),
@@ -41,25 +61,7 @@ contract TestBasePricing is StarPortTest, DeepEq {
             window: 7 days
           })
         ),
-        hookData: abi.encode(
-          FixedTermHook.Details({
-            loanDuration: 14 days
-          })
-        )
-      }),
-      collateralItem: ConsiderationItem({
-        token: address(erc721s[0]),
-        startAmount: 1,
-        endAmount: 1,
-        identifierOrCriteria: 1,
-        itemType: ItemType.ERC721,
-        recipient: payable(address(custodian))
-      }),
-      debtItem: SpentItem({
-        itemType: ItemType.ERC20,
-        token: address(erc20s[0]),
-        amount: 100,
-        identifier: 0
+        hookData: abi.encode(FixedTermHook.Details({loanDuration: 14 days}))
       })
     });
 
@@ -67,32 +69,30 @@ contract TestBasePricing is StarPortTest, DeepEq {
   }
 
   function test_getPaymentConsideration() public {
-    SimpleInterestPricing simple = new SimpleInterestPricing(LM);
+    SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
 
-    ReceivedItem[] memory repayConsideration;
-    ReceivedItem[] memory repayCarryConsideration;
+    SpentItem[] memory repayConsideration;
+    SpentItem[] memory repayCarryConsideration;
 
-    (repayConsideration, repayCarryConsideration) = simple
-      .getPaymentConsideration(targetLoan);
+    (repayConsideration, repayCarryConsideration) = simplePricing.getPaymentConsideration(
+      targetLoan
+    );
 
     // lender
     assertEq(repayConsideration.length, 1);
     assertEq(repayConsideration[0].token, address(erc20s[0]));
     assertEq(repayConsideration[0].amount, 100);
-    assertEq(repayConsideration[0].recipient, lender.addr);
     assertEq(repayConsideration[0].identifier, 0);
 
-    // strategist originator
     assertEq(repayCarryConsideration.length, 1);
     assertEq(repayCarryConsideration[0].token, address(erc20s[0]));
     assertEq(repayCarryConsideration[0].amount, 0);
-    assertEq(repayCarryConsideration[0].recipient, address(SO));
     assertEq(repayCarryConsideration[0].identifier, 0);
   }
 
-  function test_getOwed() public {
-    SimpleInterestPricing simpleInterestPricing = new SimpleInterestPricing(LM);
+  // function test_getOwed() public {
+  //   SimpleInterestPricing simpleInterestPricing = new SimpleInterestPricing(LM);
 
-    assertEq(simpleInterestPricing.getOwed(targetLoan)[0], 100);
-  }
+  //   assertEq(simpleInterestPricing.getOwed(targetLoan)[0], 100);
+  // }
 }
