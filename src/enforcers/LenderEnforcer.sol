@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
@@ -13,15 +13,18 @@ contract LenderEnforcer is CaveatEnforcer {
         LoanManager.Loan loan;
     }
 
+    /// @notice Enforces that the loan terms are identical except for the borrower
+    /// @notice The borrower is allowed to be any address
+    /// @notice No additional transfers from the issuer are permitted
+    /// @param additionalTransfers The additional transfers to be made
+    /// @param loan The loan terms
+    /// @param caveatData The borrowers encoded details
     function validate(
         ConduitTransfer[] calldata additionalTransfers,
         LoanManager.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
-        //        bytes32 loanHash = keccak256(abi.encode(loan));
-
         Details memory details = abi.decode(caveatData, (Details));
-        if (details.loan.issuer != loan.issuer) revert LenderOnlyEnforcer();
         details.loan.borrower = loan.borrower;
 
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) {

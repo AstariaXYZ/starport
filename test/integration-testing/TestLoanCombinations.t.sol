@@ -1,3 +1,5 @@
+pragma solidity ^0.8.17;
+
 import "starport-test/StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";

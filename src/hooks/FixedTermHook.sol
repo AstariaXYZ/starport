@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";

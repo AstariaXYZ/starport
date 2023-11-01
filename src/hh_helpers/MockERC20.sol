@@ -1,4 +1,4 @@
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 

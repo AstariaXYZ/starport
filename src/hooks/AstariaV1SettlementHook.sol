@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";

@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import "forge-std/console2.sol";
 

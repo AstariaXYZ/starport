@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 

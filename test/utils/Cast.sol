@@ -1,4 +1,4 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ItemType, SpentItem, ReceivedItem, ConsiderationItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import "starport-test/utils/FuzzStructs.sol" as Fuzz;
