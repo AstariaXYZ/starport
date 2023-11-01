@@ -34,6 +34,7 @@ import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import "forge-std/console2.sol";
 
 contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     using {StarPortLib.getId} for LoanManager.Loan;
@@ -148,7 +149,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     function mint(LoanManager.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !LM.issued(loanId)) {
+        if (loan.custodian != address(this) || !LM.active(loanId)) {
             revert InvalidLoan();
         }
 
@@ -213,11 +214,10 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
             _setOfferApprovalsWithSeaport(offer);
 
-            (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
+            (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            // consideration = _removeZeroAmounts(consideration);
+            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
         } else if (action == Actions.Settlement && !SettlementHook(loan.terms.hook).isActive(loan)) {
@@ -298,7 +298,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
 
-        if (!LM.issued(loan.getId())) {
+        if (!LM.active(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);
@@ -309,11 +309,9 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
             }
             offer = loan.collateral;
 
-            (SpentItem[] memory paymentConsiderations, SpentItem[] memory carryFeeConsideration) =
+            (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-
-            // consideration = _mergeConsiderations(paymentConsiderations, carryFeeConsideration, new ReceivedItem[](0));
-            // consideration = _removeZeroAmounts(consideration);
+            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);

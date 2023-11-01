@@ -102,11 +102,11 @@ abstract contract BaseRecall is ConduitHelper {
         }
 
         if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
-            (,, address conduitController) = seaport.information();
+            // (,, address conduitController) = seaport.information();
             // validate that the provided conduit is owned by the msg.sender
-            if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-                revert InvalidConduit();
-            }
+            // if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
+            //     revert InvalidConduit();
+            // }
             ConduitTransfer[] memory recallConsideration = _generateRecallConsideration(
                 loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
             );

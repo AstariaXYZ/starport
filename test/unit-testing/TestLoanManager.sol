@@ -150,12 +150,16 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     function testIssued() public {
-        assert(LM.issued(activeLoan.getId()));
+        assert(LM.getExtraData(activeLoan.getId()) > uint8(0));
     }
 
     function testInitializedFlagSetProperly() public {
         activeLoan.borrower = address(0);
-        assert(LM.initialized(activeLoan.getId()));
+        assert(LM.getExtraData(activeLoan.getId()) == uint8(LoanManager.FieldFlags.UNINITIALIZED));
+    }
+
+    function testActive() public {
+        assert(LM.active(activeLoan.getId()));
     }
 
     function testTokenURI() public {

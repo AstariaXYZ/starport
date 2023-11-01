@@ -81,7 +81,7 @@ contract LoanManager is Ownable, ERC721 {
         LENDER
     }
     enum FieldFlags {
-        INITIALIZED,
+        UNINITIALIZED,
         ACTIVE,
         INACTIVE
     }
@@ -535,37 +535,15 @@ contract LoanManager is Ownable, ERC721 {
     }
 
     /**
-     * @dev  helper to check if a loan is initialized(ie. has never been opened)
-     * @param loanId            The id of the loan
-     * @return                  True if the loan is initialized
-     */
-    function initialized(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.INITIALIZED);
-    }
-
-    /**
      * @dev  erc721 tokenURI override
      * @param loanId            The id of the loan
      * @return                  the string uri of the loan
      */
     function tokenURI(uint256 loanId) public view override returns (string memory) {
-        if (!_issued(loanId)) {
+        if (!active(loanId)) {
             revert InvalidLoan();
         }
         return string("");
-    }
-
-    function _issued(uint256 loanId) internal view returns (bool) {
-        return (_getExtraData(loanId) > uint8(0));
-    }
-
-    /**
-     * @dev  helper to check if a loan was issued ever(getExtraData > 0)
-     * @param loanId            The id of the loan
-     * @return                  True if the loan is initialized
-     */
-    function issued(uint256 loanId) external view returns (bool) {
-        return _issued(loanId);
     }
 
     /**
@@ -582,7 +560,7 @@ contract LoanManager is Ownable, ERC721 {
 
     function _settle(Loan memory loan) internal {
         uint256 tokenId = loan.getId();
-        if (!_issued(tokenId)) {
+        if (!active(tokenId)) {
             revert InvalidLoan();
         }
         if (_exists(tokenId)) {
@@ -661,6 +639,14 @@ contract LoanManager is Ownable, ERC721 {
         assembly {
             mstore(feeItems, totalFeeItems)
         }
+    }
+
+    function _issued(uint256 loanId) internal view returns (bool) {
+        return (_getExtraData(loanId) > uint8(0));
+    }
+
+    function getExtraData(uint256 loanId) public view returns (uint8 extraData) {
+        return uint8(_getExtraData(loanId));
     }
 
     /**
