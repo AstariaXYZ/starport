@@ -430,7 +430,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testPreviewOrderRepay() public {
-
         mockHookCall(activeLoan.terms.hook, true);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
@@ -441,7 +440,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             activeDebt,
             abi.encode(Actions.Repayment, activeLoan)
         );
-        
+
         vm.prank(seaportAddr);
 
         mockHookCall(activeLoan.terms.hook, true);
@@ -504,8 +503,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testPreviewOrderSettlement() public {
-
-
         mockHookCall(activeLoan.terms.hook, false);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 

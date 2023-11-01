@@ -631,39 +631,28 @@ contract StarPortTest is BaseOrderTest {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-        uint256 carry =
-            interest.mulWad(1e17);
+        uint256 carry = interest.mulWad(1e17);
 
         _executeRepayLoan(loan, fulfiller);
 
         uint256 repayerAfter = erc20s[0].balanceOf(fulfiller);
         uint256 lenderAfter = erc20s[0].balanceOf(lender.addr);
         uint256 originatorAfter = erc20s[0].balanceOf(loan.originator);
-        
+
         assertEq(
             repayerBefore - (loan.debt[0].amount + interest),
             repayerAfter,
             "borrower: Borrower repayment was not correct"
         );
         assertEq(
-            lenderBefore + loan.debt[0].amount + interest - carry,
-            lenderAfter,
-            "lender:  repayment was not correct"
+            lenderBefore + loan.debt[0].amount + interest - carry, lenderAfter, "lender:  repayment was not correct"
         );
-        assertEq(
-            originatorBefore + carry,
-            originatorAfter,
-            "carry: Borrower repayment was not correct"
-        );
+        assertEq(originatorBefore + carry, originatorAfter, "carry: Borrower repayment was not correct");
     }
 
-    function getOrderHash(address contractOfferer) public returns(bytes32) {
-        
+    function getOrderHash(address contractOfferer) public returns (bytes32) {
         uint256 counter = LM.seaport().getContractOffererNonce(contractOfferer);
-        return bytes32(
-                    counter ^
-                        (uint256(uint160(contractOfferer)) << 96)
-                );
+        return bytes32(counter ^ (uint256(uint160(contractOfferer)) << 96));
     }
 
     function _executeRepayLoan(LoanManager.Loan memory loan, address fulfiller) internal {

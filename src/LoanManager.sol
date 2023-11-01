@@ -546,7 +546,6 @@ contract LoanManager is Ownable, ERC721 {
         return string("");
     }
 
-
     /**
      * @dev  helper to check if a loan is initialized(ie. has never been opened)
      * guarded to ensure only the loan.custodian can call it
@@ -641,12 +640,12 @@ contract LoanManager is Ownable, ERC721 {
             mstore(feeItems, totalFeeItems)
         }
     }
-    
+
     function _issued(uint256 loanId) internal view returns (bool) {
         return (_getExtraData(loanId) > uint8(0));
     }
 
-    function getExtraData(uint256 loanId) public view returns(uint8 extraData) {
+    function getExtraData(uint256 loanId) public view returns (uint8 extraData) {
         return uint8(_getExtraData(loanId));
     }
 

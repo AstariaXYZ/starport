@@ -96,7 +96,7 @@ abstract contract BaseRecall is ConduitHelper {
 
     function recall(LoanManager.Loan memory loan, address conduit) external {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-        
+
         if ((loan.start + details.honeymoon) > block.timestamp) {
             revert RecallBeforeHoneymoonExpiry();
         }
