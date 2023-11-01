@@ -1,4 +1,4 @@
-//pragma solidity =0.8.17;
+//pragma solidity ^0.8.17;;
 //
 //import {ERC20} from "solady/src/tokens/ERC20.sol";
 //import "../Custodian.sol";

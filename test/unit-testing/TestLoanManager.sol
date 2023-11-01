@@ -1,3 +1,5 @@
+pragma solidity ^0.8.17;
+
 import "starport-test/StarPortTest.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
@@ -50,19 +52,23 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
         });
     }
 
-    function execute(Request calldata request) external override returns (Response memory response) {
-        address issuer = address(this);
-        if (request.details.length > 0) {
-            if (request.debt[0].itemType != ItemType.NATIVE) {
-                StrategistOriginator.Details memory details =
-                    abi.decode(request.details, (StrategistOriginator.Details));
-                issuer = details.issuer == address(0) ? issuer : details.issuer;
-                _execute(request, details);
-            } else {
-                payable(request.receiver).call{value: request.debt[0].amount}("");
-            }
-        }
-        return Response({terms: terms(request.details), issuer: address(this)});
+    function originate(Request calldata params) external virtual override {
+        StrategistOriginator.Details memory details = abi.decode(params.details, (StrategistOriginator.Details));
+        _validateOffer(params, details);
+
+        LoanManager.Loan memory loan = LoanManager.Loan({
+            start: uint256(0), // are set in the loan manager
+            originator: address(0), // are set in the loan manager
+            custodian: details.custodian,
+            issuer: details.issuer,
+            borrower: params.borrower,
+            collateral: params.collateral,
+            debt: params.debt,
+            terms: details.offer.terms
+        });
+
+        CaveatEnforcer.CaveatWithApproval memory le;
+        LM.originate(new ConduitTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     receive() external payable {}
@@ -128,6 +134,21 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.settle(activeLoan);
     }
 
+    event Paused();
+    event UnPaused();
+
+    function testPause() public {
+        vm.expectEmit();
+        emit Paused();
+        LM.pause();
+    }
+
+    function testUnPause() public {
+        vm.expectEmit();
+        emit UnPaused();
+        LM.unPause();
+    }
+
     function testIssued() public {
         assert(LM.issued(activeLoan.getId()));
     }
@@ -171,6 +192,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
         LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
+    }
+
+    function testCannotOriginateWhilePaused() public {
+        LM.pause();
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.IsPaused.selector));
+        LM.originate(new ConduitTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 
     function testNonDefaultCustodianCustodyCallSuccess() public {
@@ -233,6 +261,27 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
+        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        vm.stopPrank();
+    }
+
+    function testInvalidIdentifierDebt() public {
+        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
+
+        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(2);
+        loan.debt[0].identifier = uint256(2);
+
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        vm.startPrank(loan.borrower);
+        vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemIdentifier.selector));
         LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }

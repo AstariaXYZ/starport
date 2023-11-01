@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
