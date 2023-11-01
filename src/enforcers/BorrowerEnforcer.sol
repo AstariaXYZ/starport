@@ -1,8 +1,9 @@
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
+import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
 contract BorrowerEnforcer is CaveatEnforcer {
     error BorrowerOnlyEnforcer();

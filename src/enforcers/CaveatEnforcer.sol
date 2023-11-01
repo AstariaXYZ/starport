@@ -1,5 +1,4 @@
-pragma solidity =0.8.17;
-// import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+pragma solidity ^0.8.17;
 
 import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";

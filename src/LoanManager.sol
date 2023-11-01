@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
@@ -57,7 +57,6 @@ contract LoanManager is Ownable, ERC721 {
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
     ConsiderationInterface public immutable seaport;
-    //    bool public paused; //TODO:
 
     address payable public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
@@ -70,19 +69,27 @@ contract LoanManager is Ownable, ERC721 {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
+    bool public paused;
     address public feeTo;
-    uint96 public defaultFeeRake;
+    uint88 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
-    mapping(address => mapping(address => bool)) public approvals;
-    mapping(address => uint256) public caveatNonces;
-    //contract to token //fee rake
-    mapping(address => Fee) public feeOverride;
+    //    mapping(address => mapping(address => bool)) public approvals;
 
+    enum ApprovalType {
+        NOTHING,
+        BORROWER,
+        LENDER
+    }
     enum FieldFlags {
         INITIALIZED,
         ACTIVE,
         INACTIVE
     }
+
+    mapping(address => mapping(address => ApprovalType)) public approvals;
+    mapping(address => uint256) public caveatNonces;
+    //contract to token //fee rake
+    mapping(address => Fee) public feeOverride;
 
     struct Terms {
         address hook; //the address of the hookmodule
@@ -104,54 +111,34 @@ contract LoanManager is Ownable, ERC721 {
         Terms terms; //the actionable terms of the loan
     }
 
-    struct Caveat {
-        address enforcer;
-        bytes terms;
-    }
-
-    struct Obligation {
-        address custodian;
-        SpentItem[] debt;
-        address originator;
-        address borrower;
-        bytes32 salt;
-        Caveat[] caveats;
-        bytes details;
-        bytes approval;
-    }
-
     struct Fee {
         bool enabled;
-        uint96 amount;
+        uint88 amount;
     }
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
-    event SeaportCompatibleContractDeployed();
+    event Paused();
+    event UnPaused();
 
-    error CannotTransferLoans();
-    error ConduitTransferError();
-    error InvalidAction();
-    error InvalidConduit();
     error InvalidRefinance();
     error InvalidCustodian();
     error InvalidLoan();
     error InvalidItemAmount();
+    error InvalidItemIdentifier(); //must be zero for ERC20's
     error InvalidItemTokenNoCode();
+    error InvalidItemType();
     error InvalidTransferLength();
-    //    error InvalidNoRefinanceConsideration();
+    error CannotTransferLoans();
+    error ConduitTransferError();
     error LoanExists();
     error NotLoanCustodian();
-    error NotPayingFees();
     error NotSeaport();
-    error NotEnteredViaSeaport();
-
     error NativeAssetsNotSupported();
-    error HashAlreadyInvalidated();
-    error InvalidItemType();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error MalformedRefinance();
+    error IsPaused();
 
     constructor(ConsiderationInterface seaport_) {
         address custodian = address(new Custodian(this, seaport_));
@@ -165,11 +152,50 @@ contract LoanManager is Ownable, ERC721 {
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
-        emit SeaportCompatibleContractDeployed();
+    }
+    //
+    //    function setApproval(address who, bool approved) external {
+    //        assembly {
+    //            // Compute the storage slot of approvals[msg.sender]
+    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
+    //
+    //            // Compute the storage slot of approvals[msg.sender][who]
+    //            slot := keccak256(add(who, slot), 0x20)
+    //
+    //            // Update the value at the computed storage slot
+    //            sstore(slot, approved)
+    //        }
+    //    }
+
+    //    function setApprovalTransient(address who) external {
+    //        assembly {
+    //            // Compute the storage slot of approvals[msg.sender]
+    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
+    //
+    //            // Compute the storage slot of approvals[msg.sender][who]
+    //            slot := keccak256(add(who, slot), 0x20)
+    //
+    //            // Update the value at the computed storage slot
+    //            tstore(slot, 1)
+    //        }
+    //    }
+
+    function setOriginateApproval(address who, ApprovalType approvalType) external {
+        approvals[msg.sender][who] = approvalType;
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         revert CannotTransferLoans();
+    }
+
+    function pause() external onlyOwner {
+        paused = true;
+        emit Paused();
+    }
+
+    function unPause() external onlyOwner {
+        paused = false;
+        emit UnPaused();
     }
 
     function originate(
@@ -178,19 +204,23 @@ contract LoanManager is Ownable, ERC721 {
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan
     ) external payable {
+        if (paused) {
+            revert IsPaused();
+        }
         //cache the addresses
         address borrower = loan.borrower;
         address issuer = loan.issuer;
         address feeRecipient = feeTo;
-        if (msg.sender != loan.borrower) {
+        if (msg.sender != loan.borrower && !(approvals[borrower][msg.sender] == ApprovalType.BORROWER)) {
             _validateAndEnforceCaveats(borrowerCaveat, borrower, additionalTransfers, loan);
         }
 
-        if (msg.sender != issuer && !approvals[issuer][msg.sender]) {
+        if (msg.sender != issuer && !(approvals[issuer][msg.sender] == ApprovalType.LENDER)) {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
         _transferSpentItems(loan.collateral, borrower, loan.custodian);
+
         _callCustody(loan);
         if (feeRecipient == address(0)) {
             _transferSpentItems(loan.debt, issuer, borrower);
@@ -217,6 +247,9 @@ contract LoanManager is Ownable, ERC721 {
         LoanManager.Loan memory loan,
         bytes calldata pricingData
     ) external {
+        if (paused) {
+            revert IsPaused();
+        }
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -233,7 +266,7 @@ contract LoanManager is Ownable, ERC721 {
         loan.originator = address(0);
         loan.start = 0;
 
-        if (msg.sender != loan.issuer && !approvals[loan.issuer][msg.sender]) {
+        if (msg.sender != loan.issuer && !(approvals[loan.issuer][msg.sender] == ApprovalType.LENDER)) {
             _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
         }
 
@@ -410,7 +443,9 @@ contract LoanManager is Ownable, ERC721 {
         }
         if (amount > 0) {
             if (itemType == ItemType.ERC20) {
-                // erc20 transfer
+                if (identifier > 0) {
+                    revert InvalidItemIdentifier();
+                }
                 SafeTransferLib.safeTransferFrom(token, from, to, amount);
             } else if (itemType == ItemType.ERC721) {
                 // erc721 transfer
@@ -567,7 +602,7 @@ contract LoanManager is Ownable, ERC721 {
      * @param feeTo_  The feeToAddress
      * @param defaultFeeRake_ the default fee rake in WAD denomination(1e17 = 10%)
      */
-    function setFeeData(address feeTo_, uint96 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
     }
@@ -578,7 +613,7 @@ contract LoanManager is Ownable, ERC721 {
      * @param token  The token to override
      * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
      */
-    function setFeeOverride(address token, uint96 overrideValue) external onlyOwner {
+    function setFeeOverride(address token, uint88 overrideValue) external onlyOwner {
         feeOverride[token].enabled = true;
         feeOverride[token].amount = overrideValue;
     }

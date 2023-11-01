@@ -18,7 +18,7 @@
  *
  * Chainworks Labs
  */
-pragma solidity =0.8.17;
+pragma solidity ^0.8.17;
 
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
