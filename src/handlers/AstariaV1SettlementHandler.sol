@@ -16,8 +16,13 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
 
     constructor(LoanManager LM_) DutchAuctionHandler(LM_) {}
 
-    function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual override returns (uint256) {
+    function getAuctionStart(LoanManager.Loan calldata loan) public view virtual override returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+        return start + details.recallWindow + 1;
+    }
+
+    function _getAuctionStart(LoanManager.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
         BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
         return start + details.recallWindow + 1;
     }
@@ -29,13 +34,13 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
         override
         returns (ReceivedItem[] memory consideration, address restricted)
     {
-        (address recaller,) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.hook).recalls(loan.getId());
 
         if (recaller == loan.issuer) {
             return (new ReceivedItem[](0), recaller);
         }
 
-        uint256 start = _getAuctionStart(loan);
+        uint256 start = _getAuctionStart(loan, recallStart);
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
 
         // DutchAuction has failed, give the NFT back to the lender (if they want it 😐)
