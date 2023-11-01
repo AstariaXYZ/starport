@@ -117,17 +117,6 @@ library StarPortLib {
         }
     }
 
-    function validateSaltRef(
-        mapping(address => mapping(bytes32 => bool)) storage usedSalts,
-        address borrower,
-        bytes32 salt
-    ) internal {
-        if (usedSalts[borrower][salt]) {
-            revert InvalidSalt();
-        }
-        usedSalts[borrower][salt] = true;
-    }
-
     function validateSalt(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
         address borrower,
@@ -138,13 +127,12 @@ library StarPortLib {
             mstore(0x20, usedSalts.slot)
 
             //usedSalts[borrower]
-            let loc := keccak256(0x0, 0x40)
 
+            mstore(0x20, keccak256(0x0, 0x40))
             mstore(0x0, salt)
-            mstore(0x20, loc)
 
             //usedSalts[borrower][salt]
-            loc := keccak256(0x0, 0x40)
+            let loc := keccak256(0x0, 0x40)
 
             //if (usedSalts[borrower][salt] == true)
             if iszero(iszero(sload(loc))) {
