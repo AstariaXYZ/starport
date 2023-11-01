@@ -16,18 +16,18 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
 
     constructor(LoanManager LM_) DutchAuctionHandler(LM_) {}
 
-    error AuctionNotStarted();
+    error NoAuction();
+    error LoanNotRecalled();
     error ExecuteHandlerNotImplemented();
     error InvalidHandler();
 
     function getCurrentAuctionPrice(LoanManager.Loan calldata loan) public view virtual returns (uint256) {
         (address recaller, uint64 recallStart) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        if (recaller == loan.issuer || recallStart == uint256(0) || recaller == address(0)) {
+            revert NoAuction();
+        }
 
         uint256 start = _getAuctionStart(loan, recallStart);
-
-        if (block.timestamp < start || recaller == loan.issuer) {
-            revert AuctionNotStarted();
-        }
 
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
 
@@ -43,7 +43,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
     function getAuctionStart(LoanManager.Loan calldata loan) public view virtual override returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.hook).recalls(loan.getId());
         if (start == 0) {
-            revert AuctionNotStarted();
+            revert LoanNotRecalled();
         }
         BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
         return start + details.recallWindow + 1;
@@ -51,6 +51,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
 
     function _getAuctionStart(LoanManager.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
         BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+
         return start + details.recallWindow + 1;
     }
 
@@ -63,6 +64,9 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
     {
         (address recaller, uint64 recallStart) = BaseRecall(loan.terms.hook).recalls(loan.getId());
 
+        if (recaller == address(0) || recallStart == uint256(0)) {
+            revert LoanNotRecalled();
+        }
         if (recaller == loan.issuer) {
             return (new ReceivedItem[](0), recaller);
         }

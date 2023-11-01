@@ -31,7 +31,9 @@ contract TestStrategistOriginator is AstariaV1Test, DeepEq {
 
         bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
         vm.mockCall(
-            address(loan.terms.hook), abi.encodeWithSelector(recallsSelector, loanId), abi.encode(address(0), uint64(2))
+            address(loan.terms.hook),
+            abi.encodeWithSelector(recallsSelector, loanId),
+            abi.encode(address(this), uint64(2))
         );
         uint256 auctionStart = AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan);
         DutchAuctionHandler.Details memory details = abi.decode(loan.terms.handlerData, (DutchAuctionHandler.Details));
@@ -41,6 +43,23 @@ contract TestStrategistOriginator is AstariaV1Test, DeepEq {
             SettlementHandler(loan.terms.handler).getSettlement(loan);
         assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
         assertEq(restricted, address(loan.issuer), "Restricted address should be loan.issuer");
+    }
+
+    function testGetSettlementLoanNotRecalled() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.LoanNotRecalled.selector));
+        SettlementHandler(loan.terms.handler).getSettlement(loan);
     }
 
     function testGetSettlementDutchAuctionSettlementAbove() public {
@@ -115,7 +134,7 @@ contract TestStrategistOriginator is AstariaV1Test, DeepEq {
         LoanManager.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.AuctionNotStarted.selector));
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.LoanNotRecalled.selector));
         AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan);
     }
 
@@ -146,6 +165,53 @@ contract TestStrategistOriginator is AstariaV1Test, DeepEq {
         assertEq(
             auctionStart, AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan), "start times dont match"
         );
+    }
+
+    function testGetCurrentAuctionPrice() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
+        vm.mockCall(
+            address(loan.terms.hook),
+            abi.encodeWithSelector(recallsSelector, loanId),
+            abi.encode(address(this), uint64(2))
+        );
+
+        DutchAuctionHandler.Details memory handlerDetails =
+            abi.decode(loan.terms.handlerData, (DutchAuctionHandler.Details));
+
+        vm.warp(AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan));
+        skip(7 days);
+        uint256 currentAuctionPrice = AstariaV1SettlementHandler(loan.terms.handler).getCurrentAuctionPrice(loan);
+
+        assertEq(currentAuctionPrice, handlerDetails.endingPrice);
+    }
+
+    function testGetCurrentAuctionPriceNoAuction() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.NoAuction.selector));
+        uint256 currentAuctionPrice = AstariaV1SettlementHandler(loan.terms.handler).getCurrentAuctionPrice(loan);
     }
 
     function testV1SettlementHandlerExecute() public {
