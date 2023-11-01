@@ -69,6 +69,7 @@ import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {BorrowerEnforcerBNPL} from "starport-core/enforcers/BorrowerEnforcerBNPL.sol";
 
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 interface IWETH9 {
     function deposit() external payable;
@@ -108,6 +109,7 @@ contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
 
 contract StarPortTest is BaseOrderTest {
     using Cast for *;
+    using FixedPointMathLib for uint256;
 
     MockIssuer public issuer;
 
@@ -610,7 +612,6 @@ contract StarPortTest is BaseOrderTest {
             extraData: abi.encode(Actions.Settlement, activeLoan)
         });
 
-        uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
         //        vm.recordLogs();
         vm.startPrank(borrower.addr);
         consideration.fulfillAdvancedOrder({
@@ -620,89 +621,78 @@ contract StarPortTest is BaseOrderTest {
             recipient: address(this)
         });
         //    Vm.Log[] memory logs = vm.getRecordedLogs();
-
-        uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
     }
 
-    function _executeRepayLoan(LoanManager.Loan memory activeLoan) internal {
-        (SpentItem[] memory loanPayment, SpentItem[] memory carryPayment) =
-            Pricing(activeLoan.terms.pricing).getPaymentConsideration(activeLoan);
-        uint256 i = 0;
-        ConsiderationItem[] memory consider = new ConsiderationItem[](
-            loanPayment.length + carryPayment.length
-        );
-        for (; i < loanPayment.length;) {
-            consider[i].token = loanPayment[i].token;
-            consider[i].itemType = loanPayment[i].itemType;
-            consider[i].identifierOrCriteria = loanPayment[i].identifier;
-            consider[i].startAmount = loanPayment[i].amount;
-            //TODO: update this
-            consider[i].endAmount = loanPayment[i].amount;
-            // consider[i].recipient = loanPayment[i].recipient;
-            unchecked {
-                ++i;
-            }
-        }
-        for (; i < carryPayment.length;) {
-            consider[i].token = carryPayment[i].token;
-            consider[i].itemType = carryPayment[i].itemType;
-            consider[i].identifierOrCriteria = carryPayment[i].identifier;
-            consider[i].startAmount = carryPayment[i].amount;
-            //TODO: update this
-            consider[i].endAmount = carryPayment[i].amount;
-            // consider[i].recipient = carryPayment[i].recipient;
-            unchecked {
-                ++i;
-            }
-        }
+    function _repayLoan(LoanManager.Loan memory loan, address fulfiller) internal {
+        uint256 repayerBefore = erc20s[0].balanceOf(fulfiller);
+        uint256 lenderBefore = erc20s[0].balanceOf(lender.addr);
+        uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
 
-        OfferItem[] memory repayOffering = new OfferItem[](
-            activeLoan.collateral.length
-        );
-        i = 0;
-        for (; i < activeLoan.collateral.length;) {
-            repayOffering[i] = OfferItem({
-                itemType: activeLoan.collateral[i].itemType,
-                token: address(activeLoan.collateral[i].token),
-                identifierOrCriteria: activeLoan.collateral[i].identifier,
-                endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
-                startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
-            });
-            unchecked {
-                ++i;
-            }
-        }
-        OrderParameters memory op = _buildContractOrder(address(custodian), repayOffering, consider);
+        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        uint256 interest =
+            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 carry = interest.mulWad(1e17);
 
+        _executeRepayLoan(loan, fulfiller);
+
+        uint256 repayerAfter = erc20s[0].balanceOf(fulfiller);
+        uint256 lenderAfter = erc20s[0].balanceOf(lender.addr);
+        uint256 originatorAfter = erc20s[0].balanceOf(loan.originator);
+
+        assertEq(
+            repayerBefore - (loan.debt[0].amount + interest),
+            repayerAfter,
+            "borrower: Borrower repayment was not correct"
+        );
+        assertEq(
+            lenderBefore + loan.debt[0].amount + interest - carry, lenderAfter, "lender:  repayment was not correct"
+        );
+        assertEq(originatorBefore + carry, originatorAfter, "carry: Borrower repayment was not correct");
+    }
+
+    function getOrderHash(address contractOfferer) public returns (bytes32) {
+        uint256 counter = LM.seaport().getContractOffererNonce(contractOfferer);
+        return bytes32(counter ^ (uint256(uint160(contractOfferer)) << 96));
+    }
+
+    function _executeRepayLoan(LoanManager.Loan memory loan, address fulfiller) internal {
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
+            .previewOrder(
+            address(LM.seaport()),
+            loan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Repayment, loan)
+        );
+
+        OrderParameters memory op = _buildContractOrder(
+            address(loan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
         AdvancedOrder memory x = AdvancedOrder({
             parameters: op,
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, activeLoan)
+            extraData: abi.encode(Actions.Repayment, loan)
         });
 
-        uint256 balanceBefore = erc20s[0].balanceOf(borrower.addr);
         //        vm.recordLogs();
-        vm.startPrank(borrower.addr);
+        vm.startPrank(fulfiller);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),
             fulfillerConduitKey: bytes32(0),
-            recipient: address(this)
+            recipient: fulfiller
         });
-        //    Vm.Log[] memory logs = vm.getRecordedLogs();
-
-        uint256 balanceAfter = erc20s[0].balanceOf(borrower.addr);
-
         vm.stopPrank();
+        //    Vm.Log[] memory logs = vm.getRecordedLogs();
     }
 
     function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
         vm.startPrank(borrower);
         erc20s[0].approve(address(consideration), amount);
         vm.stopPrank();
-        _executeRepayLoan(loan);
+        _executeRepayLoan(loan, borrower);
     }
 
     function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms)
