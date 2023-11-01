@@ -149,7 +149,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     function mint(LoanManager.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !LM.issued(loanId)) {
+        if (loan.custodian != address(this) || !LM.active(loanId)) {
             revert InvalidLoan();
         }
 
@@ -298,7 +298,7 @@ contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
 
-        if (!LM.issued(loan.getId())) {
+        if (!LM.active(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);

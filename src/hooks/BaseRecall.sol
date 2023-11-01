@@ -96,17 +96,17 @@ abstract contract BaseRecall is ConduitHelper {
 
     function recall(LoanManager.Loan memory loan, address conduit) external {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-
+        
         if ((loan.start + details.honeymoon) > block.timestamp) {
             revert RecallBeforeHoneymoonExpiry();
         }
 
         if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
-            (,, address conduitController) = seaport.information();
+            // (,, address conduitController) = seaport.information();
             // validate that the provided conduit is owned by the msg.sender
-            if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-                revert InvalidConduit();
-            }
+            // if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
+            //     revert InvalidConduit();
+            // }
             ConduitTransfer[] memory recallConsideration = _generateRecallConsideration(
                 loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
             );
