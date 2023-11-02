@@ -6,6 +6,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 
 contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
@@ -135,18 +136,19 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     event Paused();
-    event UnPaused();
+    event Unpaused();
 
     function testPause() public {
-        vm.expectEmit();
+        vm.expectEmit(address(LM));
         emit Paused();
         LM.pause();
     }
 
-    function testUnPause() public {
-        vm.expectEmit();
-        emit UnPaused();
-        LM.unPause();
+    function testUnpause() public {
+        LM.pause();
+        vm.expectEmit(address(LM));
+        emit Unpaused();
+        LM.unpause();
     }
 
     function testIssued() public {
@@ -201,7 +203,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     function testCannotOriginateWhilePaused() public {
         LM.pause();
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.IsPaused.selector));
+        vm.expectRevert(abi.encodeWithSelector(PausableNonReentrant.IsPaused.selector));
         LM.originate(new ConduitTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 

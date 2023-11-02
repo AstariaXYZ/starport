@@ -1,13 +1,28 @@
 pragma solidity ^0.8.17;
 
 import {ItemType, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
 import {TestBase} from "forge-std/Test.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
+import {Pricing} from "src/pricing/Pricing.sol";
 
 abstract contract MockCall is TestBase {
     function mockHookCall(address hook, bool status) public {
         vm.mockCall(hook, abi.encodeWithSelector(SettlementHook.isActive.selector), abi.encode(status));
+    }
+
+    function mockIsValidRefinanceCall(
+        address pricing,
+        SpentItem[] memory considerationPayment,
+        SpentItem[] memory carryPayment,
+        ConduitTransfer[] memory additionalTransfers
+    ) public {
+        vm.mockCall(
+            pricing,
+            abi.encodeWithSelector(Pricing.isValidRefinance.selector),
+            abi.encode(considerationPayment, carryPayment, additionalTransfers)
+        );
     }
 
     function mockHandlerCall(address handler, ReceivedItem[] memory receivedItems, address authorized) public {
