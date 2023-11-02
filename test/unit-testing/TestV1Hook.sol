@@ -14,7 +14,6 @@ contract TestAstariaV1Hook is AstariaV1Test, DeepEq {
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
     using {StarPortLib.getId} for LoanManager.Loan;
-    // recaller is not the lender, liquidation amount is a dutch auction
 
     function testIsActive() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
