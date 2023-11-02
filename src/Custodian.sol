@@ -226,6 +226,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
             _beforeGetSettlement(loan);
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            consideration = StarPortLib.removeZeroAmountItems(consideration);
             _afterGetSettlement(loan);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
@@ -315,7 +316,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
-
+            consideration = StarPortLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
             } else if (authorized == loan.terms.handler || authorized == loan.issuer) {} else {

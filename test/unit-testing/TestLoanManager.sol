@@ -97,10 +97,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
     uint256 public borrowAmount = 100;
     MockCustodian public mockCustodian;
 
+    event CaveatNonceIncremented(uint256 newNonce);
+
+    event Open(uint256 LoanId, LoanManager.Loan loan);
+
     function setUp() public virtual override {
         super.setUp();
         mockCustodian = new MockCustodian(LM, seaport);
-
         LoanManager.Loan memory loan = newLoanWithDefaultTerms();
         Custodian(custodian).mint(loan);
 
@@ -113,6 +116,13 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
     function testSymbol() public {
         assertEq(LM.symbol(), "SLM");
+    }
+
+    function testIncrementCaveatNonce() public {
+        uint256 newNonce = LM.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);
+        vm.expectEmit();
+        emit CaveatNonceIncremented(newNonce);
+        LM.incrementCaveatNonce();
     }
 
     function testSupportsInterface() public {
@@ -456,7 +466,6 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
 
-    //     needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
     function testExoticDebtWithNoCaveatsNotAsBorrower() public {
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
 
@@ -476,6 +485,11 @@ contract TestLoanManager is StarPortTest, DeepEq {
         });
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        LoanManager.Loan memory loanCopy = abi.decode(abi.encode(loan), (LoanManager.Loan));
+        loanCopy.start = block.timestamp;
+        loanCopy.originator = address(loan.borrower);
+        vm.expectEmit();
+        emit Open(loanCopy.getId(), loanCopy);
         vm.prank(loan.borrower);
         LM.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
@@ -497,10 +511,6 @@ contract TestLoanManager is StarPortTest, DeepEq {
             )
         );
         vm.expectRevert();
-        //address lender,
-        //        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        //        LoanManager.Loan memory loan,
-        //        bytes calldata pricingData
         payable(address(LM)).call{value: 1 ether}(
             abi.encodeWithSelector(LoanManager.refinance.selector, address(0), be, generateDefaultLoanTerms(), "")
         );
