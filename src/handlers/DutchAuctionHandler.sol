@@ -13,11 +13,9 @@ import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LoanManager, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-import "forge-std/console2.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
-abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, ConduitHelper {
+abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
     constructor(LoanManager LM_) SettlementHandler(LM_) {
         LM = LM_;
     }
@@ -36,7 +34,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
         return SettlementHandler.execute.selector;
     }
 
-    function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual returns (uint256);
+    function getAuctionStart(LoanManager.Loan calldata loan) public view virtual returns (uint256);
 
     function getSettlement(LoanManager.Loan calldata loan)
         public
@@ -47,7 +45,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver, Condu
     {
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
 
-        uint256 start = _getAuctionStart(loan);
+        uint256 start = getAuctionStart(loan);
 
         // DutchAuction has failed, allow lender to redeem
         if (start + details.window < block.timestamp) {
