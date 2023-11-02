@@ -15,6 +15,9 @@ contract TestAstariaV1Hook is AstariaV1Test, DeepEq {
     using stdStorage for StdStorage;
     using {StarPortLib.getId} for LoanManager.Loan;
 
+    event Recalled(uint256 loandId, address recaller, uint256 end);
+    event Withdraw(uint256 loanId, address withdrawer);
+
     function testIsActive() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(hook),
@@ -49,11 +52,87 @@ contract TestAstariaV1Hook is AstariaV1Test, DeepEq {
         erc20s[0].approve(loan.terms.hook, 10e18);
 
         skip(details.honeymoon);
+        vm.expectEmit();
+        emit Recalled(loanId, address(this), block.timestamp + details.recallWindow);
         AstariaV1SettlementHook(loan.terms.hook).recall(loan);
         (address recaller, uint64 recallStart) = AstariaV1SettlementHook(loan.terms.hook).recalls(loanId);
         skip(details.recallWindow - 1);
         assert(AstariaV1SettlementHook(loan.terms.hook).isActive(loan));
         assert(AstariaV1SettlementHook(loan.terms.hook).isRecalled(loan));
+    }
+
+    function testInvalidRecallLoanDoesNotExist() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+
+        erc20s[0].mint(address(this), 10e18);
+        erc20s[0].approve(loan.terms.hook, 10e18);
+
+        skip(details.honeymoon);
+        vm.mockCall(address(LM), abi.encodeWithSelector(LM.active.selector, loan.getId()), abi.encode(false));
+        vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanDoesNotExist.selector));
+        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
+    }
+
+    function testInvalidRecallInvalidStakeType() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        loan.debt[0].itemType = ItemType.ERC721;
+        loan.debt[0].amount = 1;
+        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+
+        skip(details.honeymoon);
+        vm.mockCall(address(LM), abi.encodeWithSelector(LM.active.selector, loan.getId()), abi.encode(true));
+        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
+        skip(details.recallWindow);
+        vm.mockCall(address(LM), abi.encodeWithSelector(LM.inactive.selector, loan.getId()), abi.encode(true));
+        vm.expectRevert(abi.encodeWithSelector(BaseRecall.InvalidItemType.selector));
+        AstariaV1SettlementHook(loan.terms.hook).withdraw(loan, payable(address(this)));
+    }
+
+    function testCannotRecallTwice() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+
+        erc20s[0].mint(address(this), 10e18);
+        erc20s[0].approve(loan.terms.hook, 10e18);
+
+        skip(details.honeymoon);
+        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
+        vm.expectRevert(abi.encodeWithSelector(BaseRecall.RecallAlreadyExists.selector));
+        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
     }
 
     function testIsRecalledOutsideWindow() public {
@@ -163,8 +242,7 @@ contract TestAstariaV1Hook is AstariaV1Test, DeepEq {
         assertEq(recallRate, computedRecallRate);
     }
 
-    //TODO: this needs to be done because withdraw is being looked at
-    function testRecallWithdraw() public {
+    function testCannotWithdrawWithdrawDoesNotExist() public {
         LoanManager.Terms memory terms = LoanManager.Terms({
             hook: address(hook),
             handler: address(handler),
@@ -175,15 +253,46 @@ contract TestAstariaV1Hook is AstariaV1Test, DeepEq {
         });
         LoanManager.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        uint256 loanId = loan.getId();
-        BaseRecall.Details memory hookDetails = abi.decode(loan.terms.hookData, (BaseRecall.Details));
-
-        erc20s[0].mint(address(this), 10e18);
-        erc20s[0].approve(loan.terms.hook, 10e18);
-
-        skip(hookDetails.honeymoon);
-        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
-
-        vm.mockCall(address(LM), abi.encodeWithSelector(LM.inactive.selector, loanId), abi.encode(true));
+        vm.mockCall(address(LM), abi.encodeWithSelector(LM.inactive.selector, loan.getId()), abi.encode(true));
+        vm.expectRevert(abi.encodeWithSelector(BaseRecall.WithdrawDoesNotExist.selector));
+        AstariaV1SettlementHook(loan.terms.hook).withdraw(loan, payable(address(this)));
     }
+
+    function testCannotWithdrawLoanHasNotBeenRefinanced() public {
+        LoanManager.Terms memory terms = LoanManager.Terms({
+            hook: address(hook),
+            handler: address(handler),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            handlerData: defaultHandlerData,
+            hookData: defaultHookData
+        });
+        LoanManager.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanHasNotBeenRefinanced.selector));
+        AstariaV1SettlementHook(loan.terms.hook).withdraw(loan, payable(address(this)));
+    }
+    //    //TODO: this needs to be done because withdraw is being looked at
+    //    function testRecallWithdraw() public {
+    //        LoanManager.Terms memory terms = LoanManager.Terms({
+    //            hook: address(hook),
+    //            handler: address(handler),
+    //            pricing: address(pricing),
+    //            pricingData: defaultPricingData,
+    //            handlerData: defaultHandlerData,
+    //            hookData: defaultHookData
+    //        });
+    //        LoanManager.Loan memory loan =
+    //            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+    //        uint256 loanId = loan.getId();
+    //        BaseRecall.Details memory hookDetails = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+    //
+    //        erc20s[0].mint(address(this), 10e18);
+    //        erc20s[0].approve(loan.terms.hook, 10e18);
+    //
+    //        skip(hookDetails.honeymoon);
+    //        AstariaV1SettlementHook(loan.terms.hook).recall(loan);
+    //
+    //        vm.mockCall(address(LM), abi.encodeWithSelector(LM.inactive.selector, loanId), abi.encode(true));
+    //    }
 }

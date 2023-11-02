@@ -59,6 +59,7 @@ abstract contract BaseRecall {
     error LoanHasNotBeenRefinanced();
     error WithdrawDoesNotExist();
     error InvalidItemType();
+    error RecallAlreadyExists();
 
     mapping(uint256 => Recall) public recalls;
 
@@ -99,26 +100,22 @@ abstract contract BaseRecall {
         }
 
         if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
-            // (,, address conduitController) = LM.seaport().information();
-            // validate that the provided conduit is owned by the msg.sender
-            // if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
-            //     revert InvalidConduit();
-            // }
             AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
                 loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
             );
             StarPortLib.transferAdditionalTransfers(recallConsideration);
         }
-        // get conduitController
+        uint256 loanId = loan.getId();
 
-        bytes memory encodedLoan = abi.encode(loan);
+        if (!LM.active(loanId)) {
+            revert LoanDoesNotExist();
+        }
 
-        uint256 loanId = uint256(keccak256(encodedLoan));
-
-        if (!LM.active(loanId)) revert LoanDoesNotExist();
-
+        if (recalls[loanId].start > 0) {
+            revert RecallAlreadyExists();
+        }
         recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
-        emit Recalled(loanId, msg.sender, loan.start + details.recallWindow);
+        emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
     }
 
     // transfers all stake to anyone who asks after the LM token is burned
@@ -128,7 +125,9 @@ abstract contract BaseRecall {
         uint256 loanId = uint256(keccak256(encodedLoan));
 
         // loan has not been refinanced, loan is still active. LM.tokenId changes on refinance
-        if (!LM.inactive(loanId)) revert LoanHasNotBeenRefinanced();
+        if (!LM.inactive(loanId)) {
+            revert LoanHasNotBeenRefinanced();
+        }
 
         Recall storage recall = recalls[loanId];
         // ensure that a recall exists for the provided tokenId, ensure that the recall
@@ -143,7 +142,9 @@ abstract contract BaseRecall {
             recall.start = 0;
 
             for (uint256 i; i < recallConsideration.length;) {
-                if (loan.debt[i].itemType != ItemType.ERC20) revert InvalidStakeType();
+                if (loan.debt[i].itemType != ItemType.ERC20) {
+                    revert InvalidItemType();
+                }
 
                 ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
 
