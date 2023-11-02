@@ -23,7 +23,7 @@ pragma solidity ^0.8.17;
 import {LoanManager} from "starport-core/LoanManager.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 

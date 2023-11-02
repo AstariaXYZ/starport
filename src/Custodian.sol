@@ -27,7 +27,7 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
+
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
@@ -36,7 +36,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 import "forge-std/console2.sol";
 
-contract Custodian is ERC721, ContractOffererInterface, ConduitHelper {
+contract Custodian is ERC721, ContractOffererInterface {
     using {StarPortLib.getId} for LoanManager.Loan;
 
     LoanManager public immutable LM;

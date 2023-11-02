@@ -13,7 +13,7 @@ import {
     OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {OrderParametersLib} from "seaport/lib/seaport-sol/src/lib/OrderParametersLib.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {
     ConsiderationItem,
@@ -421,7 +421,7 @@ contract StarPortTest is BaseOrderTest {
     ) internal returns (LoanManager.Loan memory originatedLoan) {
         vm.recordLogs();
         vm.startPrank(fulfiller);
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();

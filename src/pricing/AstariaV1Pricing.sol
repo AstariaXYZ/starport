@@ -11,7 +11,7 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
@@ -29,7 +29,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         returns (
             SpentItem[] memory repayConsideration,
             SpentItem[] memory carryConsideration,
-            ConduitTransfer[] memory recallConsideration
+            AdditionalTransfer[] memory recallConsideration
         )
     {
         // borrowers can refinance a loan at any time

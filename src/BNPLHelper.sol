@@ -10,7 +10,7 @@ import {
     ItemType,
     Fulfillment
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 import {Seaport} from "seaport/contracts/Seaport.sol";
 import {LoanManager} from "./LoanManager.sol";
@@ -113,10 +113,10 @@ contract BNPLHelper is IFlashLoanRecipient {
             execution.orders, execution.resolvers, execution.fulfillments, execution.borrower
         );
 
-        ConduitTransfer[] memory transfers = new ConduitTransfer[](tokens.length);
+        AdditionalTransfer[] memory transfers = new AdditionalTransfer[](tokens.length);
         for (uint256 i = 0; i < tokens.length;) {
-            transfers[i] = ConduitTransfer({
-                itemType: ConduitItemType.ERC20,
+            transfers[i] = AdditionalTransfer({
+                itemType: ItemType.ERC20,
                 identifier: 0,
                 token: tokens[0],
                 from: execution.borrower,

@@ -284,8 +284,8 @@ contract TestNewLoan is StarPortTest {
                                     BorrowerEnforcerBNPL.Details({
                                         loan: loan2,
                                         offerHash: buyingHash2,
-                                        additionalTransfer: ConduitTransfer({
-                                            itemType: ConduitItemType.ERC20,
+                                        additionalTransfer: AdditionalTransfer({
+                                            itemType: ItemType.ERC20,
                                             identifier: 0,
                                             token: address(erc20s[0]),
                                             amount: 100,
