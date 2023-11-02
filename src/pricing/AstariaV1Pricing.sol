@@ -40,7 +40,9 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             if (hook.isRecalled(loan)) {
                 uint256 rate = hook.getRecallRate(loan);
                 // offered loan did not meet the terms of the recall auction
-                if (newDetails.rate > rate) revert InsufficientRefinance();
+                if (newDetails.rate > rate) {
+                    revert InsufficientRefinance();
+                }
             }
             // recall is not occuring
             else {
