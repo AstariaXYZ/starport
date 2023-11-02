@@ -11,7 +11,7 @@ import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 
-contract TestBasePricing is StarPortTest, DeepEq {
+contract TestSimpleInterestPricing is StarPortTest, DeepEq {
   using Cast for *;
   using FixedPointMathLib for uint256;
 
@@ -78,7 +78,6 @@ contract TestBasePricing is StarPortTest, DeepEq {
       targetLoan
     );
 
-    // lender
     assertEq(repayConsideration.length, 1);
     assertEq(repayConsideration[0].token, address(erc20s[0]));
     assertEq(repayConsideration[0].amount, 100);
@@ -88,11 +87,76 @@ contract TestBasePricing is StarPortTest, DeepEq {
     assertEq(repayCarryConsideration[0].token, address(erc20s[0]));
     assertEq(repayCarryConsideration[0].amount, 0);
     assertEq(repayCarryConsideration[0].identifier, 0);
+
+    // TODO: move to integration tests?
+    vm.warp(60 days);
+
+    (repayConsideration, repayCarryConsideration) = simplePricing.getPaymentConsideration(
+      targetLoan
+    );
+
+    assertEq(repayConsideration.length, 1);
+    assertEq(repayConsideration[0].token, address(erc20s[0]));
+    assertEq(repayConsideration[0].amount, 122);
+    assertEq(repayConsideration[0].identifier, 0);
+
+    assertEq(repayCarryConsideration.length, 1);
+    assertEq(repayCarryConsideration[0].token, address(erc20s[0]));
+    assertEq(repayCarryConsideration[0].amount, 2);
+    assertEq(repayCarryConsideration[0].identifier, 0);
   }
 
-  // function test_getOwed() public {
-  //   SimpleInterestPricing simpleInterestPricing = new SimpleInterestPricing(LM);
+  function test_calculateInterest() public {
+    SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
 
-  //   assertEq(simpleInterestPricing.getOwed(targetLoan)[0], 100);
-  // }
+    uint256 amount = 100;
+    uint256 rate = (uint256(1e16) * 150) / (365 * 1 days);
+    uint256 time = 15 days;
+    uint256 expectedInterest = 6;
+
+    assertEq(simplePricing.calculateInterest(time, amount, rate), expectedInterest);
+
+    // TODO: should this be fuzz tested?
+    assertEq(simplePricing.calculateInterest(time, amount, rate * 2), expectedInterest * 2);
+    assertEq(simplePricing.calculateInterest(time, amount * 2, rate), expectedInterest * 2);
+    assertEq(simplePricing.calculateInterest(time * 2, amount, rate), expectedInterest * 2);
+
+    vm.expectRevert(stdError.arithmeticError);
+    simplePricing.calculateInterest(time - (time * 2), amount, rate);
+
+    // TODO: is this doing anything or does it need to go into separate test?
+    vm.expectRevert();
+    simplePricing.calculateInterest(time, amount - (amount * 2), rate);
+
+    vm.expectRevert();
+    simplePricing.calculateInterest(time, amount, rate - (rate * 2));
+  }
+
+  function test_isValidRefinance() public {
+    SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
+
+    uint256 baseRate = (uint256(1e16) * 150) / (365 * 1 days);
+
+    simplePricing.isValidRefinance(
+      targetLoan,
+      abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2})),
+      address(0)
+    );
+
+    vm.expectRevert();
+
+    simplePricing.isValidRefinance(
+      targetLoan,
+      abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2})),
+      address(0)
+    );
+
+    vm.expectRevert(bytes4(keccak256("InvalidRefinance()")));
+
+    simplePricing.isValidRefinance(
+      targetLoan,
+      abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2})),
+      address(0)
+    );
+  }
 }
