@@ -28,7 +28,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.startPrank(recaller.addr);
             vm.expectRevert(BaseRecall.RecallBeforeHoneymoonExpiry.selector);
             // attempt recall before honeymoon period has ended
-            BaseRecall(address(hook)).recall(loan, recallerConduit);
+            BaseRecall(address(hook)).recall(loan);
             vm.stopPrank();
         }
         {
@@ -64,7 +64,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.startPrank(recaller.addr);
 
             BaseRecall recallContract = BaseRecall(address(hook));
-            recallContract.recall(loan, recallerConduit);
+            recallContract.recall(loan);
             vm.stopPrank();
 
             uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
@@ -244,7 +244,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.startPrank(lender.addr);
             conduitController.updateChannel(lenderConduit, address(hook), true);
             BaseRecall recallContract = BaseRecall(address(hook));
-            recallContract.recall(loan, lenderConduit);
+            erc20s[0].approve(loan.terms.hook, 10e18);
+            recallContract.recall(loan);
             vm.stopPrank();
 
             uint256 balanceAfter = erc20s[0].balanceOf(lender.addr);
@@ -355,7 +356,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.startPrank(recaller.addr);
 
             BaseRecall recallContract = BaseRecall(address(hook));
-            recallContract.recall(loan, recallerConduit);
+            recallContract.recall(loan);
             vm.stopPrank();
 
             uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);

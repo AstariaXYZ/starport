@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {LoanManager} from "starport-core/LoanManager.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";

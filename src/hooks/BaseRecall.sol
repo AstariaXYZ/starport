@@ -28,33 +28,31 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
-import {ConduitHelper} from "starport-core/ConduitHelper.sol";
-
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 
 import {ConduitControllerInterface} from "seaport-sol/src/ConduitControllerInterface.sol";
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
-abstract contract BaseRecall is ConduitHelper {
+abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
     using {StarPortLib.getId} for LoanManager.Loan;
 
     event Recalled(uint256 loandId, address recaller, uint256 end);
     event Withdraw(uint256 loanId, address withdrawer);
 
-    LoanManager LM;
+    LoanManager public immutable LM;
 
     error InvalidWithdraw();
     error InvalidConduit();
-    error ConduitTransferError();
+    error AdditionalTransferError();
     error InvalidStakeType();
     error LoanDoesNotExist();
     error RecallBeforeHoneymoonExpiry();
@@ -62,7 +60,6 @@ abstract contract BaseRecall is ConduitHelper {
     error WithdrawDoesNotExist();
     error InvalidItemType();
 
-    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     mapping(uint256 => Recall) public recalls;
 
     struct Details {
@@ -94,7 +91,7 @@ abstract contract BaseRecall is ConduitHelper {
         return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow));
     }
 
-    function recall(LoanManager.Loan memory loan, address conduit) external {
+    function recall(LoanManager.Loan calldata loan) external {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
 
         if ((loan.start + details.honeymoon) > block.timestamp) {
@@ -102,17 +99,15 @@ abstract contract BaseRecall is ConduitHelper {
         }
 
         if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
-            // (,, address conduitController) = seaport.information();
+            // (,, address conduitController) = LM.seaport().information();
             // validate that the provided conduit is owned by the msg.sender
             // if (ConduitControllerInterface(conduitController).ownerOf(conduit) != msg.sender) {
             //     revert InvalidConduit();
             // }
-            ConduitTransfer[] memory recallConsideration = _generateRecallConsideration(
+            AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
                 loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
             );
-            if (ConduitInterface(conduit).execute(recallConsideration) != ConduitInterface.execute.selector) {
-                revert ConduitTransferError();
-            }
+            StarPortLib.transferAdditionalTransfers(recallConsideration);
         }
         // get conduitController
 
@@ -127,7 +122,7 @@ abstract contract BaseRecall is ConduitHelper {
     }
 
     // transfers all stake to anyone who asks after the LM token is burned
-    function withdraw(LoanManager.Loan memory loan, address payable receiver) external {
+    function withdraw(LoanManager.Loan calldata loan, address payable receiver) external {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
@@ -142,7 +137,7 @@ abstract contract BaseRecall is ConduitHelper {
         }
 
         if (loan.issuer != recall.recaller && loan.borrower != recall.recaller) {
-            ConduitTransfer[] memory recallConsideration =
+            AdditionalTransfer[] memory recallConsideration =
                 _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
             recall.recaller = payable(address(0));
             recall.start = 0;
@@ -178,29 +173,29 @@ abstract contract BaseRecall is ConduitHelper {
     }
 
     function generateRecallConsideration(
-        LoanManager.Loan memory loan,
+        LoanManager.Loan calldata loan,
         uint256 proportion,
         address from,
         address payable to
-    ) external view returns (ConduitTransfer[] memory consideration) {
+    ) external view returns (AdditionalTransfer[] memory consideration) {
         Details memory details = abi.decode(loan.terms.hookData, (Details));
-        return _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, from, to);
+        return _generateRecallConsideration(loan, 0, details.recallStakeDuration, proportion, from, to);
     }
 
     function _generateRecallConsideration(
-        LoanManager.Loan memory loan,
+        LoanManager.Loan calldata loan,
         uint256 start,
         uint256 end,
         uint256 proportion,
         address from,
         address payable to
-    ) internal view returns (ConduitTransfer[] memory additionalTransfers) {
+    ) internal view returns (AdditionalTransfer[] memory additionalTransfers) {
         uint256[] memory stake = _getRecallStake(loan, start, end);
-        additionalTransfers = new ConduitTransfer[](stake.length);
+        additionalTransfers = new AdditionalTransfer[](stake.length);
 
         for (uint256 i; i < additionalTransfers.length;) {
-            additionalTransfers[i] = ConduitTransfer({
-                itemType: _convertItemTypeToConduitItemType(loan.debt[i].itemType),
+            additionalTransfers[i] = AdditionalTransfer({
+                itemType: loan.debt[i].itemType,
                 identifier: loan.debt[i].identifier,
                 amount: stake[i].mulWad(proportion),
                 token: loan.debt[i].token,
@@ -210,18 +205,6 @@ abstract contract BaseRecall is ConduitHelper {
             unchecked {
                 ++i;
             }
-        }
-    }
-
-    function _convertItemTypeToConduitItemType(ItemType itemType) internal pure returns (ConduitItemType) {
-        if (itemType == ItemType.ERC20) {
-            return ConduitItemType.ERC20;
-        } else if (itemType == ItemType.ERC721) {
-            return ConduitItemType.ERC721;
-        } else if (itemType == ItemType.ERC1155) {
-            return ConduitItemType.ERC1155;
-        } else {
-            revert InvalidItemType();
         }
     }
 }

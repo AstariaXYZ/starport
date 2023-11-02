@@ -561,11 +561,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         mockHookCall(activeLoan.terms.hook, true);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan));
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
         custodian.previewOrder(
-            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan)
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan)
         );
     }
 }

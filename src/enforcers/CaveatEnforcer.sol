@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 
 abstract contract CaveatEnforcer {
@@ -18,7 +18,7 @@ abstract contract CaveatEnforcer {
         Caveat[] caveat;
     }
 
-    function validate(ConduitTransfer[] calldata solution, LoanManager.Loan calldata loan, bytes calldata caveatData)
+    function validate(AdditionalTransfer[] calldata solution, LoanManager.Loan calldata loan, bytes calldata caveatData)
         public
         view
         virtual;

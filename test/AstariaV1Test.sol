@@ -19,8 +19,6 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 contract AstariaV1Test is StarPortTest {
     Account recaller;
-    address recallerConduit;
-    bytes32 conduitKeyRecaller;
 
     function setUp() public override {
         super.setUp();
@@ -33,12 +31,8 @@ contract AstariaV1Test is StarPortTest {
         handler = new AstariaV1SettlementHandler(LM);
         hook = new AstariaV1SettlementHook(LM);
 
-        conduitKeyRecaller = bytes32(uint256(uint160(address(recaller.addr))) << 96);
-
         vm.startPrank(recaller.addr);
-        recallerConduit = conduitController.createConduit(conduitKeyRecaller, recaller.addr);
-        conduitController.updateChannel(recallerConduit, address(hook), true);
-        erc20s[0].approve(address(recallerConduit), 1e18);
+        erc20s[0].approve(address(hook), 1e18);
         vm.stopPrank();
 
         // // 1% interest rate per second
