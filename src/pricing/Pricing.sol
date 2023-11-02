@@ -22,7 +22,7 @@ pragma solidity ^0.8.17;
 
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 abstract contract Pricing {
     LoanManager LM;
@@ -43,5 +43,5 @@ abstract contract Pricing {
         external
         view
         virtual
-        returns (SpentItem[] memory, SpentItem[] memory, ConduitTransfer[] memory);
+        returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory);
 }

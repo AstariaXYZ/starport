@@ -6,7 +6,7 @@ import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console2.sol";
+
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
@@ -16,9 +16,42 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
 
     constructor(LoanManager LM_) DutchAuctionHandler(LM_) {}
 
-    function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual override returns (uint256) {
+    error NoAuction();
+    error LoanNotRecalled();
+    error ExecuteHandlerNotImplemented();
+    error InvalidHandler();
+
+    function getCurrentAuctionPrice(LoanManager.Loan calldata loan) public view virtual returns (uint256) {
+        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        if (recaller == loan.issuer || recallStart == uint256(0) || recaller == address(0)) {
+            revert NoAuction();
+        }
+
+        uint256 start = _getAuctionStart(loan, recallStart);
+
+        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+
+        return _locateCurrentAmount({
+            startAmount: details.startingPrice,
+            endAmount: details.endingPrice,
+            startTime: start,
+            endTime: start + details.window,
+            roundUp: true
+        });
+    }
+
+    function getAuctionStart(LoanManager.Loan calldata loan) public view virtual override returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        if (start == 0) {
+            revert LoanNotRecalled();
+        }
         BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+        return start + details.recallWindow + 1;
+    }
+
+    function _getAuctionStart(LoanManager.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
+        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+
         return start + details.recallWindow + 1;
     }
 
@@ -29,13 +62,16 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
         override
         returns (ReceivedItem[] memory consideration, address restricted)
     {
-        (address recaller,) = BaseRecall(loan.terms.hook).recalls(loan.getId());
+        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.hook).recalls(loan.getId());
 
+        if (recaller == address(0) || recallStart == uint256(0)) {
+            revert LoanNotRecalled();
+        }
         if (recaller == loan.issuer) {
             return (new ReceivedItem[](0), recaller);
         }
 
-        uint256 start = _getAuctionStart(loan);
+        uint256 start = _getAuctionStart(loan, recallStart);
         Details memory details = abi.decode(loan.terms.handlerData, (Details));
 
         // DutchAuction has failed, give the NFT back to the lender (if they want it 😐)
@@ -121,10 +157,14 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
     }
 
     function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        return SettlementHandler.execute.selector;
+        revert ExecuteHandlerNotImplemented();
     }
 
     function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {
-        return true;
+        if (loan.terms.handler != address(this)) {
+            revert InvalidHandler();
+        }
+        Details memory details = abi.decode(loan.terms.handlerData, (Details)); //will revert if this fails
+        return (details.startingPrice > details.endingPrice);
     }
 }

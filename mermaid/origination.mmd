@@ -1,0 +1,57 @@
+sequenceDiagram
+    title Starport Origination Sequence Diagram
+    participant F as Fulfiller
+    participant L as Lender
+    participant B as Borrower
+
+
+    F->>LoanManager: originate
+
+    opt F is not Borrower
+        loop 1->n
+            LoanManager->>CaveatEnforcer: validate
+        end
+    end
+    opt F is not Lender
+        loop 1->n
+            LoanManager->>CaveatEnforcer: validate
+        end
+    end
+    loop Transfer 1->n collateral items
+        B->>Custodian: Move Collateral to Custodian
+    end
+    opt Custodian is not default
+        LoanManager->>Custodian: custody (optional)
+    end
+
+    alt Fees Disabled
+        loop Transfer 1->n debt items
+            L->>B: Move debt to borrower
+        end
+    else Fees Enabled
+        LoanManager->>LoanManager: compute feeRake
+        opt FeeItems length > 0
+            loop Transfer 1->n fee items
+                L->>FeeRecipient: Move Fee to FeeRecipient
+            end
+        end
+        loop Transfer 1->n debt items
+            L->>B: Move debt to Borrower
+        end
+    end
+
+    opt AdditionalTransferItems length > 0
+        loop 1->n
+            alt From is Borrower
+                B->>AdditionalTransferRecipient: AdditionalTransferItem from Borrower => AdditionalTransferRecipient
+            else From is Lender
+                L->>AdditionalTransferRecipient: AdditionalTransferItem from Lender => AdditionalTransferRecipient
+            else From is F
+                F->>AdditionalTransferRecipient: AdditionalTransferItem from Fulfiller => AdditionalTransferRecipient
+            end
+        end
+    end
+
+    opt Lender is contract
+        LoanManager->>L: onERC721Received
+    end

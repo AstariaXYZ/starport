@@ -430,15 +430,6 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testPreviewOrderRepay() public {
-        vm.prank(seaportAddr);
-
-        mockHookCall(activeLoan.terms.hook, true);
-        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
-
-        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) = custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
-        );
-
         mockHookCall(activeLoan.terms.hook, true);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
@@ -448,6 +439,15 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
             new SpentItem[](0),
             activeDebt,
             abi.encode(Actions.Repayment, activeLoan)
+        );
+
+        vm.prank(seaportAddr);
+
+        mockHookCall(activeLoan.terms.hook, true);
+        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
+
+        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) = custodian.generateOrder(
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
 
         _deepEq(receivedOffer, expectedOffer);
@@ -503,20 +503,18 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
     }
 
     function testPreviewOrderSettlement() public {
-        vm.prank(seaportAddr);
-
-        mockHookCall(activeLoan.terms.hook, false);
-        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
-
-        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) =
-            custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
-
         mockHookCall(activeLoan.terms.hook, false);
         mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
             seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
+
+        mockHookCall(activeLoan.terms.hook, false);
+        mockHandlerCall(activeLoan.terms.handler, new ReceivedItem[](0), address(0));
+        vm.prank(seaportAddr);
+        (SpentItem[] memory expectedOffer, ReceivedItem[] memory expectedConsideration) =
+            custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan));
 
         _deepEq(receivedOffer, expectedOffer);
         _deepEq(receivedCosideration, expectedConsideration);
@@ -563,11 +561,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         mockHookCall(activeLoan.terms.hook, true);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
-        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan));
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
         custodian.previewOrder(
-            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Origination, activeLoan)
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan)
         );
     }
 }

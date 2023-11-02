@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
@@ -16,11 +16,11 @@ contract BorrowerEnforcerBNPL is CaveatEnforcer {
         LoanManager.Loan loan;
         address seaport;
         bytes32 offerHash;
-        ConduitTransfer additionalTransfer;
+        AdditionalTransfer additionalTransfer;
     }
 
     function validate(
-        ConduitTransfer[] calldata additionalTransfers,
+        AdditionalTransfer[] calldata additionalTransfers,
         LoanManager.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {

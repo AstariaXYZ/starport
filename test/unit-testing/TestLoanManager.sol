@@ -68,7 +68,7 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
         });
 
         CaveatEnforcer.CaveatWithApproval memory le;
-        LM.originate(new ConduitTransfer[](0), params.borrowerCaveat, le, loan);
+        LM.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     receive() external payable {}
@@ -150,12 +150,16 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     function testIssued() public {
-        assert(LM.issued(activeLoan.getId()));
+        assert(LM.getExtraData(activeLoan.getId()) > uint8(0));
     }
 
     function testInitializedFlagSetProperly() public {
         activeLoan.borrower = address(0);
-        assert(LM.initialized(activeLoan.getId()));
+        assert(LM.getExtraData(activeLoan.getId()) == uint8(LoanManager.FieldFlags.UNINITIALIZED));
+    }
+
+    function testActive() public {
+        assert(LM.active(activeLoan.getId()));
     }
 
     function testTokenURI() public {
@@ -190,7 +194,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         });
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidCustodian.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -198,7 +202,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         LM.pause();
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
         vm.expectRevert(abi.encodeWithSelector(LoanManager.IsPaused.selector));
-        LM.originate(new ConduitTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
+        LM.originate(new AdditionalTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 
     function testNonDefaultCustodianCustodyCallSuccess() public {
@@ -221,7 +225,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
             abi.encode(bytes4(Custodian.custody.selector))
         );
         vm.startPrank(loan.borrower);
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -241,7 +245,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidTransferLength.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -261,7 +265,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -282,7 +286,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemIdentifier.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -303,7 +307,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -323,7 +327,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemType.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -343,7 +347,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
 
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemTokenNoCode.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -365,7 +369,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         //        _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemTokenNoCode.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -386,7 +390,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -405,7 +409,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidTransferLength.selector));
-        LM.originate(new ConduitTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
 
@@ -449,7 +453,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         });
         loan.custodian = address(mockCustodian);
         vm.expectRevert();
-        LM.originate(new ConduitTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
 
     //     needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)
@@ -473,7 +477,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.prank(loan.borrower);
-        LM.originate(new ConduitTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
+        LM.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
     }
 
     function testNonPayableFunctions() public {
@@ -489,7 +493,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.expectRevert();
         payable(address(LM)).call{value: 1 ether}(
             abi.encodeWithSelector(
-                LoanManager.originate.selector, new ConduitTransfer[](0), be, be, generateDefaultLoanTerms()
+                LoanManager.originate.selector, new AdditionalTransfer[](0), be, be, generateDefaultLoanTerms()
             )
         );
         vm.expectRevert();
@@ -530,12 +534,12 @@ contract TestLoanManager is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
 
         vm.prank(loan.borrower);
-        LM.originate(new ConduitTransfer[](0), be, le1, loan);
+        LM.originate(new AdditionalTransfer[](0), be, le1, loan);
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.expectRevert(abi.encodeWithSelector(LoanManager.LoanExists.selector));
         vm.prank(loan.borrower);
-        LM.originate(new ConduitTransfer[](0), be, le2, loan);
+        LM.originate(new AdditionalTransfer[](0), be, le2, loan);
     }
 
     function testAdditionalTransfers() public {
@@ -557,9 +561,9 @@ contract TestLoanManager is StarPortTest, DeepEq {
         });
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
-        ConduitTransfer[] memory additionalTransfers = new ConduitTransfer[](1);
-        additionalTransfers[0] = ConduitTransfer({
-            itemType: ConduitItemType.ERC20,
+        AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
+        additionalTransfers[0] = AdditionalTransfer({
+            itemType: ItemType.ERC20,
             token: address(erc20s[0]),
             from: address(loan.borrower),
             to: address(address(20)),

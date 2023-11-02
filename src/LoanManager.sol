@@ -33,7 +33,7 @@ import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 import {Custodian} from "starport-core/Custodian.sol";
@@ -81,7 +81,7 @@ contract LoanManager is Ownable, ERC721 {
         LENDER
     }
     enum FieldFlags {
-        INITIALIZED,
+        UNINITIALIZED,
         ACTIVE,
         INACTIVE
     }
@@ -130,7 +130,7 @@ contract LoanManager is Ownable, ERC721 {
     error InvalidItemType();
     error InvalidTransferLength();
     error CannotTransferLoans();
-    error ConduitTransferError();
+    error AdditionalTransferError();
     error LoanExists();
     error NotLoanCustodian();
     error NotSeaport();
@@ -199,7 +199,7 @@ contract LoanManager is Ownable, ERC721 {
     }
 
     function originate(
-        ConduitTransfer[] calldata additionalTransfers,
+        AdditionalTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan
@@ -234,7 +234,7 @@ contract LoanManager is Ownable, ERC721 {
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
-            _transferConduitTransfers(additionalTransfers);
+            StarPortLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
@@ -253,7 +253,7 @@ contract LoanManager is Ownable, ERC721 {
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
-            ConduitTransfer[] memory additionalTransfers
+            AdditionalTransfer[] memory additionalTransfers
         ) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, msg.sender);
 
         _settle(loan);
@@ -272,7 +272,7 @@ contract LoanManager is Ownable, ERC721 {
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
-            _transferConduitTransfers(additionalTransfers);
+            StarPortLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
@@ -338,7 +338,7 @@ contract LoanManager is Ownable, ERC721 {
         address borrower,
         address lender,
         address fulfiller,
-        ConduitTransfer[] memory additionalTransfers
+        AdditionalTransfer[] memory additionalTransfers
     ) internal pure {
         uint256 i = 0;
         for (i; i < additionalTransfers.length;) {
@@ -358,7 +358,7 @@ contract LoanManager is Ownable, ERC721 {
         address borrower,
         address lender,
         address fulfiller,
-        ConduitTransfer[] calldata additionalTransfers
+        AdditionalTransfer[] calldata additionalTransfers
     ) internal pure {
         uint256 i = 0;
         for (i; i < additionalTransfers.length;) {
@@ -375,7 +375,7 @@ contract LoanManager is Ownable, ERC721 {
     function _validateAndEnforceCaveats(
         CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
         address validator,
-        ConduitTransfer[] memory additionalTransfers,
+        AdditionalTransfer[] memory additionalTransfers,
         LoanManager.Loan memory loan
     ) internal {
         bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
@@ -393,37 +393,6 @@ contract LoanManager is Ownable, ERC721 {
             CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
                 additionalTransfers, loan, caveatApproval.caveat[i].data
             );
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _transferConduitTransfers(ConduitTransfer[] memory transfers) internal {
-        uint256 i = 0;
-        uint256 amount = 0;
-        for (i; i < transfers.length;) {
-            amount = transfers[i].amount;
-            if (amount > 0) {
-                if (transfers[i].itemType == ConduitItemType.ERC20) {
-                    // erc20 transfer
-
-                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, amount);
-                } else if (transfers[i].itemType == ConduitItemType.ERC721) {
-                    // erc721 transfer
-                    if (amount > 1) {
-                        revert InvalidItemAmount();
-                    }
-                    ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
-                } else if (transfers[i].itemType == ConduitItemType.ERC1155) {
-                    // erc1155 transfer
-                    ERC1155(transfers[i].token).safeTransferFrom(
-                        transfers[i].from, transfers[i].to, transfers[i].identifier, amount, new bytes(0)
-                    );
-                } else {
-                    revert NativeAssetsNotSupported();
-                }
-            }
             unchecked {
                 ++i;
             }
@@ -535,37 +504,15 @@ contract LoanManager is Ownable, ERC721 {
     }
 
     /**
-     * @dev  helper to check if a loan is initialized(ie. has never been opened)
-     * @param loanId            The id of the loan
-     * @return                  True if the loan is initialized
-     */
-    function initialized(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.INITIALIZED);
-    }
-
-    /**
      * @dev  erc721 tokenURI override
      * @param loanId            The id of the loan
      * @return                  the string uri of the loan
      */
     function tokenURI(uint256 loanId) public view override returns (string memory) {
-        if (!_issued(loanId)) {
+        if (!active(loanId)) {
             revert InvalidLoan();
         }
         return string("");
-    }
-
-    function _issued(uint256 loanId) internal view returns (bool) {
-        return (_getExtraData(loanId) > uint8(0));
-    }
-
-    /**
-     * @dev  helper to check if a loan was issued ever(getExtraData > 0)
-     * @param loanId            The id of the loan
-     * @return                  True if the loan is initialized
-     */
-    function issued(uint256 loanId) external view returns (bool) {
-        return _issued(loanId);
     }
 
     /**
@@ -582,7 +529,7 @@ contract LoanManager is Ownable, ERC721 {
 
     function _settle(Loan memory loan) internal {
         uint256 tokenId = loan.getId();
-        if (!_issued(tokenId)) {
+        if (!active(tokenId)) {
             revert InvalidLoan();
         }
         if (_exists(tokenId)) {
@@ -661,6 +608,14 @@ contract LoanManager is Ownable, ERC721 {
         assembly {
             mstore(feeItems, totalFeeItems)
         }
+    }
+
+    function _issued(uint256 loanId) internal view returns (bool) {
+        return (_getExtraData(loanId) > uint8(0));
+    }
+
+    function getExtraData(uint256 loanId) public view returns (uint8 extraData) {
+        return uint8(_getExtraData(loanId));
     }
 
     /**
