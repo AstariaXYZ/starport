@@ -9,7 +9,7 @@ import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import "forge-std/console2.sol";
 
-contract TestStrategistOriginator is AstariaV1Test, DeepEq {
+contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
