@@ -141,7 +141,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 console.logBytes32(
                     LM.hashCaveatWithSaltAndNonce(refinancer.addr, bytes32(uint256(1)), refinancerCaveat.caveat)
                 );
-                emit log_caveatapproval(refinancerCaveat);
+
                 vm.startPrank(refinancer.addr);
                 erc20s[0].approve(address(LM), refinanceDetails.loan.debt[0].amount);
                 vm.stopPrank();
@@ -220,8 +220,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
         }
     }
-
-    event log_caveatapproval(CaveatEnforcer.CaveatWithApproval caveatApproval);
 
     // lender is recaller, liquidation amount is 0
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {

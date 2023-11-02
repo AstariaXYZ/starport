@@ -13,7 +13,7 @@ contract FixedTermDutchAuctionHandler is DutchAuctionHandler {
 
     constructor(LoanManager LM_) DutchAuctionHandler(LM_) {}
 
-    function _getAuctionStart(LoanManager.Loan memory loan) internal view virtual override returns (uint256) {
+    function getAuctionStart(LoanManager.Loan calldata loan) public view virtual override returns (uint256) {
         FixedTermHook.Details memory details = abi.decode(loan.terms.hookData, (FixedTermHook.Details));
         return loan.start + details.loanDuration;
     }
