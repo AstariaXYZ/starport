@@ -1,20 +1,32 @@
 pragma solidity ^0.8.17;
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-
 import {LoanManager} from "starport-core/LoanManager.sol";
 import "forge-std/console.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC20} from "solady/src/tokens/ERC20.sol";
+import {ERC1155} from "solady/src/tokens/ERC1155.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 enum Actions {
     Nothing,
-    Origination,
-    Refinance,
     Repayment,
     Settlement
 }
 
+struct AdditionalTransfer {
+    ItemType itemType;
+    address token;
+    address from;
+    address to;
+    uint256 identifier;
+    uint256 amount;
+}
+
 library StarPortLib {
     error InvalidSalt();
+    error InvalidItemAmount();
+    error NativeAssetsNotSupported();
 
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
 
@@ -198,6 +210,37 @@ library StarPortLib {
 
         assembly {
             mstore(consideration, j)
+        }
+    }
+
+    function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
+        uint256 i = 0;
+        uint256 amount = 0;
+        for (i; i < transfers.length;) {
+            amount = transfers[i].amount;
+            if (amount > 0) {
+                if (transfers[i].itemType == ItemType.ERC20) {
+                    // erc20 transfer
+
+                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, amount);
+                } else if (transfers[i].itemType == ItemType.ERC721) {
+                    // erc721 transfer
+                    if (amount > 1) {
+                        revert InvalidItemAmount();
+                    }
+                    ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
+                } else if (transfers[i].itemType == ItemType.ERC1155) {
+                    // erc1155 transfer
+                    ERC1155(transfers[i].token).safeTransferFrom(
+                        transfers[i].from, transfers[i].to, transfers[i].identifier, amount, new bytes(0)
+                    );
+                } else {
+                    revert NativeAssetsNotSupported();
+                }
+            }
+            unchecked {
+                ++i;
+            }
         }
     }
 }

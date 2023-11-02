@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {LoanManager} from "starport-core/LoanManager.sol";
 
 contract LenderEnforcer is CaveatEnforcer {
@@ -20,7 +20,7 @@ contract LenderEnforcer is CaveatEnforcer {
     /// @param loan The loan terms
     /// @param caveatData The borrowers encoded details
     function validate(
-        ConduitTransfer[] calldata additionalTransfers,
+        AdditionalTransfer[] calldata additionalTransfers,
         LoanManager.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {

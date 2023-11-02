@@ -23,7 +23,7 @@ pragma solidity ^0.8.17;
 import {LoanManager} from "starport-core/LoanManager.sol";
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConduitTransfer, ConduitItemType} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
@@ -67,7 +67,7 @@ contract StrategistOriginator is Ownable, Originator {
     error InvalidDeadline();
     error InvalidOffer();
     error InvalidSigner();
-    error ConduitTransferError();
+    error AdditionalTransferError();
 
     LoanManager public immutable LM;
 
@@ -148,7 +148,7 @@ contract StrategistOriginator is Ownable, Originator {
         });
 
         CaveatEnforcer.CaveatWithApproval memory le;
-        LM.originate(new ConduitTransfer[](0), params.borrowerCaveat, le, loan);
+        LM.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     function _validateAsk(Request calldata request, Details memory details) internal virtual {
