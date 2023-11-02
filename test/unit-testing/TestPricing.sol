@@ -103,7 +103,6 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
         vm.expectRevert(stdError.arithmeticError);
         simplePricing.calculateInterest(time - (time * 2), amount, rate);
 
-        // TODO: is this doing anything or does it need to go into separate test?
         vm.expectRevert();
         simplePricing.calculateInterest(time, amount - (amount * 2), rate);
 
