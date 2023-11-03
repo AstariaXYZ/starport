@@ -513,7 +513,7 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function getRefinanceCaveat(LoanManager.Loan memory loan, bytes memory pricingData, address fulfiller)
-        external
+        public
         returns (LoanManager.Loan memory)
     {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =

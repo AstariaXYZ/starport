@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {ItemType, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConduitTransfer} from "seaport-types/src/conduit/lib/ConduitStructs.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {TestBase} from "forge-std/Test.sol";
 import {SettlementHook} from "src/hooks/SettlementHook.sol";
 import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
@@ -16,7 +16,7 @@ abstract contract MockCall is TestBase {
         address pricing,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
-        ConduitTransfer[] memory additionalTransfers
+        AdditionalTransfer[] memory additionalTransfers
     ) public {
         vm.mockCall(
             pricing,

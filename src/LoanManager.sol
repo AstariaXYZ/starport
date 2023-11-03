@@ -70,7 +70,6 @@ contract LoanManager is Ownable, ERC721, PausableNonReentrant {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
-    //bool public paused;
     address public feeTo;
     uint88 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
@@ -242,7 +241,10 @@ contract LoanManager is Ownable, ERC721, PausableNonReentrant {
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
         _transferSpentItems(considerationPayment, lender, loan.issuer);
-        _transferSpentItems(carryPayment, lender, loan.originator);
+
+        if (carryPayment.length > 0) {
+            _transferSpentItems(carryPayment, lender, loan.originator);
+        }
 
         loan.issuer = lender;
         loan.originator = address(0);
