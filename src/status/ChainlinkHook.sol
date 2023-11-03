@@ -1,13 +1,13 @@
 //// SPDX-License-Identifier: MIT
 //pragma solidity ^0.8.17;
 //
-//import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+//import {Status} from "starport-core/status/Status.sol";
 //import {Pricing} from "starport-core/pricing/Pricing.sol";
 //import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 //import {Starport} from "starport-core/Starport.sol";
 //import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 //
-//contract ChainlinkHook is SettlementHook {
+//contract ChainlinkHook is Status {
 //  struct Details {
 //    address feed;
 //    uint256 ltvRatio;

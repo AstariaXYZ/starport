@@ -1,9 +1,9 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {Status} from "starport-core/status/Status.sol";
 
-contract FixedTermHook is SettlementHook {
+contract FixedTermStatus is Status {
     struct Details {
         uint256 loanDuration;
     }

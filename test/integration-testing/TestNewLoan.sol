@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
@@ -52,13 +52,13 @@ contract FlashLoan {
     }
 }
 
-contract TestNewLoan is StarPortTest {
+contract TestNewLoan is StarportTest {
     function testNewLoanERC721CollateralDefaultTerms2() public returns (Starport.Loan memory) {
         Custodian custody = Custodian(SP.defaultCustodian());
 
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -73,7 +73,7 @@ contract TestNewLoan is StarPortTest {
 
         // Starport.Terms memory terms = Starport.Terms({
         //     status: address(hook),
-        //     settlement: address(handler),
+        //     settlement: address(settlement),
         //     pricing: address(pricing),
         //     pricingData: defaultPricingData,
         //     settlementData: defaultSettlementData,
@@ -109,7 +109,7 @@ contract TestNewLoan is StarPortTest {
         // TermEnforcer TE = new TermEnforcer();
 
         // TermEnforcer.Details memory TEDetails =
-        //     TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(handler)});
+        //     TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(settlement)});
 
         // Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
         // caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
@@ -407,7 +407,7 @@ contract TestNewLoan is StarPortTest {
         );
 
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            SettlementHandler(activeLoan.terms.settlement).getSettlement(activeLoan);
+            Settlement(activeLoan.terms.settlement).getSettlement(activeLoan);
         settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](
                settlementConsideration.length

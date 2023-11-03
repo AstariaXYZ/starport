@@ -21,7 +21,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     function testIsActive() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -30,13 +30,13 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
-        assert(AstariaV1SettlementHook(loan.terms.status).isActive(loan));
+        assert(AstariaV1Status(loan.terms.status).isActive(loan));
     }
 
     function testIsRecalledInsideWindow() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -54,17 +54,17 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         skip(details.honeymoon);
         vm.expectEmit();
         emit Recalled(loanId, address(this), block.timestamp + details.recallWindow);
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
-        (address recaller, uint64 recallStart) = AstariaV1SettlementHook(loan.terms.status).recalls(loanId);
+        AstariaV1Status(loan.terms.status).recall(loan);
+        (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
         skip(details.recallWindow - 1);
-        assert(AstariaV1SettlementHook(loan.terms.status).isActive(loan));
-        assert(AstariaV1SettlementHook(loan.terms.status).isRecalled(loan));
+        assert(AstariaV1Status(loan.terms.status).isActive(loan));
+        assert(AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 
     function testInvalidRecallLoanDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -82,13 +82,13 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         skip(details.honeymoon);
         vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(false));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanDoesNotExist.selector));
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
+        AstariaV1Status(loan.terms.status).recall(loan);
     }
 
     function testInvalidRecallInvalidStakeType() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -104,17 +104,17 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
         skip(details.honeymoon);
         vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(true));
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
+        AstariaV1Status(loan.terms.status).recall(loan);
         skip(details.recallWindow);
         vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(true));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.InvalidItemType.selector));
-        AstariaV1SettlementHook(loan.terms.status).withdraw(loan, payable(address(this)));
+        AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
 
     function testCannotRecallTwice() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -130,15 +130,15 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         erc20s[0].approve(loan.terms.status, 10e18);
 
         skip(details.honeymoon);
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
+        AstariaV1Status(loan.terms.status).recall(loan);
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.RecallAlreadyExists.selector));
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
+        AstariaV1Status(loan.terms.status).recall(loan);
     }
 
     function testIsRecalledOutsideWindow() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -153,17 +153,17 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         erc20s[0].approve(loan.terms.status, 10e18);
 
         skip(details.honeymoon);
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
-        (address recaller, uint64 recallStart) = AstariaV1SettlementHook(loan.terms.status).recalls(loanId);
+        AstariaV1Status(loan.terms.status).recall(loan);
+        (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
         skip(details.recallWindow + 1);
-        assert(!AstariaV1SettlementHook(loan.terms.status).isActive(loan));
-        assert(!AstariaV1SettlementHook(loan.terms.status).isRecalled(loan));
+        assert(!AstariaV1Status(loan.terms.status).isActive(loan));
+        assert(!AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 
     function testGenerateRecallConsideration() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -184,13 +184,14 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
             0 //index of the loan
         );
         uint256 proportion = 1e18;
-        AdditionalTransfer[] memory recallConsideration = AstariaV1SettlementHook(loan.terms.status)
-            .generateRecallConsideration(loan, proportion, payable(address(this)), payable(loan.issuer));
+        AdditionalTransfer[] memory recallConsideration = AstariaV1Status(loan.terms.status).generateRecallConsideration(
+            loan, proportion, payable(address(this)), payable(loan.issuer)
+        );
         assertEq(recallConsideration[0].token, address(erc20s[0]));
         assertEq(recallConsideration[0].amount, recallStake);
         assert(recallConsideration.length == 1);
         proportion = 5e17;
-        recallConsideration = AstariaV1SettlementHook(loan.terms.status).generateRecallConsideration(
+        recallConsideration = AstariaV1Status(loan.terms.status).generateRecallConsideration(
             loan, proportion, payable(address(this)), payable(loan.issuer)
         );
         assertEq(recallConsideration[0].token, address(erc20s[0]));
@@ -201,7 +202,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     function testRecallRateEmptyRecall() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -210,7 +211,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-        uint256 recallRate = AstariaV1SettlementHook(loan.terms.status).getRecallRate(loan);
+        uint256 recallRate = AstariaV1Status(loan.terms.status).getRecallRate(loan);
         uint256 computedRecallRate =
             hookDetails.recallMax.mulWad((block.timestamp - 0).divWad(hookDetails.recallWindow));
         assertEq(recallRate, computedRecallRate);
@@ -219,7 +220,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     function testRecallRateActiveRecall() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -234,9 +235,9 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         erc20s[0].approve(loan.terms.status, 10e18);
 
         skip(hookDetails.honeymoon);
-        AstariaV1SettlementHook(loan.terms.status).recall(loan);
-        (address recaller, uint64 recallStart) = AstariaV1SettlementHook(loan.terms.status).recalls(loanId);
-        uint256 recallRate = AstariaV1SettlementHook(loan.terms.status).getRecallRate(loan);
+        AstariaV1Status(loan.terms.status).recall(loan);
+        (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
+        uint256 recallRate = AstariaV1Status(loan.terms.status).getRecallRate(loan);
         uint256 computedRecallRate =
             hookDetails.recallMax.mulWad((block.timestamp - recallStart).divWad(hookDetails.recallWindow));
         assertEq(recallRate, computedRecallRate);
@@ -245,7 +246,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     function testCannotWithdrawWithdrawDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -255,13 +256,13 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(true));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.WithdrawDoesNotExist.selector));
-        AstariaV1SettlementHook(loan.terms.status).withdraw(loan, payable(address(this)));
+        AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
 
     function testCannotWithdrawLoanHasNotBeenRefinanced() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -270,13 +271,13 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanHasNotBeenRefinanced.selector));
-        AstariaV1SettlementHook(loan.terms.status).withdraw(loan, payable(address(this)));
+        AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
     //    //TODO: this needs to be done because withdraw is being looked at
     //    function testRecallWithdraw() public {
     //        Starport.Terms memory terms = Starport.Terms({
     //            status: address(hook),
-    //            settlement: address(handler),
+    //            settlement: address(settlement),
     //            pricing: address(pricing),
     //            pricingData: defaultPricingData,
     //            settlementData: defaultSettlementData,
@@ -291,7 +292,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     //        erc20s[0].approve(loan.terms.status, 10e18);
     //
     //        skip(hookDetails.honeymoon);
-    //        AstariaV1SettlementHook(loan.terms.status).recall(loan);
+    //        AstariaV1Status(loan.terms.status).recall(loan);
     //
     //        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loanId), abi.encode(true));
     //    }

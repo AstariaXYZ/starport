@@ -1,10 +1,10 @@
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";
 
-contract TestBorrowerEnforcer is StarPortTest {
+contract TestBorrowerEnforcer is StarportTest {
     function testBERevertAdditionalTransfers() external {
         AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
         additionalTransfers[0] = AdditionalTransfer({

@@ -2,22 +2,22 @@ pragma solidity ^0.8.17;
 
 import "forge-std/console2.sol";
 
-import "./StarPortTest.sol";
+import "./StarportTest.sol";
 
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
+import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
 
-import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 
-import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
+import {AstariaV1Settlement} from "starport-core/settlement/AstariaV1Settlement.sol";
 import {AstariaV1LenderEnforcer} from "starport-core/enforcers/AstariaV1LenderEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 // import "forge-std/console2.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
-contract AstariaV1Test is StarPortTest {
+contract AstariaV1Test is StarportTest {
     Account recaller;
 
     function setUp() public override {
@@ -28,8 +28,8 @@ contract AstariaV1Test is StarPortTest {
         // erc20s[1].mint(recaller.addr, 10000);
 
         pricing = new AstariaV1Pricing(SP);
-        handler = new AstariaV1SettlementHandler(SP);
-        hook = new AstariaV1SettlementHook(SP);
+        settlement = new AstariaV1Settlement(SP);
+        hook = new AstariaV1Status(SP);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
 

@@ -3,13 +3,13 @@ pragma solidity ^0.8.17;
 import {ItemType, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {TestBase} from "forge-std/Test.sol";
-import {SettlementHook} from "src/hooks/SettlementHook.sol";
-import {SettlementHandler} from "src/handlers/SettlementHandler.sol";
+import {Status} from "src/status/Status.sol";
+import {Settlement} from "src/settlement/Settlement.sol";
 import {Pricing} from "src/pricing/Pricing.sol";
 
 abstract contract MockCall is TestBase {
-    function mockHookCall(address hook, bool status) public {
-        vm.mockCall(hook, abi.encodeWithSelector(SettlementHook.isActive.selector), abi.encode(status));
+    function mockStatusCall(address hook, bool status) public {
+        vm.mockCall(hook, abi.encodeWithSelector(Status.isActive.selector), abi.encode(status));
     }
 
     function mockIsValidRefinanceCall(
@@ -25,15 +25,13 @@ abstract contract MockCall is TestBase {
         );
     }
 
-    function mockHandlerCall(address handler, ReceivedItem[] memory receivedItems, address authorized) public {
+    function mockSettlementCall(address settlement, ReceivedItem[] memory receivedItems, address authorized) public {
         vm.mockCall(
-            handler,
-            abi.encodeWithSelector(SettlementHandler.getSettlement.selector),
-            abi.encode(receivedItems, authorized)
+            settlement, abi.encodeWithSelector(Settlement.getSettlement.selector), abi.encode(receivedItems, authorized)
         );
     }
 
-    function mockHandlerExecuteFail(address handler) public {
-        vm.mockCall(handler, abi.encodeWithSelector(SettlementHandler.execute.selector), abi.encode(bytes4(0)));
+    function mockHandlerExecuteFail(address settlement) public {
+        vm.mockCall(settlement, abi.encodeWithSelector(Settlement.execute.selector), abi.encode(bytes4(0)));
     }
 }

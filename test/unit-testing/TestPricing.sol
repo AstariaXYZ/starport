@@ -1,5 +1,5 @@
 import "forge-std/console2.sol";
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -11,7 +11,7 @@ import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 
-contract TestSimpleInterestPricing is StarPortTest, DeepEq {
+contract TestSimpleInterestPricing is StarportTest, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
@@ -36,15 +36,15 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
             debt: newDebt,
             terms: Starport.Terms({
                 status: address(hook),
-                settlement: address(handler),
+                settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: abi.encode(
                     BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
                     ),
                 settlementData: abi.encode(
-                    DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
+                    DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
                     ),
-                statusData: abi.encode(FixedTermHook.Details({loanDuration: 14 days}))
+                statusData: abi.encode(FixedTermStatus.Details({loanDuration: 14 days}))
             })
         });
 

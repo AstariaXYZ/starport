@@ -1,16 +1,16 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 
 import "forge-std/console.sol";
 
-contract EnforcerTest is StarPortTest {
+contract EnforcerTest is StarportTest {
 //     function testTermEnforcerBasic() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -25,7 +25,7 @@ contract EnforcerTest is StarPortTest {
 //         TermEnforcer TE = new TermEnforcer();
 
 //         TermEnforcer.Details memory TEDetails =
-//             TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(handler)});
+//             TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(settlement)});
 
 //         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
 //         caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
@@ -61,7 +61,7 @@ contract EnforcerTest is StarPortTest {
 //     function testRateEnforcerBasic() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -102,7 +102,7 @@ contract EnforcerTest is StarPortTest {
 //     function testFailRateEnforcerMaxRate() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -143,7 +143,7 @@ contract EnforcerTest is StarPortTest {
 //     function testFailRateEnforcerMaxCarryRate() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -184,7 +184,7 @@ contract EnforcerTest is StarPortTest {
 //     function testFailRateEnforcerMaxRateAndMaxCarryRate() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -225,7 +225,7 @@ contract EnforcerTest is StarPortTest {
 //     function testCollateralEnforcer() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,
@@ -268,7 +268,7 @@ contract EnforcerTest is StarPortTest {
 //     function testFailCollateralEnforcerDifferentCollateral() public {
 //         Starport.Terms memory terms = Starport.Terms({
 //             status: address(hook),
-//             settlement: address(handler),
+//             settlement: address(settlement),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
 //             settlementData: defaultSettlementData,

@@ -1,20 +1,20 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {ZoneInteractionErrors} from "seaport-types/src/interfaces/ZoneInteractionErrors.sol";
 import "forge-std/console2.sol";
 
-contract TestRepayLoan is StarPortTest {
+contract TestRepayLoan is StarportTest {
     using FixedPointMathLib for uint256;
 
     function testRepayLoanBase() public {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -38,7 +38,7 @@ contract TestRepayLoan is StarPortTest {
     function testRepayLoanInvalidRepayer() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -106,7 +106,7 @@ contract TestRepayLoan is StarPortTest {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -132,7 +132,7 @@ contract TestRepayLoan is StarPortTest {
     function testRepayLoanGenerateOrderNotSeaport() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -156,7 +156,7 @@ contract TestRepayLoan is StarPortTest {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -221,7 +221,7 @@ contract TestRepayLoan is StarPortTest {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,

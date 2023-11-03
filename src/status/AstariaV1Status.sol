@@ -1,12 +1,12 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import "forge-std/console2.sol";
-import {BaseHook} from "starport-core/hooks/BaseHook.sol";
+import {BaseStatus} from "starport-core/status/BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
-contract AstariaV1SettlementHook is BaseHook, BaseRecall {
+contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;
 
     constructor(Starport SP_) BaseRecall(SP_) {}

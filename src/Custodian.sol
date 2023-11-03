@@ -29,8 +29,8 @@ import {ConsiderationInterface} from "seaport-types/src/interfaces/Consideration
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
-import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Status} from "starport-core/status/Status.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
@@ -207,7 +207,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
-        if (action == Actions.Repayment && SettlementHook(loan.terms.status).isActive(loan)) {
+        if (action == Actions.Repayment && Status(loan.terms.status).isActive(loan)) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
@@ -223,12 +223,12 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
-        } else if (action == Actions.Settlement && !SettlementHook(loan.terms.status).isActive(loan)) {
+        } else if (action == Actions.Settlement && !Status(loan.terms.status).isActive(loan)) {
             address authorized;
             //add in originator fee
 
             _beforeGetSettlement(loan);
-            (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
+            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlement(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
             _afterGetSettlement(loan);
             if (authorized == address(0) || fulfiller == authorized) {
@@ -240,8 +240,7 @@ contract Custodian is ERC721, ContractOffererInterface {
                 _beforeSettlementHandlerHook(loan);
                 if (
                     authorized == loan.terms.settlement
-                        && SettlementHandler(loan.terms.settlement).execute(loan, fulfiller)
-                            != SettlementHandler.execute.selector
+                        && Settlement(loan.terms.settlement).execute(loan, fulfiller) != Settlement.execute.selector
                 ) {
                     revert InvalidHandlerExecution();
                 }
@@ -305,7 +304,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (loan.start == block.timestamp || !SP.active(loan.getId())) {
             revert InvalidLoan();
         }
-        bool loanActive = SettlementHook(loan.terms.status).isActive(loan);
+        bool loanActive = Status(loan.terms.status).isActive(loan);
         if (action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
@@ -318,7 +317,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
-            (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
+            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlement(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
@@ -376,17 +375,17 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @dev transfers out the collateral to the handler address
      *
      * @param offer             The item to send out of the Custodian
-     * @param handler           The address handling the asset further
+     * @param authorized           The address handling the asset further
      */
 
-    function _transferCollateralToHandler(SpentItem memory offer, address handler) internal {
+    function _transferCollateralAuthorized(SpentItem memory offer, address authorized) internal {
         //approve consideration based on item type
         if (offer.itemType == ItemType.ERC721) {
-            ERC721(offer.token).transferFrom(address(this), handler, offer.identifier);
+            ERC721(offer.token).transferFrom(address(this), authorized, offer.identifier);
         } else if (offer.itemType == ItemType.ERC1155) {
-            ERC1155(offer.token).safeTransferFrom(address(this), handler, offer.identifier, offer.amount, "");
+            ERC1155(offer.token).safeTransferFrom(address(this), authorized, offer.identifier, offer.amount, "");
         } else if (offer.itemType == ItemType.ERC20) {
-            ERC20(offer.token).transfer(handler, offer.amount);
+            ERC20(offer.token).transfer(authorized, offer.amount);
         }
     }
 
@@ -394,11 +393,11 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @dev transfers out the collateral of SpentItem to the handler address
      *
      * @param offer             The SpentItem array to send out of the Custodian
-     * @param handler           The address handling the asset further
+     * @param authorized           The address handling the asset further
      */
-    function _moveCollateralToAuthorized(SpentItem[] memory offer, address handler) internal {
+    function _moveCollateralToAuthorized(SpentItem[] memory offer, address authorized) internal {
         for (uint256 i = 0; i < offer.length; i++) {
-            _transferCollateralToHandler(offer[i], handler);
+            _transferCollateralAuthorized(offer[i], authorized);
         }
     }
 

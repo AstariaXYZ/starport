@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
@@ -11,7 +11,7 @@ import "forge-std/console.sol";
 //If you sign a caveat and submit the caveat as the borrower or lender, then it will not be invalidated
 //With the current implementations, I think finding a valid refinance may be difficult
 
-contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
+contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     event LogLoan(Starport.Loan loan);
 
     function testOriginateWCaveats() public {

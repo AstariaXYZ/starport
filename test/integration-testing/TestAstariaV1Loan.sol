@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import "starport-test/AstariaV1Test.sol";
 
-import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import "forge-std/console2.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
@@ -15,7 +15,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -225,7 +225,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -286,7 +286,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                SettlementHandler(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlement(loan);
 
             assertEq(
                 settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
@@ -337,7 +337,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
     function testNewLoanERC721CollateralDefaultTermsRecallLiquidation() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(hook),
-            settlement: address(handler),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -398,7 +398,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                SettlementHandler(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlement(loan);
 
             assertEq(
                 settlementConsideration.length,

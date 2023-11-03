@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -9,7 +9,7 @@ import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
-contract TestStrategistOriginator is StarPortTest, DeepEq {
+contract TestStrategistOriginator is StarportTest, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 

@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 
@@ -8,14 +8,14 @@ import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";
 
-contract TestLoanCombinations is StarPortTest {
+contract TestLoanCombinations is StarportTest {
     using {StarportLib.getId} for Starport.Loan;
     // TODO test liquidations
 
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermHook),
-            settlement: address(dutchAuctionHandler),
+            status: address(fixedTermStatus),
+            settlement: address(dutchAuctionSettlement),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -42,8 +42,8 @@ contract TestLoanCombinations is StarPortTest {
 
     function testLoan20for20SimpleInterestDutchFixedRepay() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermHook),
-            settlement: address(dutchAuctionHandler),
+            status: address(fixedTermStatus),
+            settlement: address(dutchAuctionSettlement),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -63,8 +63,8 @@ contract TestLoanCombinations is StarPortTest {
 
     function testLoan20For721SimpleInterestDutchFixedRepay() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermHook),
-            settlement: address(dutchAuctionHandler),
+            status: address(fixedTermStatus),
+            settlement: address(dutchAuctionSettlement),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -82,8 +82,8 @@ contract TestLoanCombinations is StarPortTest {
 
     function testLoanAstariaSettlementRepay() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermHook),
-            settlement: address(dutchAuctionHandler),
+            status: address(fixedTermStatus),
+            settlement: address(dutchAuctionSettlement),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
             settlementData: defaultSettlementData,
@@ -100,11 +100,11 @@ contract TestLoanCombinations is StarPortTest {
         uint256[] memory reservePrice = new uint256[](1);
         reservePrice[0] = 300;
         bytes memory englishAuctionsettlementData =
-            abi.encode(EnglishAuctionHandler.Details({reservePrice: reservePrice, window: 7 days}));
+            abi.encode(EnglishAuctionSettlement.Details({reservePrice: reservePrice, window: 7 days}));
 
         Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermHook),
-            settlement: address(englishAuctionHandler),
+            status: address(fixedTermStatus),
+            settlement: address(englishAuctionSettlement),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
             settlementData: englishAuctionsettlementData,

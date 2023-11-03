@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -81,7 +81,7 @@ contract MockCustodian is Custodian {
     function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {}
 }
 
-contract TestStarport is StarPortTest, DeepEq {
+contract TestStarport is StarportTest, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 

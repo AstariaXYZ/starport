@@ -6,9 +6,9 @@ import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
+import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
 
-import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
@@ -35,7 +35,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         // borrowers can refinance a loan at any time
         if (fulfiller != loan.borrower) {
             // check if a recall is occuring
-            AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.status);
+            AstariaV1Status hook = AstariaV1Status(loan.terms.status);
             Details memory newDetails = abi.decode(newPricingData, (Details));
             if (hook.isRecalled(loan)) {
                 uint256 rate = hook.getRecallRate(loan);

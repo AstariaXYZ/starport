@@ -23,7 +23,7 @@ pragma solidity ^0.8.17;
 import "forge-std/console2.sol";
 
 import {Starport} from "starport-core/Starport.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {Status} from "starport-core/status/Status.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";

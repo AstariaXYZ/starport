@@ -35,12 +35,12 @@ import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing
 import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
-import {FixedTermHook} from "starport-core/hooks/FixedTermHook.sol";
-import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
-import {FixedTermDutchAuctionHandler} from "starport-core/handlers/FixedTermDutchAuctionHandler.sol";
-import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
-import {EnglishAuctionHandler} from "starport-core/handlers/EnglishAuctionHandler.sol";
-import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
+import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
+import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
+import {FixedTermDutchAuctionSettlement} from "starport-core/settlement/FixedTermDutchAuctionSettlement.sol";
+import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
+import {EnglishAuctionSettlement} from "starport-core/settlement/EnglishAuctionSettlement.sol";
+import {AstariaV1Settlement} from "starport-core/settlement/AstariaV1Settlement.sol";
 
 import {Starport} from "starport-core/Starport.sol";
 
@@ -52,8 +52,8 @@ import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/Consideratio
 //import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
-import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Status} from "starport-core/status/Status.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {Cast} from "starport-test/utils/Cast.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
@@ -107,18 +107,18 @@ contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
     }
 }
 
-contract StarPortTest is BaseOrderTest {
+contract StarportTest is BaseOrderTest {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
     MockIssuer public issuer;
 
-    SettlementHook fixedTermHook;
-    SettlementHook astariaSettlementHook;
+    Status fixedTermStatus;
+    Status astariaStatus;
 
-    SettlementHandler dutchAuctionHandler;
-    SettlementHandler englishAuctionHandler;
-    SettlementHandler astariaSettlementHandler;
+    Settlement dutchAuctionSettlement;
+    Settlement englishAuctionSettlement;
+    Settlement astariaSettlement;
 
     Pricing simpleInterestPricing;
     Pricing astariaPricing;
@@ -127,8 +127,8 @@ contract StarPortTest is BaseOrderTest {
     ConsiderationInterface public seaport;
 
     Pricing pricing;
-    SettlementHandler handler;
-    SettlementHook hook;
+    Settlement settlement;
+    Status hook;
 
     uint256 defaultLoanDuration = 14 days;
 
@@ -137,9 +137,9 @@ contract StarPortTest is BaseOrderTest {
         abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)}));
 
     bytes defaultSettlementData = abi.encode(
-        DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
+        DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
     );
-    bytes defaultStatusData = abi.encode(FixedTermHook.Details({loanDuration: defaultLoanDuration}));
+    bytes defaultStatusData = abi.encode(FixedTermStatus.Details({loanDuration: defaultLoanDuration}));
 
     Account borrower;
     Account lender;
@@ -204,8 +204,8 @@ contract StarPortTest is BaseOrderTest {
         custodian = Custodian(payable(SP.defaultCustodian()));
         SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(SP);
-        handler = new FixedTermDutchAuctionHandler(SP);
-        hook = new FixedTermHook();
+        settlement = new FixedTermDutchAuctionSettlement(SP);
+        hook = new FixedTermStatus();
         vm.label(address(erc721s[0]), "Collateral NFT");
         vm.label(address(erc721s[1]), "Collateral2 NFT");
         vm.label(address(erc20s[0]), "Debt ERC20");
@@ -253,16 +253,16 @@ contract StarPortTest is BaseOrderTest {
 
         /////////
 
-        fixedTermHook = new FixedTermHook();
-        astariaSettlementHook = new AstariaV1SettlementHook(SP);
+        fixedTermStatus = new FixedTermStatus();
+        astariaStatus = new AstariaV1Status(SP);
 
-        dutchAuctionHandler = new FixedTermDutchAuctionHandler(SP);
-        englishAuctionHandler = new EnglishAuctionHandler({
+        dutchAuctionSettlement = new FixedTermDutchAuctionSettlement(SP);
+        englishAuctionSettlement = new EnglishAuctionSettlement({
             SP_: SP,
             consideration_: seaport,
             EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
         });
-        astariaSettlementHandler = new AstariaV1SettlementHandler(SP);
+        astariaSettlement = new AstariaV1Settlement(SP);
 
         simpleInterestPricing = new SimpleInterestPricing(SP);
         astariaPricing = new AstariaV1Pricing(SP);
@@ -485,7 +485,7 @@ contract StarPortTest is BaseOrderTest {
             debt: newDebt,
             terms: Starport.Terms({
                 status: address(hook),
-                settlement: address(handler),
+                settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: defaultPricingData,
                 settlementData: defaultSettlementData,

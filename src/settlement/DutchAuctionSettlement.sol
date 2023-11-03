@@ -11,12 +11,12 @@ import {
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Starport, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
-abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
-    constructor(Starport SP_) SettlementHandler(SP_) {
+abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
+    constructor(Starport SP_) Settlement(SP_) {
         SP = SP_;
     }
 
@@ -31,7 +31,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
     }
 
     function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        return SettlementHandler.execute.selector;
+        return Settlement.execute.selector;
     }
 
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);

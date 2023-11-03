@@ -15,7 +15,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {
     ConsiderationItem,
@@ -26,7 +26,7 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 
-contract EnglishAuctionHandler is SettlementHandler {
+contract EnglishAuctionSettlement is Settlement {
     using FixedPointMathLib for uint256;
 
     struct Details {
@@ -44,7 +44,7 @@ contract EnglishAuctionHandler is SettlementHandler {
 
     error InvalidOrder();
 
-    constructor(Starport SP_, ConsiderationInterface consideration_, address EAZone_) SettlementHandler(SP_) {
+    constructor(Starport SP_, ConsiderationInterface consideration_, address EAZone_) Settlement(SP_) {
         consideration = consideration_;
         ENGLISH_AUCTION_ZONE = EAZone_;
     }
@@ -59,7 +59,7 @@ contract EnglishAuctionHandler is SettlementHandler {
         if (fulfiller != address(this)) {
             revert("must liquidate via the handler to trigger english auction");
         }
-        return SettlementHandler.execute.selector;
+        return Settlement.execute.selector;
     }
 
     function getSettlement(Starport.Loan calldata loan)

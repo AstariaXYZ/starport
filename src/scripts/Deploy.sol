@@ -4,8 +4,8 @@
 //import "../Starport.sol";
 //import "../originators/UniqueOriginator.sol";
 //import "../pricing/SimpleInterestPricing.sol";
-//import "../handlers/EnglishAuctionHandler.sol";
-//import "../hooks/FixedTermHook.sol";
+//import "../settlement/EnglishAuctionHandler.sol";
+//import "../status/FixedTermStatus.sol";
 //
 //contract Deploy is Script {
 //    function run() public {
@@ -19,7 +19,7 @@
 //      ConsiderationInterface(SP.seaport()),
 //      EAZone
 //    );
-//        FixedTermHook HK = new FixedTermHook();
+//        FixedTermStatus HK = new FixedTermStatus();
 //        vm.stopBroadcast();
 //    }
 //}
