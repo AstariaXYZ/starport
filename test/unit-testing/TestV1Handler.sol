@@ -105,7 +105,7 @@ contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
 
         assertEq(
             settlementConsideration[0].amount,
-            currentAuctionPrice - loan.debt[0].amount + interest - carry,
+            carry,
             "Settlement 0 (originator payment) incorrect"
         );
         assertEq(

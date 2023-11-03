@@ -117,11 +117,6 @@ contract LoanManager is ERC721, PausableNonReentrant {
     error InvalidRefinance();
     error InvalidCustodian();
     error InvalidLoan();
-    error InvalidItemAmount();
-    error InvalidItemIdentifier(); //must be zero for ERC20's
-    error InvalidItemTokenNoCode();
-    error InvalidItemType();
-    error InvalidTransferLength();
     error CannotTransferLoans();
     error AdditionalTransferError();
     error LoanExists();
@@ -198,17 +193,17 @@ contract LoanManager is ERC721, PausableNonReentrant {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
-        _transferSpentItems(loan.collateral, borrower, loan.custodian);
+        StarPortLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
 
         _callCustody(loan);
         if (feeRecipient == address(0)) {
-            _transferSpentItems(loan.debt, issuer, borrower);
+            StarPortLib.transferSpentItems(loan.debt, issuer, borrower, false);
         } else {
             (SpentItem[] memory feeItems, SpentItem[] memory sentToBorrower) = _feeRake(loan.debt);
             if (feeItems.length > 0) {
-                _transferSpentItems(feeItems, issuer, feeRecipient);
+                StarPortLib.transferSpentItems(feeItems, issuer, feeRecipient, false);
             }
-            _transferSpentItems(sentToBorrower, issuer, borrower);
+            StarPortLib.transferSpentItems(sentToBorrower, issuer, borrower, false);
         }
 
         if (additionalTransfers.length > 0) {
@@ -235,10 +230,9 @@ contract LoanManager is ERC721, PausableNonReentrant {
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
-        _transferSpentItems(considerationPayment, lender, loan.issuer);
-
+        StarPortLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
-            _transferSpentItems(carryPayment, lender, loan.originator);
+            StarPortLib.transferSpentItems(carryPayment, lender, loan.originator, false);   
         }
 
         loan.issuer = lender;
@@ -375,56 +369,6 @@ contract LoanManager is ERC721, PausableNonReentrant {
             unchecked {
                 ++i;
             }
-        }
-    }
-
-    function _transferItem(
-        ItemType itemType,
-        address token,
-        uint256 identifier,
-        uint256 amount,
-        address from,
-        address to
-    ) internal {
-        if (token.code.length == 0) {
-            revert InvalidItemTokenNoCode();
-        }
-        if (amount > 0) {
-            if (itemType == ItemType.ERC20) {
-                if (identifier > 0) {
-                    revert InvalidItemIdentifier();
-                }
-                SafeTransferLib.safeTransferFrom(token, from, to, amount);
-            } else if (itemType == ItemType.ERC721) {
-                // erc721 transfer
-                if (amount > 1) {
-                    revert InvalidItemAmount();
-                }
-                ERC721(token).transferFrom(from, to, identifier);
-            } else if (itemType == ItemType.ERC1155) {
-                // erc1155 transfer
-                ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
-            } else {
-                revert InvalidItemType();
-            }
-        } else {
-            revert InvalidItemAmount();
-        }
-    }
-
-    function _transferSpentItems(SpentItem[] memory transfers, address from, address to) internal {
-        if (transfers.length > 0) {
-            uint256 i = 0;
-            for (i; i < transfers.length;) {
-                _transferItem(
-                    transfers[i].itemType, transfers[i].token, transfers[i].identifier, transfers[i].amount, from, to
-                );
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            revert InvalidTransferLength();
         }
     }
 

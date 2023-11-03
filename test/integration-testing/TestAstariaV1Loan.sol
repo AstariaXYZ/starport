@@ -74,7 +74,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             stake = BasePricing(address(pricing)).calculateInterest(
                 details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
             );
-            assertEq(balanceBefore, balanceAfter + stake, "Recaller balance not transfered correctly");
+            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
                 recallContractBalanceBefore + stake,
                 recallContractBalanceAfter,
@@ -153,7 +153,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             uint256 delta_t = block.timestamp - loan.start;
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest = CompoundInterestPricing(address(pricing)).calculateInterest(
+            uint256 interest = BasePricing(address(pricing)).calculateInterest(
                 delta_t, loan.debt[0].amount, pricingDetails.rate
             );
 
@@ -161,7 +161,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
                 assertEq(
                     oldLenderAfter,
-                    oldLenderBefore + loan.debt[0].amount + interest.mulWad(1e18 - pricingDetails.carryRate),
+                    oldLenderBefore + loan.debt[0].amount + interest.mulWadUp(1e18 - pricingDetails.carryRate),
                     "Payment to old lender calculated incorrectly"
                 );
             }
@@ -346,13 +346,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
         LoanManager.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
-
+        
+        uint256 elapsedTime;
         uint256 stake;
         {
             uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
+            elapsedTime += details.honeymoon;
             vm.startPrank(recaller.addr);
 
             BaseRecall recallContract = BaseRecall(address(hook));
@@ -366,7 +368,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             stake = BasePricing(address(pricing)).calculateInterest(
                 details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
             );
-            assertEq(balanceBefore, balanceAfter + stake, "Recaller balance not transfered correctly");
+            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
                 recallContractBalanceBefore + stake,
                 recallContractBalanceAfter,
@@ -378,7 +380,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
             // warp past the end of the recall window
             vm.warp(block.timestamp + details.recallWindow + 1);
-
+            elapsedTime += (details.recallWindow + 1);
             OfferItem[] memory repayOffering = new OfferItem[](
                 loan.collateral.length
             );
@@ -405,7 +407,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
             assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
             {
-                uint256 carry = uint256(1643840372884797);
+                BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+                uint256 interest = StarPortLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
+                uint256 carry = interest.mulWad(pricingDetails.carryRate);
                 uint256 settlementPrice = 500 ether - carry;
                 uint256 recallerReward = settlementPrice.mulWad(10e16);
                 assertEq(settlementConsideration[0].amount, carry, "Settlement consideration for carry incorrect");
@@ -457,4 +461,5 @@ contract TestAstariaV1Loan is AstariaV1Test {
             assertEq(owner, address(this), "Test address should be the owner of the NFT after settlement");
         }
     }
+
 }

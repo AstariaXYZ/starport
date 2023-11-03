@@ -7,7 +7,8 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import "forge-std/console2.sol";
 enum Actions {
     Nothing,
     Repayment,
@@ -24,9 +25,15 @@ struct AdditionalTransfer {
 }
 
 library StarPortLib {
+    using FixedPointMathLib for uint256;
+    using FixedPointMathLib for int256;
     error InvalidSalt();
     error InvalidItemAmount();
     error NativeAssetsNotSupported();
+    error InvalidItemTokenNoCode();
+    error InvalidItemIdentifier(); //must be zero for ERC20's
+    error InvalidItemType();
+    error InvalidTransferLength();
 
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
 
@@ -245,32 +252,102 @@ library StarPortLib {
 
     function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
-        uint256 amount = 0;
         for (i; i < transfers.length;) {
-            amount = transfers[i].amount;
-            if (amount > 0) {
-                if (transfers[i].itemType == ItemType.ERC20) {
-                    // erc20 transfer
-
-                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, amount);
-                } else if (transfers[i].itemType == ItemType.ERC721) {
-                    // erc721 transfer
-                    if (amount > 1) {
-                        revert InvalidItemAmount();
-                    }
-                    ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
-                } else if (transfers[i].itemType == ItemType.ERC1155) {
-                    // erc1155 transfer
-                    ERC1155(transfers[i].token).safeTransferFrom(
-                        transfers[i].from, transfers[i].to, transfers[i].identifier, amount, new bytes(0)
-                    );
-                } else {
-                    revert NativeAssetsNotSupported();
+            if (transfers[i].token.code.length == 0) {
+                revert InvalidItemTokenNoCode();
+            }
+            if (transfers[i].itemType == ItemType.ERC20) {
+                // erc20 transfer
+                if(transfers[i].amount > 0){
+                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount);
                 }
+            } else if (transfers[i].itemType == ItemType.ERC721) {
+                // erc721 transfer
+                ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
+            } else if (transfers[i].itemType == ItemType.ERC1155) {
+                // erc1155 transfer
+                if(transfers[i].amount > 0){
+                    ERC1155(transfers[i].token).safeTransferFrom(
+                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                    );
+                }
+            } else {
+                revert NativeAssetsNotSupported();
             }
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    function calculateCompoundInterest(
+        uint256 delta_t,
+        uint256 amount,
+        uint256 rate // expressed as SPR seconds per rate
+    ) public pure returns (uint256) {
+        return amount.mulWad(uint256(int256(2718281828459045235).powWad(int256(rate * delta_t)))) - amount;
+    }
+
+    function calculateSimpleInterest(
+        uint256 delta_t,
+        uint256 amount,
+        uint256 rate // expressed as SPR seconds per rate
+    ) public pure returns (uint256) {
+        return (delta_t * rate).mulWad(amount);
+    }
+
+    function _transferItem(
+        ItemType itemType,
+        address token,
+        uint256 identifier,
+        uint256 amount,
+        address from,
+        address to,
+        bool safe
+    ) internal {
+        if (token.code.length == 0) {
+            revert InvalidItemTokenNoCode();
+        }
+        if (itemType == ItemType.ERC20) {
+            if (identifier > 0 && safe) {
+                revert InvalidItemIdentifier();
+            }
+            if(amount == 0 && safe) {
+                revert InvalidItemAmount();
+            }
+            SafeTransferLib.safeTransferFrom(token, from, to, amount);
+        } else if (itemType == ItemType.ERC721) {
+
+            if(amount != 1 && safe) {
+                revert InvalidItemAmount();
+            }
+            // erc721 transfer
+            ERC721(token).transferFrom(from, to, identifier);
+        } else if (itemType == ItemType.ERC1155) {
+            if(amount == 0 && safe) {
+                revert InvalidItemAmount();
+            }
+            // erc1155 transfer
+            ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
+        }
+        else {
+            revert InvalidItemType();
+        }
+    }
+
+    function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal {
+        if (transfers.length > 0) {
+            uint256 i = 0;
+            for (i; i < transfers.length;) {
+                _transferItem(
+                    transfers[i].itemType, transfers[i].token, transfers[i].identifier, transfers[i].amount, from, to, safe
+                );
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            revert InvalidTransferLength();
         }
     }
 }
