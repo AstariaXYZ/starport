@@ -94,7 +94,7 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
-        
+
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
 
         if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {

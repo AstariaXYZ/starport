@@ -153,9 +153,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             uint256 delta_t = block.timestamp - loan.start;
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest = BasePricing(address(pricing)).calculateInterest(
-                delta_t, loan.debt[0].amount, pricingDetails.rate
-            );
+            uint256 interest =
+                BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
 
             {
                 uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
@@ -346,7 +345,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         LoanManager.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
-        
+
         uint256 elapsedTime;
         uint256 stake;
         {
@@ -408,7 +407,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
             {
                 BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-                uint256 interest = StarPortLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
+                uint256 interest =
+                    StarPortLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
                 uint256 carry = interest.mulWad(pricingDetails.carryRate);
                 uint256 settlementPrice = 500 ether - carry;
                 uint256 recallerReward = settlementPrice.mulWad(10e16);
@@ -461,5 +461,4 @@ contract TestAstariaV1Loan is AstariaV1Test {
             assertEq(owner, address(this), "Test address should be the owner of the NFT after settlement");
         }
     }
-
 }

@@ -77,8 +77,7 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
                 recipient: payable(loan.originator)
             });
             settlementPrice -= consideration[0].amount;
-        }
-        else {
+        } else {
             consideration = new ReceivedItem[](1);
         }
 

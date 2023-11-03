@@ -103,11 +103,7 @@ contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
             SettlementHandler(loan.terms.handler).getSettlement(loan);
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.hookData, (BaseRecall.Details));
 
-        assertEq(
-            settlementConsideration[0].amount,
-            carry,
-            "Settlement 0 (originator payment) incorrect"
-        );
+        assertEq(settlementConsideration[0].amount, carry, "Settlement 0 (originator payment) incorrect");
         assertEq(
             settlementConsideration[1].amount,
             (currentAuctionPrice - settlementConsideration[0].amount).mulWad(hookDetails.recallerRewardRatio),

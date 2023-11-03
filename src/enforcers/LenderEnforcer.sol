@@ -41,10 +41,4 @@ contract LenderEnforcer is CaveatEnforcer {
             }
         }
     }
-
-    function validateInterest(LoanManager.Loan calldata loan) internal {
-        // calualtes interest for one second
-        // if interest > 1 wei
-        // else revert
-    }
 }

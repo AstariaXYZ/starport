@@ -232,7 +232,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
 
         StarPortLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
-            StarPortLib.transferSpentItems(carryPayment, lender, loan.originator, false);   
+            StarPortLib.transferSpentItems(carryPayment, lender, loan.originator, false);
         }
 
         loan.issuer = lender;

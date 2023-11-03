@@ -9,6 +9,7 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
+
 enum Actions {
     Nothing,
     Repayment,
@@ -27,6 +28,7 @@ struct AdditionalTransfer {
 library StarPortLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
+
     error InvalidSalt();
     error InvalidItemAmount();
     error NativeAssetsNotSupported();
@@ -39,6 +41,7 @@ library StarPortLib {
 
     uint256 internal constant ONE_WORD = 0x20;
     uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
+    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
 
     function getAction(bytes calldata data) internal pure returns (Actions action) {
         assembly {
@@ -258,15 +261,17 @@ library StarPortLib {
             }
             if (transfers[i].itemType == ItemType.ERC20) {
                 // erc20 transfer
-                if(transfers[i].amount > 0){
-                    SafeTransferLib.safeTransferFrom(transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount);
+                if (transfers[i].amount > 0) {
+                    SafeTransferLib.safeTransferFrom(
+                        transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount
+                    );
                 }
             } else if (transfers[i].itemType == ItemType.ERC721) {
                 // erc721 transfer
                 ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
             } else if (transfers[i].itemType == ItemType.ERC1155) {
                 // erc1155 transfer
-                if(transfers[i].amount > 0){
+                if (transfers[i].amount > 0) {
                     ERC1155(transfers[i].token).safeTransferFrom(
                         transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
                     );
@@ -285,7 +290,7 @@ library StarPortLib {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure returns (uint256) {
-        return amount.mulWad(uint256(int256(2718281828459045235).powWad(int256(rate * delta_t)))) - amount;
+        return amount.mulWad(uint256(NATURAL_NUMBER_SIGNED_WAD.powWad(int256(rate * delta_t)))) - amount;
     }
 
     function calculateSimpleInterest(
@@ -312,25 +317,23 @@ library StarPortLib {
             if (identifier > 0 && safe) {
                 revert InvalidItemIdentifier();
             }
-            if(amount == 0 && safe) {
+            if (amount == 0 && safe) {
                 revert InvalidItemAmount();
             }
             SafeTransferLib.safeTransferFrom(token, from, to, amount);
         } else if (itemType == ItemType.ERC721) {
-
-            if(amount != 1 && safe) {
+            if (amount != 1 && safe) {
                 revert InvalidItemAmount();
             }
             // erc721 transfer
             ERC721(token).transferFrom(from, to, identifier);
         } else if (itemType == ItemType.ERC1155) {
-            if(amount == 0 && safe) {
+            if (amount == 0 && safe) {
                 revert InvalidItemAmount();
             }
             // erc1155 transfer
             ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
-        }
-        else {
+        } else {
             revert InvalidItemType();
         }
     }
@@ -340,7 +343,13 @@ library StarPortLib {
             uint256 i = 0;
             for (i; i < transfers.length;) {
                 _transferItem(
-                    transfers[i].itemType, transfers[i].token, transfers[i].identifier, transfers[i].amount, from, to, safe
+                    transfers[i].itemType,
+                    transfers[i].token,
+                    transfers[i].identifier,
+                    transfers[i].amount,
+                    from,
+                    to,
+                    safe
                 );
                 unchecked {
                     ++i;

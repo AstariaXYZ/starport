@@ -270,47 +270,6 @@ contract TestLoanManager is StarPortTest, DeepEq {
         vm.stopPrank();
     }
 
-    // function testInvalidAmountDebt() public {
-    //     CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
-
-    //     LoanManager.Loan memory loan = generateDefaultLoanTerms();
-    //     loan.collateral[0].identifier = uint256(2);
-    //     loan.debt[0].amount = 0;
-    //     CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
-    //         details: LenderEnforcer.Details({loan: loan}),
-    //         signer: lender,
-    //         salt: bytes32(0),
-    //         enforcer: address(lenderEnforcer)
-    //     });
-    //     _setApprovalsForSpentItems(loan.borrower, loan.collateral);
-    //     _setApprovalsForSpentItems(loan.issuer, loan.debt);
-    //     vm.startPrank(loan.borrower);
-    //     vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidItemAmount.selector));
-    //     LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
-    //     vm.stopPrank();
-    // }
-
-    // function testInvalidIdentifierDebt() public {
-    //     CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
-
-    //     LoanManager.Loan memory loan = generateDefaultLoanTerms();
-    //     loan.collateral[0].identifier = uint256(2);
-    //     loan.debt[0].identifier = uint256(2);
-
-    //     CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
-    //         details: LenderEnforcer.Details({loan: loan}),
-    //         signer: lender,
-    //         salt: bytes32(0),
-    //         enforcer: address(lenderEnforcer)
-    //     });
-    //     _setApprovalsForSpentItems(loan.borrower, loan.collateral);
-    //     _setApprovalsForSpentItems(loan.issuer, loan.debt);
-    //     vm.startPrank(loan.borrower);
-    //     vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemIdentifier.selector));
-    //     LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
-    //     vm.stopPrank();
-    // }
-
     function testInvalidAmountCollateral() public {
         CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
 
