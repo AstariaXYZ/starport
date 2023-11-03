@@ -10,7 +10,7 @@ import {
     ItemType,
     Fulfillment
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {Seaport} from "seaport/contracts/Seaport.sol";
 import {Starport} from "./Starport.sol";

@@ -4,7 +4,7 @@ import "starport-test/StarPortTest.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
 contract MockCustodian is Custodian {
     constructor(Starport SP_, ConsiderationInterface seaport_) Custodian(SP_, seaport_) {}
@@ -19,7 +19,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
     Starport.Loan public activeLoan;
 
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     event RepayApproval(address borrower, address repayer, bool approved);
 

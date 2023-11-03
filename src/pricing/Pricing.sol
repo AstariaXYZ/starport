@@ -22,7 +22,7 @@ pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 abstract contract Pricing {
     Starport SP;

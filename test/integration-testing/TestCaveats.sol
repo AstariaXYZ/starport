@@ -4,7 +4,7 @@ import "starport-test/StarPortTest.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
-import {StarPortLib, Actions, AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import "forge-std/console.sol";
 
 //Informational Finding:
@@ -49,7 +49,7 @@ contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
         vm.startPrank(loan.issuer);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
 
-        vm.expectRevert(StarPortLib.InvalidSalt.selector);
+        vm.expectRevert(StarportLib.InvalidSalt.selector);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
     }
 
@@ -69,7 +69,7 @@ contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
         vm.prank(borrower.addr);
         SP.invalidateCaveatSalt(0);
 
-        vm.expectRevert(StarPortLib.InvalidSalt.selector);
+        vm.expectRevert(StarportLib.InvalidSalt.selector);
         vm.prank(lender.addr);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
     }
@@ -180,7 +180,7 @@ contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
 
         vm.warp(block.timestamp + 1);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
-        vm.expectRevert(StarPortLib.InvalidSalt.selector);
+        vm.expectRevert(StarportLib.InvalidSalt.selector);
         SP.refinance(lender.addr, lenderCaveat, loan, "");
     }
 

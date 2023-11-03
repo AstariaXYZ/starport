@@ -4,7 +4,7 @@ import {Starport, SpentItem, ReceivedItem, SettlementHandler} from "starport-cor
 import {BaseHook} from "starport-core/hooks/BaseHook.sol";
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {Pricing} from "starport-core/pricing/Pricing.sol";
@@ -12,7 +12,7 @@ import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import "forge-std/console2.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
     using FixedPointMathLib for uint256;
 
     constructor(Starport SP_) DutchAuctionHandler(SP_) {}

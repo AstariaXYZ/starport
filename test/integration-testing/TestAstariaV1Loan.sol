@@ -4,13 +4,13 @@ import "starport-test/AstariaV1Test.sol";
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
         Starport.Terms memory terms = Starport.Terms({
@@ -408,7 +408,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             {
                 BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
                 uint256 interest =
-                    StarPortLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
+                    StarportLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
                 uint256 carry = interest.mulWad(pricingDetails.carryRate);
                 uint256 settlementPrice = 500 ether - carry;
                 uint256 recallerReward = settlementPrice.mulWad(10e16);

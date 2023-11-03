@@ -12,19 +12,19 @@ import {
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
 import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {RefStarPortLib} from "starport-core/lib/RefStarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {RefStarportLib} from "starport-core/lib/RefStarportLib.sol";
 import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 import {Bound} from "starport-test/utils/Bound.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 
-contract DiffFuzzTestStarPortLib is Test, Bound, DeepEq {
-    StarPortLibImpl testContract;
-    RefStarPortLibImpl refContract;
+contract DiffFuzzTestStarportLib is Test, Bound, DeepEq {
+    StarportLibImpl testContract;
+    RefStarportLibImpl refContract;
 
     function setUp() public {
-        testContract = new StarPortLibImpl();
-        refContract = new RefStarPortLibImpl();
+        testContract = new StarportLibImpl();
+        refContract = new RefStarportLibImpl();
     }
 
     function testSpentToReceived(Fuzz.SpentItem[] memory unbSpentItems) public view {
@@ -39,12 +39,12 @@ contract DiffFuzzTestStarPortLib is Test, Bound, DeepEq {
     function testUnboundSpentToReceived(Fuzz.SpentItem[] memory unbSpentItems) public {
         console.log("testUnboundSpentToReceived");
         (bool success,) = address(refContract).call(
-            abi.encodeWithSelector(RefStarPortLibImpl.toReceivedItems.selector, unbSpentItems, address(1))
+            abi.encodeWithSelector(RefStarportLibImpl.toReceivedItems.selector, unbSpentItems, address(1))
         );
         bool expectRevert = !success;
 
         (success,) = address(testContract).call(
-            abi.encodeWithSelector(StarPortLibImpl.toReceivedItems.selector, unbSpentItems, address(1))
+            abi.encodeWithSelector(StarportLibImpl.toReceivedItems.selector, unbSpentItems, address(1))
         );
         if (expectRevert) {
             assertTrue(!success, "expected revert");
@@ -54,11 +54,11 @@ contract DiffFuzzTestStarPortLib is Test, Bound, DeepEq {
     }
 }
 
-abstract contract BaseTestStarPortLib is Test {
-    StarPortLibImpl testContract;
+abstract contract BaseTestStarportLib is Test {
+    StarportLibImpl testContract;
 
     function _setUp(address testImpl) internal {
-        testContract = StarPortLibImpl(testImpl);
+        testContract = StarportLibImpl(testImpl);
     }
 
     function testValidateSalt(address user, bytes32 salt) public {
@@ -66,7 +66,7 @@ abstract contract BaseTestStarPortLib is Test {
 
         assert(testContract.usedSalts(user, salt));
 
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidSalt.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidSalt.selector));
         testContract.validateSalt(user, salt);
     }
 
@@ -90,20 +90,20 @@ abstract contract BaseTestStarPortLib is Test {
     }
 }
 
-contract TestStarPortLib is BaseTestStarPortLib {
+contract TestStarportLib is BaseTestStarportLib {
     function setUp() public {
-        _setUp(address(new StarPortLibImpl()));
+        _setUp(address(new StarportLibImpl()));
     }
 }
 
-contract TestRefStarPortLib is BaseTestStarPortLib {
+contract TestRefStarportLib is BaseTestStarportLib {
     function setUp() public {
-        _setUp(address(new RefStarPortLibImpl()));
+        _setUp(address(new RefStarportLibImpl()));
     }
 }
 
-contract StarPortLibImpl {
-    using RefStarPortLib for *;
+contract StarportLibImpl {
+    using RefStarportLib for *;
 
     mapping(address => mapping(bytes32 => bool)) public usedSalts;
 
@@ -120,8 +120,8 @@ contract StarPortLibImpl {
     }
 }
 
-contract RefStarPortLibImpl {
-    using RefStarPortLib for *;
+contract RefStarportLibImpl {
+    using RefStarportLib for *;
 
     mapping(address => mapping(bytes32 => bool)) public usedSalts;
 

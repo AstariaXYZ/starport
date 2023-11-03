@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import "starport-test/StarPortTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 
@@ -408,7 +408,7 @@ contract TestNewLoan is StarPortTest {
 
         (ReceivedItem[] memory settlementConsideration, address restricted) =
             SettlementHandler(activeLoan.terms.settlement).getSettlement(activeLoan);
-        settlementConsideration = StarPortLib.removeZeroAmountItems(settlementConsideration);
+        settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](
                settlementConsideration.length
              );

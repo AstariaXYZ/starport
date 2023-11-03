@@ -13,7 +13,7 @@ enum Actions {
     Settlement
 }
 
-library RefStarPortLib {
+library RefStarportLib {
     error InvalidSalt();
 
     uint256 internal constant ONE_WORD = 0x20;

@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 
 contract LenderEnforcer is CaveatEnforcer {

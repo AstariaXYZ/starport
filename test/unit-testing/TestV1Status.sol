@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/AstariaV1Test.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
@@ -13,7 +13,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
     using stdStorage for StdStorage;
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     event Recalled(uint256 loandId, address recaller, uint256 end);
     event Withdraw(uint256 loanId, address withdrawer);

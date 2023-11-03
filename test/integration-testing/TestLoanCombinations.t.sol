@@ -4,12 +4,12 @@ import "starport-test/StarPortTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarPortTest {
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
     // TODO test liquidations
 
     function testLoan721for20SimpleInterestDutchFixedRepay() public {

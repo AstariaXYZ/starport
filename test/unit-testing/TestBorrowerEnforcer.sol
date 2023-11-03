@@ -1,6 +1,6 @@
 import "starport-test/StarPortTest.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
-import {AdditionalTransfer, ItemType} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";
 

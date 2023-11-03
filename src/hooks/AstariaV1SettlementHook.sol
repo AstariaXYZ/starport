@@ -4,10 +4,10 @@ import {Starport} from "starport-core/Starport.sol";
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import "forge-std/console2.sol";
 import {BaseHook} from "starport-core/hooks/BaseHook.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 contract AstariaV1SettlementHook is BaseHook, BaseRecall {
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     constructor(Starport SP_) BaseRecall(SP_) {}
 

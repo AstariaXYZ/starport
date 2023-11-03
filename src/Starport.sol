@@ -28,8 +28,8 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -44,9 +44,9 @@ interface LoanSettledCallback {
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
-    using {StarPortLib.toReceivedItems} for SpentItem[];
-    using {StarPortLib.getId} for Starport.Loan;
-    using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
+    using {StarportLib.toReceivedItems} for SpentItem[];
+    using {StarportLib.getId} for Starport.Loan;
+    using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
@@ -193,22 +193,22 @@ contract Starport is ERC721, PausableNonReentrant {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
-        StarPortLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
+        StarportLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
 
         _callCustody(loan);
         if (feeRecipient == address(0)) {
-            StarPortLib.transferSpentItems(loan.debt, issuer, borrower, false);
+            StarportLib.transferSpentItems(loan.debt, issuer, borrower, false);
         } else {
             (SpentItem[] memory feeItems, SpentItem[] memory sentToBorrower) = _feeRake(loan.debt);
             if (feeItems.length > 0) {
-                StarPortLib.transferSpentItems(feeItems, issuer, feeRecipient, false);
+                StarportLib.transferSpentItems(feeItems, issuer, feeRecipient, false);
             }
-            StarPortLib.transferSpentItems(sentToBorrower, issuer, borrower, false);
+            StarportLib.transferSpentItems(sentToBorrower, issuer, borrower, false);
         }
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
-            StarPortLib.transferAdditionalTransfers(additionalTransfers);
+            StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
@@ -230,9 +230,9 @@ contract Starport is ERC721, PausableNonReentrant {
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
-        StarPortLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
+        StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
-            StarPortLib.transferSpentItems(carryPayment, lender, loan.originator, false);
+            StarportLib.transferSpentItems(carryPayment, lender, loan.originator, false);
         }
 
         loan.issuer = lender;
@@ -245,7 +245,7 @@ contract Starport is ERC721, PausableNonReentrant {
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
-            StarPortLib.transferAdditionalTransfers(additionalTransfers);
+            StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
@@ -408,7 +408,7 @@ contract Starport is ERC721, PausableNonReentrant {
      * @return                   The name of the contract as a string
      */
     function name() public pure override returns (string memory) {
-        return "Starport Loan Manager";
+        return "Starport Lending Kernel";
     }
 
     /**
@@ -416,7 +416,7 @@ contract Starport is ERC721, PausableNonReentrant {
      * @return                   The symbol of the contract as a string
      */
     function symbol() public pure override returns (string memory) {
-        return "SLM";
+        return "SLK";
     }
 
     /**

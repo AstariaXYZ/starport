@@ -25,7 +25,7 @@ struct AdditionalTransfer {
     uint256 amount;
 }
 
-library StarPortLib {
+library StarportLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 

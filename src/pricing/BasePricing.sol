@@ -28,12 +28,12 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 
 import {BaseHook} from "starport-core/hooks/BaseHook.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 abstract contract BasePricing is Pricing {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     struct Details {
         uint256 rate;

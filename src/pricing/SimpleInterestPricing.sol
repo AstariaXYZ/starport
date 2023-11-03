@@ -24,9 +24,9 @@ import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;
@@ -38,7 +38,7 @@ contract SimpleInterestPricing is BasePricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure override returns (uint256) {
-        return StarPortLib.calculateSimpleInterest(delta_t, amount, rate);
+        return StarportLib.calculateSimpleInterest(delta_t, amount, rate);
     }
 
     function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)

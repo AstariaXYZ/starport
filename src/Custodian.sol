@@ -33,11 +33,11 @@ import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {Starport} from "starport-core/Starport.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import "forge-std/console2.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     Starport public immutable SP;
     ConsiderationInterface public immutable seaport;
@@ -217,7 +217,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
         } else if (action == Actions.Settlement && !SettlementHook(loan.terms.status).isActive(loan)) {
@@ -226,7 +226,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
             _beforeGetSettlement(loan);
             (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
-            consideration = StarPortLib.removeZeroAmountItems(consideration);
+            consideration = StarportLib.removeZeroAmountItems(consideration);
             _afterGetSettlement(loan);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
@@ -312,11 +312,11 @@ contract Custodian is ERC721, ContractOffererInterface {
 
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-            consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
-            consideration = StarPortLib.removeZeroAmountItems(consideration);
+            consideration = StarportLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
             } else if (authorized == loan.terms.settlement || authorized == loan.issuer) {} else {

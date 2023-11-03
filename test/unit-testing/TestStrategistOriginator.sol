@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarPortTest.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
@@ -17,7 +17,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     event CounterUpdated(uint256);
     event HashInvalidated(bytes32 hash);
 
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     uint256 public borrowAmount = 100;
 

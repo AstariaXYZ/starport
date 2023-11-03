@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarPortTest.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
@@ -87,7 +87,7 @@ contract TestStarport is StarPortTest, DeepEq {
 
     Starport.Loan public activeLoan;
 
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     uint256 public borrowAmount = 100;
     MockCustodian public mockCustodian;
@@ -107,11 +107,11 @@ contract TestStarport is StarPortTest, DeepEq {
     }
 
     function testName() public {
-        assertEq(SP.name(), "Starport Loan Manager");
+        assertEq(SP.name(), "Starport Lending Kernel");
     }
 
     function testSymbol() public {
-        assertEq(SP.symbol(), "SLM");
+        assertEq(SP.symbol(), "SLK");
     }
 
     function testIncrementCaveatNonce() public {
@@ -259,7 +259,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidTransferLength.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidTransferLength.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -280,7 +280,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemAmount.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemAmount.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -300,7 +300,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
 
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemType.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemType.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -320,7 +320,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
 
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemTokenNoCode.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemTokenNoCode.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -342,7 +342,7 @@ contract TestStarport is StarPortTest, DeepEq {
         //        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         //        _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemTokenNoCode.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemTokenNoCode.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -363,7 +363,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidItemAmount.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemAmount.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }
@@ -382,7 +382,7 @@ contract TestStarport is StarPortTest, DeepEq {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
         vm.startPrank(loan.borrower);
-        vm.expectRevert(abi.encodeWithSelector(StarPortLib.InvalidTransferLength.selector));
+        vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidTransferLength.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
     }

@@ -10,12 +10,12 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for Starport.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     constructor(Starport SP_) Pricing(SP_) {}
 
