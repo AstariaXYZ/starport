@@ -28,8 +28,8 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -38,15 +38,50 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
 interface LoanSettledCallback {
-    function onLoanSettled(LoanManager.Loan calldata loan) external;
+    function onLoanSettled(Starport.Loan calldata loan) external;
 }
 
-contract LoanManager is ERC721, PausableNonReentrant {
+contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
-    using {StarPortLib.toReceivedItems} for SpentItem[];
-    using {StarPortLib.getId} for LoanManager.Loan;
-    using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
+    using {StarportLib.toReceivedItems} for SpentItem[];
+    using {StarportLib.getId} for Starport.Loan;
+    using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
+
+    enum ApprovalType {
+        NOTHING,
+        BORROWER,
+        LENDER
+    }
+    enum FieldFlags {
+        INACTIVE,
+        ACTIVE
+    }
+
+    struct Terms {
+        address status; //the address of the status module
+        bytes statusData; //bytes encoded hook data
+        address pricing; //the address o the pricing module
+        bytes pricingData; //bytes encoded pricing data
+        address settlement; //the address of the handler module
+        bytes settlementData; //bytes encoded handler data
+    }
+
+    struct Loan {
+        uint256 start; //start of the loan
+        address custodian; //where the collateral is being held
+        address borrower; //the borrower
+        address issuer; //the capital issuer/lender
+        address originator; //who originated the loan
+        SpentItem[] collateral; //array of collateral
+        SpentItem[] debt; //array of debt
+        Terms terms; //the actionable terms of the loan
+    }
+
+    struct Fee {
+        bool enabled;
+        uint88 amount;
+    }
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
@@ -66,53 +101,17 @@ contract LoanManager is ERC721, PausableNonReentrant {
     address public feeTo;
     uint88 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
-    //    mapping(address => mapping(address => bool)) public approvals;
-
-    enum ApprovalType {
-        NOTHING,
-        BORROWER,
-        LENDER
-    }
-    enum FieldFlags {
-        UNINITIALIZED,
-        ACTIVE,
-        INACTIVE
-    }
-
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => uint256) public caveatNonces;
     //contract to token //fee rake
     mapping(address => Fee) public feeOverride;
 
-    struct Terms {
-        address hook; //the address of the hookmodule
-        bytes hookData; //bytes encoded hook data
-        address pricing; //the address o the pricing module
-        bytes pricingData; //bytes encoded pricing data
-        address handler; //the address of the handler module
-        bytes handlerData; //bytes encoded handler data
-    }
-
-    struct Loan {
-        uint256 start; //start of the loan
-        address custodian; //where the collateral is being held
-        address borrower; //the borrower
-        address issuer; //the capital issuer/lender
-        address originator; //who originated the loan
-        SpentItem[] collateral; //array of collateral
-        SpentItem[] debt; //array of debt
-        Terms terms; //the actionable terms of the loan
-    }
-
-    struct Fee {
-        bool enabled;
-        uint88 amount;
-    }
-
     event Close(uint256 loanId);
-    event Open(uint256 loanId, LoanManager.Loan loan);
+    event Open(uint256 loanId, Starport.Loan loan);
     event CaveatNonceIncremented(uint256 newNonce);
     event CaveatSaltInvalidated(bytes32 invalidatedSalt);
+
+    event ApprovalSet(address indexed owner, address indexed spender, ApprovalType approvalType);
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -169,6 +168,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
 
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
+        emit ApprovalSet(msg.sender, who, approvalType);
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
@@ -179,7 +179,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
         AdditionalTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        LoanManager.Loan memory loan
+        Starport.Loan memory loan
     ) external payable pausableNonReentrant {
         //cache the addresses
         address borrower = loan.borrower;
@@ -193,46 +193,49 @@ contract LoanManager is ERC721, PausableNonReentrant {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
-        StarPortLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
+        StarportLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
 
         _callCustody(loan);
         if (feeRecipient == address(0)) {
-            StarPortLib.transferSpentItems(loan.debt, issuer, borrower, false);
+            StarportLib.transferSpentItems(loan.debt, issuer, borrower, false);
         } else {
             (SpentItem[] memory feeItems, SpentItem[] memory sentToBorrower) = _feeRake(loan.debt);
             if (feeItems.length > 0) {
-                StarPortLib.transferSpentItems(feeItems, issuer, feeRecipient, false);
+                StarportLib.transferSpentItems(feeItems, issuer, feeRecipient, false);
             }
-            StarPortLib.transferSpentItems(sentToBorrower, issuer, borrower, false);
+            StarportLib.transferSpentItems(sentToBorrower, issuer, borrower, false);
         }
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
-            StarPortLib.transferAdditionalTransfers(additionalTransfers);
+            StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
-        _issueLoanManager(loan);
+        _issueLoan(loan);
     }
 
     function refinance(
         address lender,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         bytes calldata pricingData
     ) external pausableNonReentrant {
+        if (loan.start == block.timestamp) {
+            revert InvalidLoan();
+        }
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
             AdditionalTransfer[] memory additionalTransfers
-        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, msg.sender);
+        ) = Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, msg.sender);
 
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
-        StarPortLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
+        StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
-            StarPortLib.transferSpentItems(carryPayment, lender, loan.originator, false);
+            StarportLib.transferSpentItems(carryPayment, lender, loan.originator, false);
         }
 
         loan.issuer = lender;
@@ -245,19 +248,19 @@ contract LoanManager is ERC721, PausableNonReentrant {
 
         if (additionalTransfers.length > 0) {
             _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
-            StarPortLib.transferAdditionalTransfers(additionalTransfers);
+            StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
         //sets originator and start time
-        _issueLoanManager(loan);
+        _issueLoan(loan);
     }
 
     function applyRefinanceConsiderationToLoan(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
         bytes memory pricingData
-    ) public pure returns (LoanManager.Loan memory) {
+    ) public pure returns (Starport.Loan memory) {
         if (
             considerationPayment.length == 0
                 || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length)
@@ -292,7 +295,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
      * the same codehash as the default custodian
      * @param loan                  The loan being placed into custody
      */
-    function _callCustody(LoanManager.Loan memory loan) internal {
+    function _callCustody(Starport.Loan memory loan) internal {
         address custodian = loan.custodian;
         // Comparing the retrieved code hash with a known hash
         bytes32 codeHash;
@@ -349,7 +352,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
         CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
-        LoanManager.Loan memory loan
+        Starport.Loan memory loan
     ) internal {
         bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
         invalidHashes.validateSalt(validator, caveatApproval.salt);
@@ -408,7 +411,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
      * @return                   The name of the contract as a string
      */
     function name() public pure override returns (string memory) {
-        return "Starport Loan Manager";
+        return "Starport Lending Kernel";
     }
 
     /**
@@ -416,7 +419,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
      * @return                   The symbol of the contract as a string
      */
     function symbol() public pure override returns (string memory) {
-        return "SLM";
+        return "SLK";
     }
 
     /**
@@ -463,7 +466,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
 
     function _settle(Loan memory loan) internal {
         uint256 tokenId = loan.getId();
-        if (!active(tokenId)) {
+        if (inactive(tokenId)) {
             revert InvalidLoan();
         }
         if (_exists(tokenId)) {
@@ -544,27 +547,19 @@ contract LoanManager is ERC721, PausableNonReentrant {
         }
     }
 
-    function _issued(uint256 loanId) internal view returns (bool) {
-        return (_getExtraData(loanId) > uint8(0));
-    }
-
-    function getExtraData(uint256 loanId) public view returns (uint8 extraData) {
-        return uint8(_getExtraData(loanId));
-    }
-
     /**
      * @dev issues a LM token if needed
      * only owner can call
      * @param loan  the loan to issue
      */
-    function _issueLoanManager(Loan memory loan) internal {
+    function _issueLoan(Loan memory loan) internal {
         loan.start = block.timestamp;
         loan.originator = msg.sender;
 
         bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = loan.getId();
-        if (_issued(loanId)) {
+        if (active(loanId)) {
             revert LoanExists();
         }
         _setExtraData(loanId, uint8(FieldFlags.ACTIVE));

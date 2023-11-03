@@ -1,21 +1,21 @@
 import "forge-std/console2.sol";
-import "starport-test/StarPortTest.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import "starport-test/StarportTest.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 
-contract TestSimpleInterestPricing is StarPortTest, DeepEq {
+contract TestSimpleInterestPricing is StarportTest, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
-    LoanManager.Loan public targetLoan;
+    Starport.Loan public targetLoan;
 
     function setUp() public override {
         super.setUp();
@@ -26,7 +26,7 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
         SpentItem[] memory newDebt = new SpentItem[](1);
         newDebt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), identifier: 0, amount: 100});
 
-        LoanManager.Loan memory loan = LoanManager.Loan({
+        Starport.Loan memory loan = Starport.Loan({
             start: 0,
             custodian: address(custodian),
             borrower: borrower.addr,
@@ -34,17 +34,17 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
             originator: address(0),
             collateral: newCollateral,
             debt: newDebt,
-            terms: LoanManager.Terms({
-                hook: address(hook),
-                handler: address(handler),
+            terms: Starport.Terms({
+                status: address(hook),
+                settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: abi.encode(
                     BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
                     ),
-                handlerData: abi.encode(
-                    DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
+                settlementData: abi.encode(
+                    DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
                     ),
-                hookData: abi.encode(FixedTermHook.Details({loanDuration: 14 days}))
+                statusData: abi.encode(FixedTermStatus.Details({loanDuration: 14 days}))
             })
         });
 
@@ -52,7 +52,7 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
     }
 
     function test_getPaymentConsideration() public {
-        SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
+        SimpleInterestPricing simplePricing = new SimpleInterestPricing(SP);
 
         SpentItem[] memory repayConsideration;
         SpentItem[] memory repayCarryConsideration;
@@ -86,7 +86,7 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
     }
 
     function test_calculateInterest() public {
-        SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
+        SimpleInterestPricing simplePricing = new SimpleInterestPricing(SP);
 
         uint256 amount = 100;
         uint256 rate = (uint256(1e16) * 150) / (365 * 1 days);
@@ -110,12 +110,12 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
         simplePricing.calculateInterest(time, amount, rate - (rate * 2));
     }
 
-    function test_isValidRefinance() public {
-        SimpleInterestPricing simplePricing = new SimpleInterestPricing(LM);
+    function test_getRefinanceConsideration() public {
+        SimpleInterestPricing simplePricing = new SimpleInterestPricing(SP);
 
         uint256 baseRate = (uint256(1e16) * 150) / (365 * 1 days);
 
-        simplePricing.isValidRefinance(
+        simplePricing.getRefinanceConsideration(
             targetLoan,
             abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2})),
             address(0)
@@ -123,7 +123,7 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
 
         vm.expectRevert(bytes4(keccak256("InvalidRefinance()")));
 
-        simplePricing.isValidRefinance(
+        simplePricing.getRefinanceConsideration(
             targetLoan,
             abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2})),
             address(0)

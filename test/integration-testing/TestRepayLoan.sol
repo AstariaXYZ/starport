@@ -1,27 +1,27 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {ZoneInteractionErrors} from "seaport-types/src/interfaces/ZoneInteractionErrors.sol";
 import "forge-std/console2.sol";
 
-contract TestRepayLoan is StarPortTest {
+contract TestRepayLoan is StarportTest {
     using FixedPointMathLib for uint256;
 
     function testRepayLoanBase() public {
         uint256 borrowAmount = 1e18;
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
 
         vm.startPrank(borrower.addr);
@@ -29,23 +29,23 @@ contract TestRepayLoan is StarPortTest {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-        erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         _repayLoan(loan, loan.borrower);
     }
 
     function testRepayLoanInvalidRepayer() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
         {
@@ -53,7 +53,7 @@ contract TestRepayLoan is StarPortTest {
             BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             uint256 interest =
                 SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-            erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+            erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
 
             uint256 balance = erc20s[0].balanceOf(address(this));
             // ensure the InvalidRepayer has enough to repay
@@ -64,7 +64,7 @@ contract TestRepayLoan is StarPortTest {
 
         // test a direct call to the generateOrder method as Seaport because fulfillAdvanceOrder swallows the revert reason
         {
-            vm.startPrank(address(LM.seaport()));
+            vm.startPrank(address(SP.seaport()));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
             custodian.generateOrder(
                 address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
@@ -73,7 +73,7 @@ contract TestRepayLoan is StarPortTest {
         }
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(LM.seaport()),
+            address(SP.seaport()),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -104,16 +104,16 @@ contract TestRepayLoan is StarPortTest {
 
     function testRepayLoanApprovedRepayer() public {
         uint256 borrowAmount = 1e18;
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
 
         vm.startPrank(borrower.addr);
@@ -121,7 +121,7 @@ contract TestRepayLoan is StarPortTest {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-        erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         custodian.setRepayApproval(address(this), true);
         vm.stopPrank();
 
@@ -130,16 +130,16 @@ contract TestRepayLoan is StarPortTest {
 
     // calling generateOrder on the Custodian to test the onlySeaport modifier
     function testRepayLoanGenerateOrderNotSeaport() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
         {
@@ -154,16 +154,16 @@ contract TestRepayLoan is StarPortTest {
 
     function testRepayLoanInSettlement() public {
         uint256 borrowAmount = 1e18;
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
 
         vm.startPrank(borrower.addr);
@@ -171,12 +171,12 @@ contract TestRepayLoan is StarPortTest {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-        erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(LM.seaport()),
+            address(SP.seaport()),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -196,7 +196,7 @@ contract TestRepayLoan is StarPortTest {
 
         // call directly as Seaport ensure InvalidAction is revert reason
         {
-            vm.startPrank(address(LM.seaport()));
+            vm.startPrank(address(SP.seaport()));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
             custodian.generateOrder(
                 loan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
@@ -219,16 +219,16 @@ contract TestRepayLoan is StarPortTest {
 
     function testRepayLoanThatDoesNotExist() public {
         uint256 borrowAmount = 1e18;
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
 
         vm.startPrank(borrower.addr);
@@ -236,12 +236,12 @@ contract TestRepayLoan is StarPortTest {
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
-        erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(LM.seaport()),
+            address(SP.seaport()),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -268,8 +268,8 @@ contract TestRepayLoan is StarPortTest {
 
         // call directly as Seaport ensure InvalidAction is revert reason
         {
-            vm.startPrank(address(LM.seaport()));
-            vm.expectRevert(abi.encodeWithSelector(LoanManager.InvalidLoan.selector));
+            vm.startPrank(address(SP.seaport()));
+            vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoan.selector));
             custodian.generateOrder(
                 loan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
             );
@@ -277,7 +277,7 @@ contract TestRepayLoan is StarPortTest {
         }
 
         vm.startPrank(loan.borrower);
-        erc20s[0].approve(address(LM.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         bytes32 orderHash = getOrderHash(address(custodian));
         vm.expectRevert(abi.encodeWithSelector(ZoneInteractionErrors.InvalidContractOrder.selector, orderHash));
         consideration.fulfillAdvancedOrder({

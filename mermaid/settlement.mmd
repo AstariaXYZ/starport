@@ -4,15 +4,15 @@ sequenceDiagram
 
     F->>Seaport: fulfillAdvancedOrder/matchAdvancedOrder
     Seaport->>Custodian: generateOrder
-    Custodian->>SettlementHook: isActive
-    SettlementHook->>Custodian: (true/false)
-    alt Action is Repayment and SettlementHook is Active
+    Custodian->>Status: isActive
+    Status->>Custodian: (true/false)
+    alt Action is Repayment and Status is Active
         Custodian->>Custodian: _beforeApprovalsSetHook
         Custodian->>Custodian: _setOfferApprovalsWithSeaport
         Custodian->>Pricing: getPaymentConsideration
         Pricing->>Custodian: (SpentItem[] payment, SpentItem[] carry)
         Custodian->>LoanManager: settle loan
-    else Action Settlement and Custodian->>SettlementHook: isActive is false
+    else Action Settlement and Custodian->>Status: isActive is false
         Custodian->>Custodian: _beforeGetSettlement
         Custodian->>SettlementHandler: getSettlement
         SettlementHandler->>Custodian: (ReceivedItem[] consideration, address authorized)

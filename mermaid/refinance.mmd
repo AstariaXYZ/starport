@@ -7,7 +7,7 @@ sequenceDiagram
 
 
     F->>LoanManager: refinance
-    LoanManager->>Pricing: isValidRefinance
+    LoanManager->>Pricing: getRefinanceConsideration
     Pricing->>LoanManager: (SpentItem[] ConsiderPayment, SpentItem[] CarryPayment, AdditionalTransfer[] AT)
 
     LoanManager->>LoanManager: settle loan

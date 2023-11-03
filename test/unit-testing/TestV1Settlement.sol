@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/AstariaV1Test.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
@@ -9,84 +9,85 @@ import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import "forge-std/console2.sol";
 
-contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
+contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarportLib.getId} for Starport.Loan;
     // recaller is not the lender, liquidation amount is a dutch auction
 
     function testGetSettlementFailedDutchAuction() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
         vm.mockCall(
-            address(loan.terms.hook),
+            address(loan.terms.status),
             abi.encodeWithSelector(recallsSelector, loanId),
             abi.encode(address(this), uint64(2))
         );
-        uint256 auctionStart = AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan);
-        DutchAuctionHandler.Details memory details = abi.decode(loan.terms.handlerData, (DutchAuctionHandler.Details));
+        uint256 auctionStart = AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan);
+        DutchAuctionSettlement.Details memory details =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
 
         vm.warp(auctionStart + details.window + 5);
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            SettlementHandler(loan.terms.handler).getSettlement(loan);
+            Settlement(loan.terms.settlement).getSettlement(loan);
         assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
         assertEq(restricted, address(loan.issuer), "Restricted address should be loan.issuer");
     }
 
     function testGetSettlementLoanNotRecalled() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.LoanNotRecalled.selector));
-        SettlementHandler(loan.terms.handler).getSettlement(loan);
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.LoanNotRecalled.selector));
+        Settlement(loan.terms.settlement).getSettlement(loan);
     }
 
     function testGetSettlementDutchAuctionSettlementAbove() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
         vm.mockCall(
-            address(loan.terms.hook),
+            address(loan.terms.status),
             abi.encodeWithSelector(recallsSelector, loanId),
             abi.encode(address(this), uint64(2))
         );
 
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
 
-        vm.warp(AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan));
+        vm.warp(AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan));
         skip(7 days - 1300);
-        uint256 currentAuctionPrice = AstariaV1SettlementHandler(loan.terms.handler).getCurrentAuctionPrice(loan);
+        uint256 currentAuctionPrice = AstariaV1Settlement(loan.terms.settlement).getCurrentAuctionPrice(loan);
 
         vm.mockCall(
             loan.terms.pricing,
@@ -100,8 +101,8 @@ contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
             BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            SettlementHandler(loan.terms.handler).getSettlement(loan);
-        BaseRecall.Details memory hookDetails = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            Settlement(loan.terms.settlement).getSettlement(loan);
+        BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
         assertEq(settlementConsideration[0].amount, carry, "Settlement 0 (originator payment) incorrect");
         assertEq(
@@ -119,143 +120,143 @@ contract TestAstariaV1Handler is AstariaV1Test, DeepEq {
     }
 
     function testGetAuctionStartNotStarted() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.LoanNotRecalled.selector));
-        AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan);
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.LoanNotRecalled.selector));
+        AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan);
     }
 
     function testGetAuctionStart() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
         uint256 recallStart = uint256(2);
         vm.mockCall(
-            address(loan.terms.hook),
+            address(loan.terms.status),
             abi.encodeWithSelector(recallsSelector, loanId),
             abi.encode(address(this), recallStart)
         );
 
-        BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
         uint256 auctionStart = recallStart + details.recallWindow + 1;
 
         assertEq(
-            auctionStart, AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan), "start times dont match"
+            auctionStart, AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan), "start times dont match"
         );
     }
 
     function testGetCurrentAuctionPrice() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
         bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
         vm.mockCall(
-            address(loan.terms.hook),
+            address(loan.terms.status),
             abi.encodeWithSelector(recallsSelector, loanId),
             abi.encode(address(this), uint64(2))
         );
 
-        DutchAuctionHandler.Details memory handlerDetails =
-            abi.decode(loan.terms.handlerData, (DutchAuctionHandler.Details));
+        DutchAuctionSettlement.Details memory handlerDetails =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
 
-        vm.warp(AstariaV1SettlementHandler(loan.terms.handler).getAuctionStart(loan));
+        vm.warp(AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan));
         skip(7 days);
-        uint256 currentAuctionPrice = AstariaV1SettlementHandler(loan.terms.handler).getCurrentAuctionPrice(loan);
+        uint256 currentAuctionPrice = AstariaV1Settlement(loan.terms.settlement).getCurrentAuctionPrice(loan);
 
         assertEq(currentAuctionPrice, handlerDetails.endingPrice);
     }
 
     function testGetCurrentAuctionPriceNoAuction() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.NoAuction.selector));
-        uint256 currentAuctionPrice = AstariaV1SettlementHandler(loan.terms.handler).getCurrentAuctionPrice(loan);
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.NoAuction.selector));
+        uint256 currentAuctionPrice = AstariaV1Settlement(loan.terms.settlement).getCurrentAuctionPrice(loan);
     }
 
     function testV1SettlementHandlerExecute() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.ExecuteHandlerNotImplemented.selector));
-        AstariaV1SettlementHandler(loan.terms.handler).execute(loan, address(this));
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.ExecuteHandlerNotImplemented.selector));
+        AstariaV1Settlement(loan.terms.settlement).execute(loan, address(this));
     }
 
     function testV1SettlementHandlerValidate() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        assert(AstariaV1SettlementHandler(loan.terms.handler).validate(loan));
+        assert(AstariaV1Settlement(loan.terms.settlement).validate(loan));
     }
 
     function testV1SettlementHandlerValidateInvalidHandler() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        address handler = loan.terms.handler;
-        loan.terms.handler = address(0);
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1SettlementHandler.InvalidHandler.selector));
-        AstariaV1SettlementHandler(handler).validate(loan);
+        address settlement = loan.terms.settlement;
+        loan.terms.settlement = address(0);
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.InvalidHandler.selector));
+        AstariaV1Settlement(settlement).validate(loan);
     }
 }

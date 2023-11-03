@@ -1,8 +1,8 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
-import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 
@@ -52,32 +52,32 @@ contract FlashLoan {
     }
 }
 
-contract TestNewLoan is StarPortTest {
-    function testNewLoanERC721CollateralDefaultTerms2() public returns (LoanManager.Loan memory) {
-        Custodian custody = Custodian(LM.defaultCustodian());
+contract TestNewLoan is StarportTest {
+    function testNewLoanERC721CollateralDefaultTerms2() public returns (Starport.Loan memory) {
+        Custodian custody = Custodian(SP.defaultCustodian());
 
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
         return _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
     }
 
-    function testNewLoanERC721CollateralLessDebtThanOffered() public returns (LoanManager.Loan memory) {
-        // Custodian custody = Custodian(LM.defaultCustodian());
+    function testNewLoanERC721CollateralLessDebtThanOffered() public returns (Starport.Loan memory) {
+        // Custodian custody = Custodian(SP.defaultCustodian());
 
-        // LoanManager.Terms memory terms = LoanManager.Terms({
-        //     hook: address(hook),
-        //     handler: address(handler),
+        // Starport.Terms memory terms = Starport.Terms({
+        //     status: address(hook),
+        //     settlement: address(settlement),
         //     pricing: address(pricing),
         //     pricingData: defaultPricingData,
-        //     handlerData: defaultHandlerData,
-        //     hookData: defaultHookData
+        //     settlementData: defaultSettlementData,
+        //     statusData: defaultStatusData
         // });
 
         // selectedCollateral.push(
@@ -109,10 +109,10 @@ contract TestNewLoan is StarPortTest {
         // TermEnforcer TE = new TermEnforcer();
 
         // TermEnforcer.Details memory TEDetails =
-        //     TermEnforcer.Details({pricing: address(pricing), hook: address(hook), handler: address(handler)});
+        //     TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(settlement)});
 
-        // LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-        // caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
+        // Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+        // caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
         // return newLoan(
         //     NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
@@ -135,8 +135,8 @@ contract TestNewLoan is StarPortTest {
         //     lender.addr
         // );
 
-        // LoanManager.Loan memory loan = newLoan(
-        //     NewLoanData(address(loanDetails.custodian), new LoanManager.Caveat[](0), abi.encode(loanDetails)),
+        // Starport.Loan memory loan = newLoan(
+        //     NewLoanData(address(loanDetails.custodian), new Starport.Caveat[](0), abi.encode(loanDetails)),
         //     StrategistOriginator(SO),
         //     selectedCollateral
         // );
@@ -204,7 +204,7 @@ contract TestNewLoan is StarPortTest {
             consideration, seller.key, consideration.getOrderHash(OrderParametersLib.toOrderComponents(thingToSell, 0))
         );
 
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         loan.collateral[0].token = sellingNFT[0].token;
         loan.collateral[0].identifier = sellingNFT[0].identifierOrCriteria;
@@ -244,7 +244,7 @@ contract TestNewLoan is StarPortTest {
         vm.etch(balancerVault, address(new FlashLoan()).code);
         deal(address(erc20s[0]), balancerVault, type(uint128).max);
         {
-            LoanManager.Loan memory loan2 = loan;
+            Starport.Loan memory loan2 = loan;
             bytes32 buyingHash2 = buyingHash;
             Fulfillment[] memory fill = new Fulfillment[](2);
             fill[0] = Fulfillment({
@@ -273,7 +273,7 @@ contract TestNewLoan is StarPortTest {
                 amounts,
                 abi.encode(
                     BNPLHelper.Execution({
-                        lm: address(LM),
+                        lm: address(SP),
                         seaport: address(seaport),
                         borrower: borrower.addr,
                         borrowerCaveat: signCaveatForAccount(
@@ -311,10 +311,10 @@ contract TestNewLoan is StarPortTest {
     }
 
     function testNewLoanViaOriginatorLenderApproval() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -334,7 +334,7 @@ contract TestNewLoan is StarPortTest {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.prank(borrower.addr);
         SO.originate(
             Originator.Request({
@@ -348,14 +348,14 @@ contract TestNewLoan is StarPortTest {
         );
         assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
         assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
-        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(LM.defaultCustodian()));
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(SP.defaultCustodian()));
     }
 
     function testNewLoanViaOriginatorBorrowerApprovalAndLenderApproval() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -375,9 +375,9 @@ contract TestNewLoan is StarPortTest {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         vm.prank(borrower.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.BORROWER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.BORROWER);
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.prank(borrower.addr);
         SO.originate(
             Originator.Request({
@@ -391,14 +391,14 @@ contract TestNewLoan is StarPortTest {
         );
         assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
         assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
-        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(LM.defaultCustodian()));
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(SP.defaultCustodian()));
     }
 
     event log_receivedItems(ReceivedItem[] items);
 
     function testSettleLoan() public {
         //     //default is 14 day term
-        LoanManager.Loan memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
+        Starport.Loan memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
 
         skip(14 days);
 
@@ -407,8 +407,8 @@ contract TestNewLoan is StarPortTest {
         );
 
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            SettlementHandler(activeLoan.terms.handler).getSettlement(activeLoan);
-        settlementConsideration = StarPortLib.removeZeroAmountItems(settlementConsideration);
+            Settlement(activeLoan.terms.settlement).getSettlement(activeLoan);
+        settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](
                settlementConsideration.length
              );

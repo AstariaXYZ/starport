@@ -1,10 +1,10 @@
-import "starport-test/StarPortTest.sol";
+import "starport-test/StarportTest.sol";
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
-import {AdditionalTransfer, ItemType} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";
 
-contract TestLenderEnforcer is StarPortTest {
+contract TestLenderEnforcer is StarportTest {
     function testLERevertAdditionalTransfersFromLender() external {
         AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
         additionalTransfers[0] = AdditionalTransfer({
@@ -16,14 +16,14 @@ contract TestLenderEnforcer is StarPortTest {
             itemType: ItemType.ERC20
         });
 
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         vm.expectRevert(LenderEnforcer.InvalidAdditionalTransfer.selector);
         lenderEnforcer.validate(additionalTransfers, loan, abi.encode(LenderEnforcer.Details({loan: loan})));
     }
 
     function testLERevertInvalidLoanTerms() external {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: loan});
         details.loan.custodian = borrower.addr;
@@ -42,17 +42,17 @@ contract TestLenderEnforcer is StarPortTest {
             identifier: 0,
             itemType: ItemType.ERC20
         });
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         lenderEnforcer.validate(additionalTransfers, loan, abi.encode(LenderEnforcer.Details({loan: loan})));
     }
 
     function testLEValidLoanTerms() external view {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(LenderEnforcer.Details({loan: loan})));
     }
 
     function testLEValidLoanTermsAnyBorrower() external view {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: loan});
         details.loan.borrower = address(0);
 

@@ -8,7 +8,7 @@ import { ERC20__factory } from "../typechain-types/factories/lib/solady/src/toke
 describe("Loan Open Benchmarks", function () {
   it("", async function () {
     // one year in the future
-    //    const lm = await ethers.getContractFactoryFromArtifact("LoanManager.sol");
+    //    const lm = await ethers.getContractFactoryFromArtifact("Starport.sol");
   });
 });
 
@@ -29,7 +29,7 @@ async function setUp() {
     consideration.address
   );
   const uniqueOriginator = await new UniqueOriginator__factory(lender).deploy(
-    loanManager.address,
+    Starport.address,
     conduitController.address,
     strategist.address,
     0

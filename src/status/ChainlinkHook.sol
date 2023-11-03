@@ -1,25 +1,25 @@
 //// SPDX-License-Identifier: MIT
 //pragma solidity ^0.8.17;
 //
-//import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+//import {Status} from "starport-core/status/Status.sol";
 //import {Pricing} from "starport-core/pricing/Pricing.sol";
 //import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-//import {LoanManager} from "starport-core/LoanManager.sol";
+//import {Starport} from "starport-core/Starport.sol";
 //import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 //
-//contract ChainlinkHook is SettlementHook {
+//contract ChainlinkHook is Status {
 //  struct Details {
 //    address feed;
 //    uint256 ltvRatio;
 //  }
 //
 //  function isActive(
-//    LoanManager.Loan calldata loan
+//    Starport.Loan calldata loan
 //  ) external override returns (bool) {
 //    //get the
 //    ReceivedItem[] memory owing = Pricing(loan.terms.pricing)
 //      .getPaymentConsideration(loan);
-//    Details memory details = abi.decode(loan.terms.hookData, (Details));
+//    Details memory details = abi.decode(loan.terms.statusData, (Details));
 //    int256 nftFloorPrice = _getLatestPrice(details);
 //    uint256 floor = uint256(nftFloorPrice) * (10 ** (18 - 8));
 //    //compare whats owing to the ltv trigger for liquidation

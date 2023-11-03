@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 import {ItemType, SpentItem, ReceivedItem, ConsiderationItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 import "forge-std/Test.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 library Cast {
     function toUint(uint8 input) internal pure returns (uint256 ret) {
@@ -43,7 +43,7 @@ library Cast {
         }
     }
 
-    function toStorage(LoanManager.Loan memory a, LoanManager.Loan storage b) internal {
+    function toStorage(Starport.Loan memory a, Starport.Loan storage b) internal {
         b.start = a.start;
         b.custodian = a.custodian;
         b.borrower = a.borrower;
@@ -62,8 +62,8 @@ library Cast {
         return b;
     }
 
-    function toMemory(LoanManager.Loan storage a) internal view returns (LoanManager.Loan memory) {
-        LoanManager.Loan memory b = LoanManager.Loan({
+    function toMemory(Starport.Loan storage a) internal view returns (Starport.Loan memory) {
+        Starport.Loan memory b = Starport.Loan({
             start: a.start,
             custodian: a.custodian,
             borrower: a.borrower,

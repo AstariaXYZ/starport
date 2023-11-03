@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import "forge-std/console.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
@@ -25,7 +25,7 @@ struct AdditionalTransfer {
     uint256 amount;
 }
 
-library StarPortLib {
+library StarportLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
@@ -55,7 +55,7 @@ library StarPortLib {
         }
     }
 
-    function getId(LoanManager.Loan memory loan) internal pure returns (uint256 loanId) {
+    function getId(Starport.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
     }
 

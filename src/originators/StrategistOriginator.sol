@@ -20,10 +20,10 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
@@ -48,7 +48,7 @@ contract StrategistOriginator is Ownable, Originator {
 
     struct Offer {
         bytes32 salt; //can be bytes32(0) if so do not invalidate the hash
-        LoanManager.Terms terms;
+        Starport.Terms terms;
         SpentItem[] collateral;
         SpentItem[] debt;
     }
@@ -57,7 +57,7 @@ contract StrategistOriginator is Ownable, Originator {
 
     event HashInvalidated(bytes32 hash);
 
-    error NotLoanManager();
+    error NotStarport();
     error NotAuthorized();
     error InvalidDebt();
     error InvalidDebtLength();
@@ -69,7 +69,7 @@ contract StrategistOriginator is Ownable, Originator {
     error InvalidSigner();
     error AdditionalTransferError();
 
-    LoanManager public immutable LM;
+    Starport public immutable SP;
 
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 constant EIP_DOMAIN = keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
@@ -83,11 +83,11 @@ contract StrategistOriginator is Ownable, Originator {
     uint256 public strategistFee;
     uint256 private _counter;
 
-    constructor(LoanManager LM_, address strategist_, uint256 fee_, address owner) {
+    constructor(Starport SP_, address strategist_, uint256 fee_, address owner) {
         _initializeOwner(owner);
         strategist = strategist_;
         strategistFee = fee_;
-        LM = LM_;
+        SP = SP_;
         _DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 EIP_DOMAIN,
@@ -136,7 +136,7 @@ contract StrategistOriginator is Ownable, Originator {
         Details memory details = abi.decode(params.details, (Details));
         _validateOffer(params, details);
 
-        LoanManager.Loan memory loan = LoanManager.Loan({
+        Starport.Loan memory loan = Starport.Loan({
             start: uint256(0), // are set in the loan manager
             originator: address(0), // are set in the loan manager
             custodian: details.custodian,
@@ -148,7 +148,7 @@ contract StrategistOriginator is Ownable, Originator {
         });
 
         CaveatEnforcer.CaveatWithApproval memory le;
-        LM.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
+        SP.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
     }
 
     function _validateAsk(Request calldata request, Details memory details) internal virtual {

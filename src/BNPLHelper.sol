@@ -10,10 +10,10 @@ import {
     ItemType,
     Fulfillment
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {Seaport} from "seaport/contracts/Seaport.sol";
-import {LoanManager} from "./LoanManager.sol";
+import {Starport} from "./Starport.sol";
 import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import "forge-std/console.sol";
 
@@ -60,7 +60,7 @@ contract BNPLHelper is IFlashLoanRecipient {
         address borrower;
         CaveatEnforcer.CaveatWithApproval borrowerCaveat;
         CaveatEnforcer.CaveatWithApproval lenderCaveat;
-        LoanManager.Loan loan;
+        Starport.Loan loan;
         AdvancedOrder[] orders;
         CriteriaResolver[] resolvers;
         Fulfillment[] fulfillments;
@@ -127,7 +127,7 @@ contract BNPLHelper is IFlashLoanRecipient {
                 ++i;
             }
         }
-        LoanManager(execution.lm).originate(transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan);
+        Starport(execution.lm).originate(transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan);
     }
 
     receive() external payable {

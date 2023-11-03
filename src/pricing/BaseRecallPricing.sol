@@ -20,20 +20,20 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {Status} from "starport-core/status/Status.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 
-import {BaseHook} from "starport-core/hooks/BaseHook.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {BaseStatus} from "starport-core/status/BaseStatus.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 abstract contract BaseRecallPricing is BasePricing {
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual
@@ -46,7 +46,7 @@ abstract contract BaseRecallPricing is BasePricing {
     {
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
         Details memory newDetails = abi.decode(newPricingData, (Details));
-        bool isRecalled = BaseHook(loan.terms.hook).isRecalled(loan);
+        bool isRecalled = BaseStatus(loan.terms.status).isRecalled(loan);
 
         //todo: figure out the proper flow for here
         if ((isRecalled && newDetails.rate >= oldDetails.rate) || (newDetails.rate < oldDetails.rate)) {

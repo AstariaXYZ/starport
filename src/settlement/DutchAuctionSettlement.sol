@@ -11,13 +11,13 @@ import {
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {LoanManager, SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
+import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
-abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
-    constructor(LoanManager LM_) SettlementHandler(LM_) {
-        LM = LM_;
+abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
+    constructor(Starport SP_) Settlement(SP_) {
+        SP = SP_;
     }
 
     using FixedPointMathLib for uint256;
@@ -30,20 +30,20 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
         uint256 window;
     }
 
-    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        return SettlementHandler.execute.selector;
+    function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return Settlement.execute.selector;
     }
 
-    function getAuctionStart(LoanManager.Loan calldata loan) public view virtual returns (uint256);
+    function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
 
-    function getSettlement(LoanManager.Loan calldata loan)
+    function getSettlement(Starport.Loan calldata loan)
         public
         view
         virtual
         override
         returns (ReceivedItem[] memory consideration, address restricted)
     {
-        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
 
         uint256 start = getAuctionStart(loan);
 
@@ -90,8 +90,8 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
         });
     }
 
-    function validate(LoanManager.Loan calldata loan) external view virtual override returns (bool) {
-        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
         return details.startingPrice > details.endingPrice;
     }
 }

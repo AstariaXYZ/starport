@@ -20,9 +20,9 @@
  */
 pragma solidity ^0.8.17;
 
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Status} from "starport-core/status/Status.sol";
+import {Starport} from "starport-core/Starport.sol";
 
-abstract contract BaseHook is SettlementHook {
-    function isRecalled(LoanManager.Loan calldata loan) external view virtual returns (bool);
+abstract contract BaseStatus is Status {
+    function isRecalled(Starport.Loan calldata loan) external view virtual returns (bool);
 }

@@ -1,27 +1,27 @@
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHook.sol";
+import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
 
-import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
+import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
-    constructor(LoanManager LM_) Pricing(LM_) {}
+    constructor(Starport SP_) Pricing(SP_) {}
 
     error InsufficientRefinance();
 
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual
@@ -33,9 +33,9 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         )
     {
         // borrowers can refinance a loan at any time
-        if (caller != loan.borrower) {
+        if (fulfiller != loan.borrower) {
             // check if a recall is occuring
-            AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);
+            AstariaV1Status hook = AstariaV1Status(loan.terms.status);
             Details memory newDetails = abi.decode(newPricingData, (Details));
             if (hook.isRecalled(loan)) {
                 uint256 rate = hook.getRecallRate(loan);
@@ -64,7 +64,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 // split is proportional to the difference in rate
                 proportion = 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
-            recallConsideration = hook.generateRecallConsideration(loan, proportion, caller, receiver);
+            recallConsideration = hook.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);

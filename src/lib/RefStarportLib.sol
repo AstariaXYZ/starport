@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import "forge-std/console.sol";
 
 enum Actions {
@@ -13,7 +13,7 @@ enum Actions {
     Settlement
 }
 
-library RefStarPortLib {
+library RefStarportLib {
     error InvalidSalt();
 
     uint256 internal constant ONE_WORD = 0x20;

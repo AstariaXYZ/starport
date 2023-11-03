@@ -20,27 +20,27 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
+import {Status} from "starport-core/status/Status.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 
-import {BaseHook} from "starport-core/hooks/BaseHook.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {BaseStatus} from "starport-core/status/BaseStatus.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 abstract contract BasePricing is Pricing {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarportLib.getId} for Starport.Loan;
 
     struct Details {
         uint256 rate;
         uint256 carryRate;
     }
 
-    function getPaymentConsideration(LoanManager.Loan memory loan)
+    function getPaymentConsideration(Starport.Loan memory loan)
         public
         view
         virtual
@@ -83,7 +83,7 @@ abstract contract BasePricing is Pricing {
         }
     }
 
-    function getInterest(LoanManager.Loan memory loan, uint256 rate, uint256 start, uint256 end, uint256 index)
+    function getInterest(Starport.Loan memory loan, uint256 rate, uint256 start, uint256 end, uint256 index)
         public
         pure
         returns (uint256)

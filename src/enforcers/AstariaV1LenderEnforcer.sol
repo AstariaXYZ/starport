@@ -1,11 +1,11 @@
 pragma solidity ^0.8.17;
 
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import "forge-std/console2.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
@@ -27,7 +27,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
-        LoanManager.Loan calldata loan,
+        Starport.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
@@ -41,7 +41,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         }
 
         // calculate interest for 1 second of time
-        uint256 interest = StarPortLib.calculateCompoundInterest(1, loan.debt[0].amount, pricingDetails.rate);
+        uint256 interest = StarportLib.calculateCompoundInterest(1, loan.debt[0].amount, pricingDetails.rate);
         if (interest == 0) {
             // interest does not accrue at least 1 wei per second
             revert InterestAccrualRoundingMinimum();
