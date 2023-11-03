@@ -87,6 +87,7 @@ contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
 
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
+        vm.roll(5);
         vm.prank(borrower.addr);
         LM.incrementCaveatNonce();
 

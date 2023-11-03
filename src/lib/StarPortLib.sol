@@ -213,6 +213,36 @@ library StarPortLib {
         }
     }
 
+    function removeZeroAmountItems(ReceivedItem[] memory consideration)
+        internal
+        view
+        returns (ReceivedItem[] memory newConsideration)
+    {
+        uint256 j = 0;
+        newConsideration = new ReceivedItem[](consideration.length);
+        for (uint256 i = 0; i < consideration.length;) {
+            if (consideration[i].amount > 0) {
+                newConsideration[j] = ReceivedItem({
+                    itemType: consideration[i].itemType,
+                    identifier: consideration[i].identifier,
+                    amount: consideration[i].amount,
+                    token: consideration[i].token,
+                    recipient: consideration[i].recipient
+                });
+
+                unchecked {
+                    j++;
+                }
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        assembly {
+            mstore(newConsideration, j)
+        }
+    }
+
     function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
         uint256 amount = 0;

@@ -27,17 +27,10 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
-import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
-import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
-import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
-import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 import {Custodian} from "starport-core/Custodian.sol";
-import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
@@ -118,6 +111,8 @@ contract LoanManager is ERC721, PausableNonReentrant {
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
+    event CaveatNonceIncremented(uint256 newNonce);
+    event CaveatSaltInvalidated(bytes32 invalidatedSalt);
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -454,11 +449,14 @@ contract LoanManager is ERC721, PausableNonReentrant {
     }
 
     function incrementCaveatNonce() external {
-        ++caveatNonces[msg.sender];
+        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
+        caveatNonces[msg.sender] = newNonce;
+        emit CaveatNonceIncremented(newNonce);
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
         invalidHashes[msg.sender][salt] = true;
+        emit CaveatSaltInvalidated(salt);
     }
 
     /**
