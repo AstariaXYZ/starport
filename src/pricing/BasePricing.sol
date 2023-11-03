@@ -89,7 +89,7 @@ abstract contract BasePricing is Pricing {
         returns (uint256)
     {
         uint256 delta_t = end - start;
-        return calculateInterest(delta_t, rate, loan.debt[index].amount);
+        return calculateInterest(delta_t, loan.debt[index].amount, rate);
     }
 
     function calculateInterest(

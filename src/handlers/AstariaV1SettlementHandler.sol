@@ -9,6 +9,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import "forge-std/console2.sol";
 
 contract AstariaV1SettlementHandler is DutchAuctionHandler {
     using {StarPortLib.getId} for LoanManager.Loan;
@@ -96,23 +97,12 @@ contract AstariaV1SettlementHandler is DutchAuctionHandler {
 
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
 
-        if (loan.debt[0].amount + interest <= settlementPrice) {
+        if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
+            uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
             consideration[i] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
                 identifier: loan.debt[0].identifier,
-                amount: carry,
-                token: loan.debt[0].token,
-                recipient: payable(loan.originator)
-            });
-            settlementPrice -= consideration[i].amount;
-            unchecked {
-                ++i;
-            }
-        } else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
-            consideration[i] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
-                amount: (settlementPrice - loan.debt[0].amount + interest - carry),
+                amount: (excess > carry) ? carry : excess,
                 token: loan.debt[0].token,
                 recipient: payable(loan.originator)
             });

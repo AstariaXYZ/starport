@@ -66,23 +66,13 @@ abstract contract DutchAuctionHandler is SettlementHandler, AmountDeriver {
 
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
 
-        if (loan.debt[0].amount + interest <= settlementPrice) {
+        if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
             consideration = new ReceivedItem[](2);
+            uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
             consideration[0] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
                 identifier: loan.debt[0].identifier,
-                amount: carry,
-                token: loan.debt[0].token,
-                recipient: payable(loan.originator)
-            });
-
-            settlementPrice -= consideration[0].amount;
-        } else if (loan.debt[0].amount + interest - carry <= settlementPrice) {
-            consideration = new ReceivedItem[](2);
-            consideration[0] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
-                amount: (settlementPrice - loan.debt[0].amount + interest - carry),
+                amount: (excess > carry) ? carry : excess,
                 token: loan.debt[0].token,
                 recipient: payable(loan.originator)
             });

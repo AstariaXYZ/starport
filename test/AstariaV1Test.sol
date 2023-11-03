@@ -12,7 +12,7 @@ import {AstariaV1SettlementHook} from "starport-core/hooks/AstariaV1SettlementHo
 import {BaseRecall} from "starport-core/hooks/BaseRecall.sol";
 
 import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
-import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {AstariaV1LenderEnforcer} from "starport-core/enforcers/AstariaV1LenderEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 // import "forge-std/console2.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -30,6 +30,8 @@ contract AstariaV1Test is StarPortTest {
         pricing = new AstariaV1Pricing(LM);
         handler = new AstariaV1SettlementHandler(LM);
         hook = new AstariaV1SettlementHook(LM);
+
+        lenderEnforcer = new AstariaV1LenderEnforcer();
 
         vm.startPrank(recaller.addr);
         erc20s[0].approve(address(hook), 1e18);

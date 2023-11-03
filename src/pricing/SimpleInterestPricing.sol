@@ -26,6 +26,7 @@ import {LoanManager} from "starport-core/LoanManager.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;
@@ -37,7 +38,7 @@ contract SimpleInterestPricing is BasePricing {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure override returns (uint256) {
-        return (delta_t * rate).mulWad(amount);
+        return StarPortLib.calculateSimpleInterest(delta_t, amount, rate);
     }
 
     function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
