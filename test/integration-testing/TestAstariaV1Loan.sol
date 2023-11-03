@@ -10,18 +10,18 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(handler),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
         {
@@ -59,7 +59,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         {
             uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             vm.startPrank(recaller.addr);
 
@@ -128,7 +128,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             uint256 oldOriginatorBefore = erc20s[0].balanceOf(loan.originator);
             uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 newFullfillerBefore = erc20s[0].balanceOf(address(this));
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
 
             bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
@@ -139,14 +139,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
                     getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
                 // vm.startPrank(refinancer.addr);
                 console.logBytes32(
-                    LM.hashCaveatWithSaltAndNonce(refinancer.addr, bytes32(uint256(1)), refinancerCaveat.caveat)
+                    SP.hashCaveatWithSaltAndNonce(refinancer.addr, bytes32(uint256(1)), refinancerCaveat.caveat)
                 );
 
                 vm.startPrank(refinancer.addr);
-                erc20s[0].approve(address(LM), refinanceDetails.loan.debt[0].amount);
+                erc20s[0].approve(address(SP), refinanceDetails.loan.debt[0].amount);
                 vm.stopPrank();
 
-                erc20s[0].approve(address(LM), stake);
+                erc20s[0].approve(address(SP), stake);
                 refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
                 console.log("here2");
             }
@@ -197,7 +197,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             {
                 uint256 loanId = loan.getId();
-                assertTrue(LM.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
+                assertTrue(SP.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
             }
         }
         {
@@ -222,15 +222,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // lender is recaller, liquidation amount is 0
     function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(handler),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
@@ -238,12 +238,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
         {
             uint256 balanceBefore = erc20s[0].balanceOf(lender.addr);
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             vm.startPrank(lender.addr);
             conduitController.updateChannel(lenderConduit, address(hook), true);
             BaseRecall recallContract = BaseRecall(address(hook));
-            erc20s[0].approve(loan.terms.hook, 10e18);
+            erc20s[0].approve(loan.terms.status, 10e18);
             recallContract.recall(loan);
             vm.stopPrank();
 
@@ -264,7 +264,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
 
         {
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             // warp past the end of the recall window
             vm.warp(block.timestamp + details.recallWindow + 1);
 
@@ -285,7 +285,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                SettlementHandler(loan.terms.handler).getSettlement(loan);
+                SettlementHandler(loan.terms.settlement).getSettlement(loan);
 
             assertEq(
                 settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
@@ -334,15 +334,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     // recaller is not the lender, liquidation amount is a dutch auction
     function testNewLoanERC721CollateralDefaultTermsRecallLiquidation() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(hook),
-            handler: address(handler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(hook),
+            settlement: address(handler),
             pricing: address(pricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
 
@@ -351,7 +351,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         {
             uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(hook));
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             elapsedTime += details.honeymoon;
             vm.startPrank(recaller.addr);
@@ -376,7 +376,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
 
         {
-            BaseRecall.Details memory details = abi.decode(loan.terms.hookData, (BaseRecall.Details));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             // warp past the end of the recall window
             vm.warp(block.timestamp + details.recallWindow + 1);
             elapsedTime += (details.recallWindow + 1);
@@ -397,7 +397,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                SettlementHandler(loan.terms.handler).getSettlement(loan);
+                SettlementHandler(loan.terms.settlement).getSettlement(loan);
 
             assertEq(
                 settlementConsideration.length,

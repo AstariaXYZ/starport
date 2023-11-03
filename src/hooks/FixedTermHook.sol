@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 
 contract FixedTermHook is SettlementHook {
@@ -8,8 +8,8 @@ contract FixedTermHook is SettlementHook {
         uint256 loanDuration;
     }
 
-    function isActive(LoanManager.Loan calldata loan) external view override returns (bool) {
-        Details memory details = abi.decode(loan.terms.hookData, (Details));
+    function isActive(Starport.Loan calldata loan) external view override returns (bool) {
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
         return loan.start + details.loanDuration > block.timestamp;
     }
 }

@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
@@ -27,7 +27,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
-        LoanManager.Loan calldata loan,
+        Starport.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));

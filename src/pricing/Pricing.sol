@@ -20,26 +20,26 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 abstract contract Pricing {
-    LoanManager LM;
+    Starport SP;
 
     error InvalidRefinance();
 
-    constructor(LoanManager LM_) {
-        LM = LM_;
+    constructor(Starport SP_) {
+        SP = SP_;
     }
 
-    function getPaymentConsideration(LoanManager.Loan memory loan)
+    function getPaymentConsideration(Starport.Loan memory loan)
         public
         view
         virtual
         returns (SpentItem[] memory, SpentItem[] memory);
 
-    function isValidRefinance(LoanManager.Loan memory loan, bytes calldata newPricingData, address caller)
+    function isValidRefinance(Starport.Loan memory loan, bytes calldata newPricingData, address caller)
         external
         view
         virtual

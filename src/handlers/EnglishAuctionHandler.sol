@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
@@ -44,25 +44,25 @@ contract EnglishAuctionHandler is SettlementHandler {
 
     error InvalidOrder();
 
-    constructor(LoanManager LM_, ConsiderationInterface consideration_, address EAZone_) SettlementHandler(LM_) {
+    constructor(Starport SP_, ConsiderationInterface consideration_, address EAZone_) SettlementHandler(SP_) {
         consideration = consideration_;
         ENGLISH_AUCTION_ZONE = EAZone_;
     }
 
     //use when building offers to ensure the data works with the handler
-    function validate(LoanManager.Loan calldata loan) external view override returns (bool) {
-        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+    function validate(Starport.Loan calldata loan) external view override returns (bool) {
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
         return details.reservePrice.length == loan.debt.length;
     }
 
-    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+    function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
         if (fulfiller != address(this)) {
             revert("must liquidate via the handler to trigger english auction");
         }
         return SettlementHandler.execute.selector;
     }
 
-    function getSettlement(LoanManager.Loan calldata loan)
+    function getSettlement(Starport.Loan calldata loan)
         public
         view
         override
@@ -71,7 +71,7 @@ contract EnglishAuctionHandler is SettlementHandler {
         return (new ReceivedItem[](0), address(this));
     }
 
-    function liquidate(LoanManager.Loan calldata loan) external {
+    function liquidate(Starport.Loan calldata loan) external {
         OrderParameters memory op = OrderParameters({
             offerer: address(loan.custodian),
             zone: address(0),
@@ -96,7 +96,7 @@ contract EnglishAuctionHandler is SettlementHandler {
             recipient: address(0)
         });
 
-        Details memory details = abi.decode(loan.terms.handlerData, (Details));
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
         //check the loan debt type and set the order type based on that
 
         OfferItem[] memory offerItems = new OfferItem[](loan.collateral.length);

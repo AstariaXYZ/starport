@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
@@ -15,13 +15,13 @@ import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
 
-    constructor(LoanManager LM_) Pricing(LM_) {}
+    constructor(Starport SP_) Pricing(SP_) {}
 
     error InsufficientRefinance();
 
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
         external
         view
         virtual
@@ -35,7 +35,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         // borrowers can refinance a loan at any time
         if (caller != loan.borrower) {
             // check if a recall is occuring
-            AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.hook);
+            AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.status);
             Details memory newDetails = abi.decode(newPricingData, (Details));
             if (hook.isRecalled(loan)) {
                 uint256 rate = hook.getRecallRate(loan);

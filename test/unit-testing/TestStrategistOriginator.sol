@@ -17,7 +17,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     event CounterUpdated(uint256);
     event HashInvalidated(bytes32 hash);
 
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
 
     uint256 public borrowAmount = 100;
 
@@ -42,7 +42,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testGetStrategistData() public {
-        StrategistOriginator SOO = new StrategistOriginator(LM, strategist.addr, 1e17, address(this));
+        StrategistOriginator SOO = new StrategistOriginator(SP, strategist.addr, 1e17, address(this));
         (address activeStrategist, uint256 strategistFee) = SOO.getStrategistData();
         assert(activeStrategist == strategist.addr);
         assert(strategistFee == 1e17);
@@ -63,10 +63,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDeadline() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -88,7 +88,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
 
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         skip(200);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDeadline.selector));
         vm.prank(borrower.addr);
@@ -105,10 +105,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidCollateral() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -132,7 +132,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
 
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidCollateral.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -148,10 +148,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDebt() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -175,7 +175,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
 
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebt.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -191,10 +191,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDebtAmountRequestingZero() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -218,7 +218,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
 
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -234,11 +234,11 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDebtAmountOfferingZero() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = 0;
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -261,7 +261,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
 
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -277,10 +277,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDebtAmountAskingMoreThanOffered() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -303,7 +303,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
         loan.debt[0].amount = 2e18;
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -319,10 +319,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidDebtLength() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -347,7 +347,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
         loan.debt = newDebt;
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtLength.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -363,10 +363,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidSigner() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -391,7 +391,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
         SpentItem[] memory newDebt = new SpentItem[](2);
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidSigner.selector));
         vm.prank(borrower.addr);
         SO.originate(
@@ -407,10 +407,10 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
     }
 
     function testInvalidOffer() public {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: LM.defaultCustodian(),
+            custodian: SP.defaultCustodian(),
             issuer: lender.addr,
             deadline: block.timestamp + 100,
             offer: StrategistOriginator.Offer({
@@ -433,7 +433,7 @@ contract TestStrategistOriginator is StarPortTest, DeepEq {
         SpentItem[] memory newDebt = new SpentItem[](2);
         CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
-        LM.setOriginateApproval(address(SO), LoanManager.ApprovalType.LENDER);
+        SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
 
         vm.expectEmit();
         emit HashInvalidated(keccak256(encodedLoanDetails));

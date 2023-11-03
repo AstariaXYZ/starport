@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
 contract BorrowerEnforcer is CaveatEnforcer {
@@ -11,7 +11,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
     error InvalidAdditionalTransfer();
 
     struct Details {
-        LoanManager.Loan loan;
+        Starport.Loan loan;
     }
 
     /// @notice Enforces that the loan terms are identical except for the issuer
@@ -22,7 +22,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
     /// @param caveatData The borrowers encoded details
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
-        LoanManager.Loan calldata loan,
+        Starport.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
         Details memory details = abi.decode(caveatData, (Details));

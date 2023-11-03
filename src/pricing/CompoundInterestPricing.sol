@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {BaseRecallPricing} from "starport-core/pricing/BaseRecallPricing.sol";
 import {StarPortLib} from "starport-core/lib/StarPortLib.sol";

@@ -27,9 +27,9 @@ contract AstariaV1Test is StarPortTest {
 
         // erc20s[1].mint(recaller.addr, 10000);
 
-        pricing = new AstariaV1Pricing(LM);
-        handler = new AstariaV1SettlementHandler(LM);
-        hook = new AstariaV1SettlementHook(LM);
+        pricing = new AstariaV1Pricing(SP);
+        handler = new AstariaV1SettlementHandler(SP);
+        hook = new AstariaV1SettlementHook(SP);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
 
@@ -42,9 +42,9 @@ contract AstariaV1Test is StarPortTest {
             BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
         );
 
-        // defaultHandlerData = new bytes(0);
+        // defaultSettlementData = new bytes(0);
 
-        defaultHookData = abi.encode(
+        defaultStatusData = abi.encode(
             BaseRecall.Details({
                 honeymoon: 1 days,
                 recallWindow: 3 days,
@@ -57,7 +57,7 @@ contract AstariaV1Test is StarPortTest {
         );
     }
 
-    function getRefinanceDetails(LoanManager.Loan memory loan, bytes memory pricingData, address transactor)
+    function getRefinanceDetails(Starport.Loan memory loan, bytes memory pricingData, address transactor)
         public
         view
         returns (LenderEnforcer.Details memory)
@@ -65,7 +65,7 @@ contract AstariaV1Test is StarPortTest {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
             Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, transactor);
 
-        loan = LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
+        loan = SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
         loan.issuer = transactor;
         loan.start = 0;
         loan.originator = address(0);

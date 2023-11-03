@@ -8,13 +8,13 @@ import "forge-std/console.sol";
 
 contract EnforcerTest is StarPortTest {
 //     function testTermEnforcerBasic() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -25,12 +25,12 @@ contract EnforcerTest is StarPortTest {
 //         TermEnforcer TE = new TermEnforcer();
 
 //         TermEnforcer.Details memory TEDetails =
-//             TermEnforcer.Details({pricing: address(pricing), hook: address(hook), handler: address(handler)});
+//             TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(handler)});
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -45,27 +45,27 @@ contract EnforcerTest is StarPortTest {
 //             caveats: caveats
 //         });
 
-//         //        LoanManager.Loan memory loan =
+//         //        Starport.Loan memory loan =
 //         //            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
 //         //
 //         //        assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
 //         //        assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
 //         //
 //         //        uint256 loanId = loan.getId();
-//         //        assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
+//         //        assertTrue(SP.active(loanId), "LoanId not in active state after a new loan");
 //         //        skip(10 days);
 //         //
 //         //        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
 //     }
 
 //     function testRateEnforcerBasic() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -80,10 +80,10 @@ contract EnforcerTest is StarPortTest {
 //             maxCarryRate: (uint256(1e16) * 10) * 2
 //         });
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -100,13 +100,13 @@ contract EnforcerTest is StarPortTest {
 //     }
 
 //     function testFailRateEnforcerMaxRate() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -121,10 +121,10 @@ contract EnforcerTest is StarPortTest {
 //             maxCarryRate: (uint256(1e16) * 10) * 2
 //         }); // maxRate == defaultPricingData.carryRate
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -141,13 +141,13 @@ contract EnforcerTest is StarPortTest {
 //     }
 
 //     function testFailRateEnforcerMaxCarryRate() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -162,10 +162,10 @@ contract EnforcerTest is StarPortTest {
 //             maxCarryRate: (uint256(1e16) * 10)
 //         }); // maxCarryRate == defaultPricingData.rate
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -182,13 +182,13 @@ contract EnforcerTest is StarPortTest {
 //     }
 
 //     function testFailRateEnforcerMaxRateAndMaxCarryRate() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -203,10 +203,10 @@ contract EnforcerTest is StarPortTest {
 //             maxCarryRate: (uint256(1e16) * 10)
 //         }); // maxCarryRate == defaultPricingData.rate
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(RE), terms: abi.encode(REDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -223,13 +223,13 @@ contract EnforcerTest is StarPortTest {
 //     }
 
 //     function testCollateralEnforcer() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -246,10 +246,10 @@ contract EnforcerTest is StarPortTest {
 //         CollateralEnforcer.Details memory CEDetails =
 //             CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({
@@ -266,13 +266,13 @@ contract EnforcerTest is StarPortTest {
 //     }
 
 //     function testFailCollateralEnforcerDifferentCollateral() public {
-//         LoanManager.Terms memory terms = LoanManager.Terms({
-//             hook: address(hook),
-//             handler: address(handler),
+//         Starport.Terms memory terms = Starport.Terms({
+//             status: address(hook),
+//             settlement: address(handler),
 //             pricing: address(pricing),
 //             pricingData: defaultPricingData,
-//             handlerData: defaultHandlerData,
-//             hookData: defaultHookData
+//             settlementData: defaultSettlementData,
+//             statusData: defaultStatusData
 //         });
 
 //         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -289,10 +289,10 @@ contract EnforcerTest is StarPortTest {
 //         CollateralEnforcer.Details memory CEDetails =
 //             CollateralEnforcer.Details({collateral: CECollateral, isAny: true});
 
-//         LoanManager.Caveat[] memory caveats = new LoanManager.Caveat[](1);
-//         caveats[0] = LoanManager.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
+//         Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
+//         caveats[0] = Starport.Caveat({enforcer: address(CE), terms: abi.encode(CEDetails)});
 
-//         LoanManager.Loan memory loan = _createLoanWithCaveat({
+//         Starport.Loan memory loan = _createLoanWithCaveat({
 //             lender: lender.addr,
 //             terms: terms,
 //             collateralItem: ConsiderationItem({

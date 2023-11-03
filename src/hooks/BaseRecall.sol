@@ -22,7 +22,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/console2.sol";
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 
@@ -43,12 +43,12 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
 
     event Recalled(uint256 loandId, address recaller, uint256 end);
     event Withdraw(uint256 loanId, address withdrawer);
 
-    LoanManager public immutable LM;
+    Starport public immutable SP;
 
     error InvalidWithdraw();
     error InvalidConduit();
@@ -81,19 +81,19 @@ abstract contract BaseRecall {
         uint64 start;
     }
 
-    constructor(LoanManager LM_) {
-        LM = LM_;
+    constructor(Starport SP_) {
+        SP = SP_;
     }
 
-    function getRecallRate(LoanManager.Loan calldata loan) external view returns (uint256) {
-        Details memory details = abi.decode(loan.terms.hookData, (Details));
+    function getRecallRate(Starport.Loan calldata loan) external view returns (uint256) {
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 loanId = loan.getId();
         // calculates the porportion of time elapsed, then multiplies times the max rate
         return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow));
     }
 
-    function recall(LoanManager.Loan calldata loan) external {
-        Details memory details = abi.decode(loan.terms.hookData, (Details));
+    function recall(Starport.Loan calldata loan) external {
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
 
         if ((loan.start + details.honeymoon) > block.timestamp) {
             revert RecallBeforeHoneymoonExpiry();
@@ -107,7 +107,7 @@ abstract contract BaseRecall {
         }
         uint256 loanId = loan.getId();
 
-        if (!LM.active(loanId)) {
+        if (!SP.active(loanId)) {
             revert LoanDoesNotExist();
         }
 
@@ -119,13 +119,13 @@ abstract contract BaseRecall {
     }
 
     // transfers all stake to anyone who asks after the LM token is burned
-    function withdraw(LoanManager.Loan calldata loan, address payable receiver) external {
-        Details memory details = abi.decode(loan.terms.hookData, (Details));
+    function withdraw(Starport.Loan calldata loan, address payable receiver) external {
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
 
-        // loan has not been refinanced, loan is still active. LM.tokenId changes on refinance
-        if (!LM.inactive(loanId)) {
+        // loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
+        if (!SP.inactive(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
 
@@ -157,7 +157,7 @@ abstract contract BaseRecall {
         emit Withdraw(loanId, receiver);
     }
 
-    function _getRecallStake(LoanManager.Loan memory loan, uint256 start, uint256 end)
+    function _getRecallStake(Starport.Loan memory loan, uint256 start, uint256 end)
         internal
         view
         returns (uint256[] memory recallStake)
@@ -174,17 +174,17 @@ abstract contract BaseRecall {
     }
 
     function generateRecallConsideration(
-        LoanManager.Loan calldata loan,
+        Starport.Loan calldata loan,
         uint256 proportion,
         address from,
         address payable to
     ) external view returns (AdditionalTransfer[] memory consideration) {
-        Details memory details = abi.decode(loan.terms.hookData, (Details));
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
         return _generateRecallConsideration(loan, 0, details.recallStakeDuration, proportion, from, to);
     }
 
     function _generateRecallConsideration(
-        LoanManager.Loan calldata loan,
+        Starport.Loan calldata loan,
         uint256 start,
         uint256 end,
         uint256 proportion,

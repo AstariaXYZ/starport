@@ -20,7 +20,7 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
@@ -33,7 +33,7 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 
 abstract contract BaseRecallPricing is BasePricing {
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
         external
         view
         virtual
@@ -46,7 +46,7 @@ abstract contract BaseRecallPricing is BasePricing {
     {
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
         Details memory newDetails = abi.decode(newPricingData, (Details));
-        bool isRecalled = BaseHook(loan.terms.hook).isRecalled(loan);
+        bool isRecalled = BaseHook(loan.terms.status).isRecalled(loan);
 
         //todo: figure out the proper flow for here
         if ((isRecalled && newDetails.rate >= oldDetails.rate) || (newDetails.rate < oldDetails.rate)) {

@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {StrategistOriginator} from "starport-core/originators/StrategistOriginator.sol";
 import {
@@ -42,7 +42,7 @@ import {DutchAuctionHandler} from "starport-core/handlers/DutchAuctionHandler.so
 import {EnglishAuctionHandler} from "starport-core/handlers/EnglishAuctionHandler.sol";
 import {AstariaV1SettlementHandler} from "starport-core/handlers/AstariaV1SettlementHandler.sol";
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
@@ -61,7 +61,7 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
-import {LoanSettledCallback} from "starport-core/LoanManager.sol";
+import {LoanSettledCallback} from "starport-core/Starport.sol";
 import {Actions} from "starport-core/lib/StarPortLib.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -78,7 +78,7 @@ interface IWETH9 {
 }
 
 contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
-    function onLoanSettled(LoanManager.Loan memory loan) external {}
+    function onLoanSettled(Starport.Loan memory loan) external {}
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         external
@@ -136,10 +136,10 @@ contract StarPortTest is BaseOrderTest {
     bytes defaultPricingData =
         abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)}));
 
-    bytes defaultHandlerData = abi.encode(
+    bytes defaultSettlementData = abi.encode(
         DutchAuctionHandler.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
     );
-    bytes defaultHookData = abi.encode(FixedTermHook.Details({loanDuration: defaultLoanDuration}));
+    bytes defaultStatusData = abi.encode(FixedTermHook.Details({loanDuration: defaultLoanDuration}));
 
     Account borrower;
     Account lender;
@@ -152,7 +152,7 @@ contract StarPortTest is BaseOrderTest {
     address lenderConduit;
     address refinancerConduit;
     address seaportAddr;
-    LoanManager LM;
+    Starport SP;
     Custodian custodian;
     StrategistOriginator SO;
 
@@ -200,11 +200,11 @@ contract StarPortTest is BaseOrderTest {
         refinancer = makeAndAllocateAccount("refinancer");
         fulfiller = makeAndAllocateAccount("fulfiller");
 
-        LM = new LoanManager(consideration);
-        custodian = Custodian(payable(LM.defaultCustodian()));
-        SO = new StrategistOriginator(LM, strategist.addr, 1e16, address(this));
-        pricing = new SimpleInterestPricing(LM);
-        handler = new FixedTermDutchAuctionHandler(LM);
+        SP = new Starport(consideration);
+        custodian = Custodian(payable(SP.defaultCustodian()));
+        SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
+        pricing = new SimpleInterestPricing(SP);
+        handler = new FixedTermDutchAuctionHandler(SP);
         hook = new FixedTermHook();
         vm.label(address(erc721s[0]), "Collateral NFT");
         vm.label(address(erc721s[1]), "Collateral2 NFT");
@@ -247,25 +247,25 @@ contract StarPortTest is BaseOrderTest {
         vm.startPrank(refinancer.addr);
         refinancerConduit = conduitController.createConduit(conduitKeyRefinancer, refinancer.addr);
         // console.log("Refinancer", refinancer.addr);
-        conduitController.updateChannel(refinancerConduit, address(LM), true);
+        conduitController.updateChannel(refinancerConduit, address(SP), true);
         erc20s[0].approve(address(refinancerConduit), 100000);
         vm.stopPrank();
 
         /////////
 
         fixedTermHook = new FixedTermHook();
-        astariaSettlementHook = new AstariaV1SettlementHook(LM);
+        astariaSettlementHook = new AstariaV1SettlementHook(SP);
 
-        dutchAuctionHandler = new FixedTermDutchAuctionHandler(LM);
+        dutchAuctionHandler = new FixedTermDutchAuctionHandler(SP);
         englishAuctionHandler = new EnglishAuctionHandler({
-            LM_: LM,
+            SP_: SP,
             consideration_: seaport,
             EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
         });
-        astariaSettlementHandler = new AstariaV1SettlementHandler(LM);
+        astariaSettlementHandler = new AstariaV1SettlementHandler(SP);
 
-        simpleInterestPricing = new SimpleInterestPricing(LM);
-        astariaPricing = new AstariaV1Pricing(LM);
+        simpleInterestPricing = new SimpleInterestPricing(SP);
+        astariaPricing = new AstariaV1Pricing(SP);
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
@@ -286,11 +286,11 @@ contract StarPortTest is BaseOrderTest {
         uint256 i = 0;
         for (; i < items.length;) {
             if (items[i].itemType == ItemType.ERC20) {
-                ERC20(items[i].token).approve(address(LM), items[i].amount);
+                ERC20(items[i].token).approve(address(SP), items[i].amount);
             } else if (items[i].itemType == ItemType.ERC721) {
-                ERC721(items[i].token).setApprovalForAll(address(LM), true);
+                ERC721(items[i].token).setApprovalForAll(address(SP), true);
             } else if (items[i].itemType == ItemType.ERC1155) {
-                ERC1155(items[i].token).setApprovalForAll(address(LM), true);
+                ERC1155(items[i].token).setApprovalForAll(address(SP), true);
             }
 
             unchecked {
@@ -311,7 +311,7 @@ contract StarPortTest is BaseOrderTest {
     }
 
     // loan.borrower and signer.addr could be mismatched
-    function _generateSignedCaveatBorrower(LoanManager.Loan memory loan, Account memory signer, bytes32 salt)
+    function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
         returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
@@ -323,7 +323,7 @@ contract StarPortTest is BaseOrderTest {
     }
 
     // loan.issuer and signer.addr could be mismatched
-    function _generateSignedCaveatLender(LoanManager.Loan memory loan, Account memory signer, bytes32 salt)
+    function _generateSignedCaveatLender(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
         returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
@@ -334,13 +334,13 @@ contract StarPortTest is BaseOrderTest {
         return _generateSignedCaveat(loan, signer, address(lenderEnforcer), salt);
     }
 
-    function loanCopy(LoanManager.Loan memory loan) public pure returns (LoanManager.Loan memory) {
+    function loanCopy(Starport.Loan memory loan) public pure returns (Starport.Loan memory) {
         bytes memory copyBytes = abi.encode(loan);
 
-        return abi.decode(copyBytes, (LoanManager.Loan));
+        return abi.decode(copyBytes, (Starport.Loan));
     }
 
-    function _generateSignedCaveat(LoanManager.Loan memory loan, Account memory signer, address enforcer, bytes32 salt)
+    function _generateSignedCaveat(Starport.Loan memory loan, Account memory signer, address enforcer, bytes32 salt)
         public
         view
         returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
@@ -367,12 +367,12 @@ contract StarPortTest is BaseOrderTest {
         });
 
         caveatWithApproval.caveat[0] = caveat;
-        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatWithApproval.caveat);
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatWithApproval.caveat);
         (caveatWithApproval.v, caveatWithApproval.r, caveatWithApproval.s) = vm.sign(signer.key, hash);
     }
 
     function newLoanOriginationSetup(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         Account memory borrowerSigner,
         bytes32 borrowerSalt,
         Account memory lenderSigner,
@@ -392,21 +392,21 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function newLoanWithProvidedSigners(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         bytes32 borrowerSalt,
         Account memory borrowerSigner,
         bytes32 lenderSalt,
         Account memory lenderSigner,
         address fulfiller
-    ) internal returns (LoanManager.Loan memory) {
+    ) internal returns (Starport.Loan memory) {
         (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat)
         = newLoanOriginationSetup(loan, borrowerSigner, borrowerSalt, lenderSigner, lenderSalt);
         return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
     }
 
-    function newLoan(LoanManager.Loan memory loan, bytes32 borrowerSalt, bytes32 lenderSalt, address fulfiller)
+    function newLoan(Starport.Loan memory loan, bytes32 borrowerSalt, bytes32 lenderSalt, address fulfiller)
         internal
-        returns (LoanManager.Loan memory)
+        returns (Starport.Loan memory)
     {
         (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat)
         = newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt);
@@ -414,14 +414,14 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function newLoan(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
         address fulfiller
-    ) internal returns (LoanManager.Loan memory originatedLoan) {
+    ) internal returns (Starport.Loan memory originatedLoan) {
         vm.recordLogs();
         vm.startPrank(fulfiller);
-        LM.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -429,7 +429,7 @@ contract StarPortTest is BaseOrderTest {
         bytes32 lienOpenTopic = bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17);
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] == lienOpenTopic) {
-                (, originatedLoan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                (, originatedLoan) = abi.decode(logs[i].data, (uint256, Starport.Loan));
                 break;
             }
         }
@@ -445,7 +445,7 @@ contract StarPortTest is BaseOrderTest {
         caveatApproval.salt = salt;
         caveatApproval.caveat[0] =
             CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
-        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
 
         (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
     }
@@ -460,22 +460,22 @@ contract StarPortTest is BaseOrderTest {
         caveatApproval.salt = salt;
         caveatApproval.caveat[0] =
             CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
-        bytes32 hash = LM.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
 
         (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
     }
 
-    function newLoanWithDefaultTerms() public returns (LoanManager.Loan memory) {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+    function newLoanWithDefaultTerms() public returns (Starport.Loan memory) {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
     }
 
-    function generateDefaultLoanTerms() public view returns (LoanManager.Loan memory) {
+    function generateDefaultLoanTerms() public view returns (Starport.Loan memory) {
         SpentItem[] memory newCollateral = new SpentItem[](1);
         newCollateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), identifier: 1, amount: 1});
         SpentItem[] memory newDebt = new SpentItem[](1);
         newDebt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), identifier: 0, amount: 1e18});
-        return LoanManager.Loan({
+        return Starport.Loan({
             start: 0,
             custodian: address(custodian),
             borrower: borrower.addr,
@@ -483,61 +483,61 @@ contract StarPortTest is BaseOrderTest {
             originator: address(0),
             collateral: newCollateral,
             debt: newDebt,
-            terms: LoanManager.Terms({
-                hook: address(hook),
-                handler: address(handler),
+            terms: Starport.Terms({
+                status: address(hook),
+                settlement: address(handler),
                 pricing: address(pricing),
                 pricingData: defaultPricingData,
-                handlerData: defaultHandlerData,
-                hookData: defaultHookData
+                settlementData: defaultSettlementData,
+                statusData: defaultStatusData
             })
         });
     }
 
     // function newLoan(
-    //     LoanManager.Loan memory loan,
+    //     Starport.Loan memory loan,
     //     bytes32 borrowerSalt,
     //     bytes32 lenderSalt
-    // ) internal returns (LoanManager.Loan memory originatedLoan) {
+    // ) internal returns (Starport.Loan memory originatedLoan) {
     //     newLoanSpecifySigner(loan, borrowerSalt, borrower, lenderSalt, lender);
     // }
 
     function refinanceLoan(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         bytes memory newPricingData,
         address asWho,
         CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
         address lender
-    ) internal returns (LoanManager.Loan memory newLoan) {
+    ) internal returns (Starport.Loan memory newLoan) {
         return refinanceLoan(loan, newPricingData, asWho, lenderCaveat, lender, "");
     }
 
-    function getRefinanceCaveat(LoanManager.Loan memory loan, bytes memory pricingData, address fulfiller)
+    function getRefinanceCaveat(Starport.Loan memory loan, bytes memory pricingData, address fulfiller)
         public
-        returns (LoanManager.Loan memory)
+        returns (Starport.Loan memory)
     {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
             Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, fulfiller);
-        return LM.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
+        return SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
     }
 
     function refinanceLoan(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         bytes memory pricingData,
         address asWho,
         CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
         address lender,
         bytes memory revertMessage
-    ) internal returns (LoanManager.Loan memory newLoan) {
+    ) internal returns (Starport.Loan memory newLoan) {
         vm.recordLogs();
         vm.startPrank(asWho);
 
-        console.logBytes32(LM.hashCaveatWithSaltAndNonce(lender, bytes32(uint256(1)), lenderCaveat.caveat));
+        console.logBytes32(SP.hashCaveatWithSaltAndNonce(lender, bytes32(uint256(1)), lenderCaveat.caveat));
 
         if (revertMessage.length > 0) {
             vm.expectRevert(revertMessage); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
         }
-        LM.refinance(lender, lenderCaveat, loan, pricingData);
+        SP.refinance(lender, lenderCaveat, loan, pricingData);
 
         vm.stopPrank();
 
@@ -545,7 +545,7 @@ contract StarPortTest is BaseOrderTest {
 
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] == bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17)) {
-                (, newLoan) = abi.decode(logs[i].data, (uint256, LoanManager.Loan));
+                (, newLoan) = abi.decode(logs[i].data, (uint256, Starport.Loan));
                 break;
             }
         }
@@ -610,10 +610,10 @@ contract StarPortTest is BaseOrderTest {
         return considerationItems;
     }
 
-    function _settleLoan(LoanManager.Loan memory activeLoan, address fulfiller) internal {
+    function _settleLoan(Starport.Loan memory activeLoan, address fulfiller) internal {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
             payable(activeLoan.custodian)
-        ).previewOrder(address(LM.seaport()), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan));
+        ).previewOrder(address(SP.seaport()), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan));
 
         OrderParameters memory op = _buildContractOrder(
             address(activeLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
@@ -638,7 +638,7 @@ contract StarPortTest is BaseOrderTest {
         //    Vm.Log[] memory logs = vm.getRecordedLogs();
     }
 
-    function _repayLoan(LoanManager.Loan memory loan, address fulfiller) internal {
+    function _repayLoan(Starport.Loan memory loan, address fulfiller) internal {
         uint256 repayerBefore = erc20s[0].balanceOf(fulfiller);
         uint256 lenderBefore = erc20s[0].balanceOf(lender.addr);
         uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
@@ -666,14 +666,14 @@ contract StarPortTest is BaseOrderTest {
     }
 
     function getOrderHash(address contractOfferer) public returns (bytes32) {
-        uint256 counter = LM.seaport().getContractOffererNonce(contractOfferer);
+        uint256 counter = SP.seaport().getContractOffererNonce(contractOfferer);
         return bytes32(counter ^ (uint256(uint160(contractOfferer)) << 96));
     }
 
-    function _executeRepayLoan(LoanManager.Loan memory loan, address fulfiller) internal {
+    function _executeRepayLoan(Starport.Loan memory loan, address fulfiller) internal {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(LM.seaport()),
+            address(SP.seaport()),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -703,22 +703,22 @@ contract StarPortTest is BaseOrderTest {
         //    Vm.Log[] memory logs = vm.getRecordedLogs();
     }
 
-    function _repayLoan(address borrower, uint256 amount, LoanManager.Loan memory loan) internal {
+    function _repayLoan(address borrower, uint256 amount, Starport.Loan memory loan) internal {
         vm.startPrank(borrower);
         erc20s[0].approve(address(consideration), amount);
         vm.stopPrank();
         _executeRepayLoan(loan, borrower);
     }
 
-    function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, LoanManager.Terms memory terms)
+    function _createLoan721Collateral20Debt(address lender, uint256 borrowAmount, Starport.Terms memory terms)
         internal
-        returns (LoanManager.Loan memory loan)
+        returns (Starport.Loan memory loan)
     {
         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
         assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
         uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
 
-        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), lender
         );
         originationDetails.terms = terms;
@@ -733,14 +733,14 @@ contract StarPortTest is BaseOrderTest {
         address lender,
         uint256 collateralAmount,
         uint256 borrowAmount,
-        LoanManager.Terms memory terms
-    ) internal returns (LoanManager.Loan memory loan) {
+        Starport.Terms memory terms
+    ) internal returns (Starport.Loan memory loan) {
         uint256 initial20Balance1 = erc20s[1].balanceOf(borrower.addr);
         assertTrue(initial20Balance1 > 0, "Borrower must have at least one erc20 token");
 
         uint256 initial20Balance0 = erc20s[0].balanceOf(borrower.addr);
 
-        LoanManager.Loan memory originationDetails = _generateOriginationDetails(
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC20SpentItem(erc20s[1], collateralAmount), _getERC20SpentItem(erc20s[0], borrowAmount), lender
         );
         originationDetails.terms = terms;
@@ -753,11 +753,11 @@ contract StarPortTest is BaseOrderTest {
     }
 
     // TODO fix
-    function _createLoan20Collateral721Debt(address lender, LoanManager.Terms memory terms)
+    function _createLoan20Collateral721Debt(address lender, Starport.Terms memory terms)
         internal
-        returns (LoanManager.Loan memory loan)
+        returns (Starport.Loan memory loan)
     {
-        LoanManager.Loan memory originationDetails =
+        Starport.Loan memory originationDetails =
             _generateOriginationDetails(_getERC20SpentItem(erc20s[0], 20), _getERC721SpentItem(erc721s[2]), lender);
         originationDetails.terms = terms;
         return newLoan(originationDetails, bytes32(msg.sig), bytes32(msg.sig), fulfiller.addr);
@@ -766,7 +766,7 @@ contract StarPortTest is BaseOrderTest {
     function _generateOriginationDetails(SpentItem memory collateral, SpentItem memory debt, address incomingIssuer)
         internal
         view
-        returns (LoanManager.Loan memory loan)
+        returns (Starport.Loan memory loan)
     {
         return _generateOriginationDetails(collateral, debt, incomingIssuer, address(custodian));
     }
@@ -776,7 +776,7 @@ contract StarPortTest is BaseOrderTest {
         SpentItem memory debt,
         address incomingIssuer,
         address incomingCustodian
-    ) internal view returns (LoanManager.Loan memory loan) {
+    ) internal view returns (Starport.Loan memory loan) {
         loan = generateDefaultLoanTerms();
         loan.issuer = incomingIssuer;
         loan.debt[0] = debt;

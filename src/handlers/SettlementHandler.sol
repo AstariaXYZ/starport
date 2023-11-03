@@ -20,23 +20,23 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 
 abstract contract SettlementHandler is TokenReceiverInterface {
-    LoanManager LM;
+    Starport SP;
 
-    constructor(LoanManager LM_) {
-        LM = LM_;
+    constructor(Starport SP_) {
+        SP = SP_;
     }
 
-    function execute(LoanManager.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+    function execute(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
 
-    function validate(LoanManager.Loan calldata loan) external view virtual returns (bool);
+    function validate(Starport.Loan calldata loan) external view virtual returns (bool);
 
-    function getSettlement(LoanManager.Loan calldata loan)
+    function getSettlement(Starport.Loan calldata loan)
         public
         view
         virtual

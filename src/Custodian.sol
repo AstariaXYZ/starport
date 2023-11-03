@@ -32,14 +32,14 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SettlementHook} from "starport-core/hooks/SettlementHook.sol";
 import {SettlementHandler} from "starport-core/handlers/SettlementHandler.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {StarPortLib, Actions} from "starport-core/lib/StarPortLib.sol";
 import "forge-std/console2.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
 
-    LoanManager public immutable LM;
+    Starport public immutable SP;
     ConsiderationInterface public immutable seaport;
 
     mapping(address => mapping(address => bool)) public repayApproval;
@@ -55,11 +55,11 @@ contract Custodian is ERC721, ContractOffererInterface {
     error InvalidRepayer();
     error NotSeaport();
     error NotEnteredViaSeaport();
-    error NotLoanManager();
+    error NotStarport();
 
-    constructor(LoanManager LM_, ConsiderationInterface seaport_) {
+    constructor(Starport SP_, ConsiderationInterface seaport_) {
         seaport = seaport_;
-        LM = LM_;
+        SP = SP_;
         emit SeaportCompatibleContractDeployed();
     }
 
@@ -68,7 +68,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param loan            Loan to get the borrower of
      * @return address        The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
      */
-    function getBorrower(LoanManager.Loan memory loan) public view returns (address) {
+    function getBorrower(Starport.Loan memory loan) public view returns (address) {
         uint256 loanId = loan.getId();
         return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
     }
@@ -121,11 +121,11 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     //MODIFIERS
     /**
-     * @dev only allows LoanManager to execute the function
+     * @dev only allows Starport to execute the function
      */
-    modifier onlyLoanManager() {
-        if (msg.sender != address(LM)) {
-            revert NotLoanManager();
+    modifier onlyStarport() {
+        if (msg.sender != address(SP)) {
+            revert NotStarport();
         }
         _;
     }
@@ -146,10 +146,10 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan             The loan to mint a custody token for
      */
-    function mint(LoanManager.Loan calldata loan) external {
+    function mint(Starport.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !LM.active(loanId)) {
+        if (loan.custodian != address(this) || !SP.active(loanId)) {
             revert InvalidLoan();
         }
 
@@ -202,9 +202,9 @@ contract Custodian is ERC721, ContractOffererInterface {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
+        (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
-        if (action == Actions.Repayment && SettlementHook(loan.terms.hook).isActive(loan)) {
+        if (action == Actions.Repayment && SettlementHook(loan.terms.status).isActive(loan)) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
@@ -220,24 +220,24 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
-        } else if (action == Actions.Settlement && !SettlementHook(loan.terms.hook).isActive(loan)) {
+        } else if (action == Actions.Settlement && !SettlementHook(loan.terms.status).isActive(loan)) {
             address authorized;
             //add in originator fee
 
             _beforeGetSettlement(loan);
-            (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
             consideration = StarPortLib.removeZeroAmountItems(consideration);
             _afterGetSettlement(loan);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
                 _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
                 _setOfferApprovalsWithSeaport(offer);
-            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {
+            } else if (authorized == loan.terms.settlement || authorized == loan.issuer) {
                 _moveCollateralToAuthorized(loan.collateral, authorized);
                 _beforeSettlementHandlerHook(loan);
                 if (
-                    authorized == loan.terms.handler
-                        && SettlementHandler(loan.terms.handler).execute(loan, fulfiller)
+                    authorized == loan.terms.settlement
+                        && SettlementHandler(loan.terms.settlement).execute(loan, fulfiller)
                             != SettlementHandler.execute.selector
                 ) {
                     revert InvalidHandlerExecution();
@@ -258,7 +258,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param loan             The loan that was just placed into custody
      * @return selector        The function selector of the custody method
      */
-    function custody(LoanManager.Loan memory loan) external virtual onlyLoanManager returns (bytes4 selector) {
+    function custody(Starport.Loan memory loan) external virtual onlyStarport returns (bytes4 selector) {
         revert ImplementInChild();
     }
 
@@ -271,7 +271,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
         //adhere to sip data, how to encode the context and what it is
         //TODO: add in the context for the loan
-        //you need to parse LM Open events for the loan and abi encode it
+        //you need to parse SP Open events for the loan and abi encode it
         schemas = new Schema[](1);
         schemas[0] = Schema(8, "");
         return ("Loans", schemas);
@@ -297,12 +297,12 @@ contract Custodian is ERC721, ContractOffererInterface {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (Actions action, LoanManager.Loan memory loan) = abi.decode(context, (Actions, LoanManager.Loan));
+        (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
-        if (!LM.active(loan.getId())) {
+        if (!SP.active(loan.getId())) {
             revert InvalidLoan();
         }
-        bool loanActive = SettlementHook(loan.terms.hook).isActive(loan);
+        bool loanActive = SettlementHook(loan.terms.status).isActive(loan);
         if (action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
@@ -315,11 +315,11 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarPortLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
-            (consideration, authorized) = SettlementHandler(loan.terms.handler).getSettlement(loan);
+            (consideration, authorized) = SettlementHandler(loan.terms.settlement).getSettlement(loan);
             consideration = StarPortLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
-            } else if (authorized == loan.terms.handler || authorized == loan.issuer) {} else {
+            } else if (authorized == loan.terms.settlement || authorized == loan.issuer) {} else {
                 revert InvalidFulfiller();
             }
         } else {
@@ -404,13 +404,13 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The the loan to settle
      */
-    function _settleLoan(LoanManager.Loan memory loan) internal virtual {
+    function _settleLoan(Starport.Loan memory loan) internal virtual {
         _beforeSettleLoanHook(loan);
         uint256 loanId = loan.getId();
         if (_exists(loanId)) {
             _burn(loanId);
         }
-        LM.settle(loan);
+        SP.settle(loan);
         _afterSettleLoanHook(loan);
     }
 
@@ -431,7 +431,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The loan being settled
      */
-    function _beforeGetSettlement(LoanManager.Loan memory loan) internal virtual {}
+    function _beforeGetSettlement(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the loan get settlement call
@@ -439,13 +439,13 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The loan being settled
      */
-    function _afterGetSettlement(LoanManager.Loan memory loan) internal virtual {}
+    function _afterGetSettlement(Starport.Loan memory loan) internal virtual {}
     /**
      * @dev  hook to call before the the loan settlement handler execute call
      *
      * @param loan              The loan being settled
      */
-    function _beforeSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
+    function _beforeSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the the loan settlement handler execute call
@@ -453,19 +453,19 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The loan being settled
      */
-    function _afterSettlementHandlerHook(LoanManager.Loan memory loan) internal virtual {}
+    function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call before the loan is settled with the LM
      *
      * @param loan              The loan being settled
      */
-    function _beforeSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
+    function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the loan is settled with the LM
      *
      * @param loan              The loan being settled
      */
-    function _afterSettleLoanHook(LoanManager.Loan memory loan) internal virtual {}
+    function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 }

@@ -38,14 +38,14 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
 interface LoanSettledCallback {
-    function onLoanSettled(LoanManager.Loan calldata loan) external;
+    function onLoanSettled(Starport.Loan calldata loan) external;
 }
 
-contract LoanManager is ERC721, PausableNonReentrant {
+contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
     using {StarPortLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
@@ -85,12 +85,12 @@ contract LoanManager is ERC721, PausableNonReentrant {
     mapping(address => Fee) public feeOverride;
 
     struct Terms {
-        address hook; //the address of the hookmodule
-        bytes hookData; //bytes encoded hook data
+        address status; //the address of the status module
+        bytes statusData; //bytes encoded hook data
         address pricing; //the address o the pricing module
         bytes pricingData; //bytes encoded pricing data
-        address handler; //the address of the handler module
-        bytes handlerData; //bytes encoded handler data
+        address settlement; //the address of the handler module
+        bytes settlementData; //bytes encoded handler data
     }
 
     struct Loan {
@@ -110,7 +110,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
     }
 
     event Close(uint256 loanId);
-    event Open(uint256 loanId, LoanManager.Loan loan);
+    event Open(uint256 loanId, Starport.Loan loan);
     event CaveatNonceIncremented(uint256 newNonce);
     event CaveatSaltInvalidated(bytes32 invalidatedSalt);
 
@@ -179,7 +179,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
         AdditionalTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        LoanManager.Loan memory loan
+        Starport.Loan memory loan
     ) external payable pausableNonReentrant {
         //cache the addresses
         address borrower = loan.borrower;
@@ -212,13 +212,13 @@ contract LoanManager is ERC721, PausableNonReentrant {
         }
 
         //sets originator and start time
-        _issueLoanManager(loan);
+        _issueLoan(loan);
     }
 
     function refinance(
         address lender,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         bytes calldata pricingData
     ) external pausableNonReentrant {
         (
@@ -249,15 +249,15 @@ contract LoanManager is ERC721, PausableNonReentrant {
         }
 
         //sets originator and start time
-        _issueLoanManager(loan);
+        _issueLoan(loan);
     }
 
     function applyRefinanceConsiderationToLoan(
-        LoanManager.Loan memory loan,
+        Starport.Loan memory loan,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
         bytes memory pricingData
-    ) public pure returns (LoanManager.Loan memory) {
+    ) public pure returns (Starport.Loan memory) {
         if (
             considerationPayment.length == 0
                 || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length)
@@ -292,7 +292,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
      * the same codehash as the default custodian
      * @param loan                  The loan being placed into custody
      */
-    function _callCustody(LoanManager.Loan memory loan) internal {
+    function _callCustody(Starport.Loan memory loan) internal {
         address custodian = loan.custodian;
         // Comparing the retrieved code hash with a known hash
         bytes32 codeHash;
@@ -349,7 +349,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
         CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
-        LoanManager.Loan memory loan
+        Starport.Loan memory loan
     ) internal {
         bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
         invalidHashes.validateSalt(validator, caveatApproval.salt);
@@ -557,7 +557,7 @@ contract LoanManager is ERC721, PausableNonReentrant {
      * only owner can call
      * @param loan  the loan to issue
      */
-    function _issueLoanManager(Loan memory loan) internal {
+    function _issueLoan(Loan memory loan) internal {
         loan.start = block.timestamp;
         loan.originator = msg.sender;
 

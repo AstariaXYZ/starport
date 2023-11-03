@@ -16,14 +16,14 @@ contract TestBorrowerEnforcer is StarPortTest {
             itemType: ItemType.ERC20
         });
 
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         BorrowerEnforcer.Details memory details = BorrowerEnforcer.Details({loan: loan});
         vm.expectRevert(BorrowerEnforcer.InvalidAdditionalTransfer.selector);
         borrowerEnforcer.validate(additionalTransfers, loan, abi.encode(details));
     }
 
     function testBERevertInvalidLoanTerms() external {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
 
         BorrowerEnforcer.Details memory details = BorrowerEnforcer.Details({loan: loan});
         details.loan.borrower = lender.addr;
@@ -32,12 +32,12 @@ contract TestBorrowerEnforcer is StarPortTest {
     }
 
     function testBEValidLoanTerms() external view {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(BorrowerEnforcer.Details({loan: loan})));
     }
 
     function testBEValidLoanTermsAnyIssuer() external view {
-        LoanManager.Loan memory loan = generateDefaultLoanTerms();
+        Starport.Loan memory loan = generateDefaultLoanTerms();
         BorrowerEnforcer.Details memory details = BorrowerEnforcer.Details({loan: loan});
         details.loan.issuer = address(0);
 

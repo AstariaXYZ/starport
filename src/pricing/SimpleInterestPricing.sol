@@ -22,7 +22,7 @@ pragma solidity ^0.8.17;
 
 import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
 import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
@@ -31,7 +31,7 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;
 
-    constructor(LoanManager LM_) Pricing(LM_) {}
+    constructor(Starport SP_) Pricing(SP_) {}
 
     function calculateInterest(
         uint256 delta_t,
@@ -41,7 +41,7 @@ contract SimpleInterestPricing is BasePricing {
         return StarPortLib.calculateSimpleInterest(delta_t, amount, rate);
     }
 
-    function isValidRefinance(LoanManager.Loan memory loan, bytes memory newPricingData, address caller)
+    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
         external
         view
         virtual

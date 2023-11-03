@@ -9,17 +9,17 @@ import {StarPortLib} from "starport-core/lib/StarPortLib.sol";
 import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarPortTest {
-    using {StarPortLib.getId} for LoanManager.Loan;
+    using {StarPortLib.getId} for Starport.Loan;
     // TODO test liquidations
 
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(fixedTermHook),
-            handler: address(dutchAuctionHandler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermHook),
+            settlement: address(dutchAuctionHandler),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
 
         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
@@ -27,29 +27,29 @@ contract TestLoanCombinations is StarPortTest {
 
         uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
 
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
 
         assertTrue(erc721s[0].balanceOf(borrower.addr) < initial721Balance, "Borrower ERC721 was not sent out");
         assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
 
         uint256 loanId = loan.getId();
-        assertTrue(LM.active(loanId), "LoanId not in active state after a new loan");
+        assertTrue(SP.active(loanId), "LoanId not in active state after a new loan");
         skip(10 days);
 
         _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 
     function testLoan20for20SimpleInterestDutchFixedRepay() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(fixedTermHook),
-            handler: address(dutchAuctionHandler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermHook),
+            settlement: address(dutchAuctionHandler),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan = _createLoan20Collateral20Debt({
+        Starport.Loan memory loan = _createLoan20Collateral20Debt({
             lender: lender.addr,
             collateralAmount: 20, // erc20s[1]
             borrowAmount: 100, // erc20s[0]
@@ -62,15 +62,15 @@ contract TestLoanCombinations is StarPortTest {
     }
 
     function testLoan20For721SimpleInterestDutchFixedRepay() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(fixedTermHook),
-            handler: address(dutchAuctionHandler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermHook),
+            settlement: address(dutchAuctionHandler),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan = _createLoan20Collateral721Debt({lender: lender.addr, terms: terms});
+        Starport.Loan memory loan = _createLoan20Collateral721Debt({lender: lender.addr, terms: terms});
         skip(10 days);
 
         _repayLoan({ // TODO different repay
@@ -81,15 +81,15 @@ contract TestLoanCombinations is StarPortTest {
     }
 
     function testLoanAstariaSettlementRepay() public {
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(fixedTermHook),
-            handler: address(dutchAuctionHandler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermHook),
+            settlement: address(dutchAuctionHandler),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
-            handlerData: defaultHandlerData,
-            hookData: defaultHookData
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
         skip(10 days);
 
@@ -99,18 +99,18 @@ contract TestLoanCombinations is StarPortTest {
     function testLoanSimpleInterestEnglishFixed() public {
         uint256[] memory reservePrice = new uint256[](1);
         reservePrice[0] = 300;
-        bytes memory englishAuctionHandlerData =
+        bytes memory englishAuctionsettlementData =
             abi.encode(EnglishAuctionHandler.Details({reservePrice: reservePrice, window: 7 days}));
 
-        LoanManager.Terms memory terms = LoanManager.Terms({
-            hook: address(fixedTermHook),
-            handler: address(englishAuctionHandler),
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermHook),
+            settlement: address(englishAuctionHandler),
             pricing: address(simpleInterestPricing),
             pricingData: defaultPricingData,
-            handlerData: englishAuctionHandlerData,
-            hookData: defaultHookData
+            settlementData: englishAuctionsettlementData,
+            statusData: defaultStatusData
         });
-        LoanManager.Loan memory loan =
+        Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
         skip(10 days);
 

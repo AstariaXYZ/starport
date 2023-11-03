@@ -20,8 +20,8 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 abstract contract SettlementHook {
-    function isActive(LoanManager.Loan calldata loan) external view virtual returns (bool);
+    function isActive(Starport.Loan calldata loan) external view virtual returns (bool);
 }

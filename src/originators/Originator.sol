@@ -20,7 +20,7 @@
  */
 pragma solidity ^0.8.17;
 
-import {LoanManager} from "starport-core/LoanManager.sol";
+import {Starport} from "starport-core/Starport.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarPortLib.sol";
