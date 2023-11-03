@@ -48,7 +48,7 @@ interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
 }
 
-contract LoanManager is Ownable, ERC721, PausableNonReentrant {
+contract LoanManager is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
@@ -250,12 +250,12 @@ contract LoanManager is Ownable, ERC721, PausableNonReentrant {
         loan.originator = address(0);
         loan.start = 0;
 
-        if (msg.sender != loan.issuer && approvals[loan.issuer][msg.sender] != ApprovalType.LENDER) {
-            _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
+        if (msg.sender != lender && approvals[lender][msg.sender] != ApprovalType.LENDER) {
+            _validateAndEnforceCaveats(lenderCaveat, lender, additionalTransfers, loan);
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+            _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
             StarPortLib.transferAdditionalTransfers(additionalTransfers);
         }
 
