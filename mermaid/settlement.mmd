@@ -1,0 +1,35 @@
+sequenceDiagram
+    title Starport Settlement Sequence Diagram
+    participant F as Fulfiller
+
+    F->>Seaport: fulfillAdvancedOrder/matchAdvancedOrder
+    Seaport->>Custodian: generateOrder
+    Custodian->>SettlementHook: isActive
+    SettlementHook->>Custodian: (true/false)
+    alt Action is Repayment and SettlementHook is Active
+        Custodian->>Custodian: _beforeApprovalsSetHook
+        Custodian->>Custodian: _setOfferApprovalsWithSeaport
+        Custodian->>Pricing: getPaymentConsideration
+        Pricing->>Custodian: (SpentItem[] payment, SpentItem[] carry)
+        Custodian->>LoanManager: settle loan
+    else Action Settlement and Custodian->>SettlementHook: isActive is false
+        Custodian->>Custodian: _beforeGetSettlement
+        Custodian->>SettlementHandler: getSettlement
+        SettlementHandler->>Custodian: (ReceivedItem[] consideration, address authorized)
+        Custodian->>Custodian: _afterGetSettlement
+        alt authorized is address(0) || authorized is Fulfiller
+            Custodian->>Custodian: _beforeApprovalsSetHook
+            Custodian->>Custodian: _setOfferApprovalsWithSeaport
+        else authorized is loan handler || authorized is loan issuer
+            Custodian->>Custodian: _moveCollateralToAuthorized
+            Custodian->>Custodian: _beforeSettlementHandlerHook
+            alt authorized is loan handler
+                Custodian->>SettlementHandler: execute
+                Custodian->>Custodian: _afterSettlementHandlerHook
+            end
+        end
+        Custodian->>LoanManager: settle loan
+        opt Lender is contract
+            LoanManager->>Lender: onLoanSettledHook
+        end
+    end
