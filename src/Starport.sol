@@ -48,41 +48,15 @@ contract Starport is ERC721, PausableNonReentrant {
     using {StarportLib.getId} for Starport.Loan;
     using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
-    bytes32 internal immutable _DOMAIN_SEPARATOR;
-
-    ConsiderationInterface public immutable seaport;
-
-    address payable public immutable defaultCustodian;
-    bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
-
-    // Define the EIP712 domain and typehash constants for generating signatures
-    bytes32 public constant EIP_DOMAIN =
-        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    //    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-    //        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
-    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
-    bytes32 public constant VERSION = keccak256("0");
-    address public feeTo;
-    uint88 public defaultFeeRake;
-    mapping(address => mapping(bytes32 => bool)) public invalidHashes;
-    //    mapping(address => mapping(address => bool)) public approvals;
-
     enum ApprovalType {
         NOTHING,
         BORROWER,
         LENDER
     }
     enum FieldFlags {
-        UNINITIALIZED,
-        ACTIVE,
-        INACTIVE
+        INACTIVE,
+        ACTIVE
     }
-
-    mapping(address => mapping(address => ApprovalType)) public approvals;
-    mapping(address => uint256) public caveatNonces;
-    //contract to token //fee rake
-    mapping(address => Fee) public feeOverride;
 
     struct Terms {
         address status; //the address of the status module
@@ -109,10 +83,35 @@ contract Starport is ERC721, PausableNonReentrant {
         uint88 amount;
     }
 
+    bytes32 internal immutable _DOMAIN_SEPARATOR;
+
+    ConsiderationInterface public immutable seaport;
+
+    address payable public immutable defaultCustodian;
+    bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
+
+    // Define the EIP712 domain and typehash constants for generating signatures
+    bytes32 public constant EIP_DOMAIN =
+        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
+    //    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
+    //        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
+    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
+        keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
+    bytes32 public constant VERSION = keccak256("0");
+    address public feeTo;
+    uint88 public defaultFeeRake;
+    mapping(address => mapping(bytes32 => bool)) public invalidHashes;
+    mapping(address => mapping(address => ApprovalType)) public approvals;
+    mapping(address => uint256) public caveatNonces;
+    //contract to token //fee rake
+    mapping(address => Fee) public feeOverride;
+
     event Close(uint256 loanId);
     event Open(uint256 loanId, Starport.Loan loan);
     event CaveatNonceIncremented(uint256 newNonce);
     event CaveatSaltInvalidated(bytes32 invalidatedSalt);
+
+    event ApprovalSet(address indexed owner, address indexed spender, ApprovalType approvalType);
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -169,6 +168,7 @@ contract Starport is ERC721, PausableNonReentrant {
 
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
+        emit ApprovalSet(msg.sender, who, approvalType);
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
@@ -221,6 +221,9 @@ contract Starport is ERC721, PausableNonReentrant {
         Starport.Loan memory loan,
         bytes calldata pricingData
     ) external pausableNonReentrant {
+        if (loan.start == block.timestamp) {
+            revert InvalidLoan();
+        }
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -463,7 +466,7 @@ contract Starport is ERC721, PausableNonReentrant {
 
     function _settle(Loan memory loan) internal {
         uint256 tokenId = loan.getId();
-        if (!active(tokenId)) {
+        if (inactive(tokenId)) {
             revert InvalidLoan();
         }
         if (_exists(tokenId)) {
@@ -544,14 +547,6 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function _issued(uint256 loanId) internal view returns (bool) {
-        return (_getExtraData(loanId) > uint8(0));
-    }
-
-    function getExtraData(uint256 loanId) public view returns (uint8 extraData) {
-        return uint8(_getExtraData(loanId));
-    }
-
     /**
      * @dev issues a LM token if needed
      * only owner can call
@@ -564,7 +559,7 @@ contract Starport is ERC721, PausableNonReentrant {
         bytes memory encodedLoan = abi.encode(loan);
 
         uint256 loanId = loan.getId();
-        if (_issued(loanId)) {
+        if (active(loanId)) {
             revert LoanExists();
         }
         _setExtraData(loanId, uint8(FieldFlags.ACTIVE));

@@ -34,6 +34,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
+        skip(1);
     }
 
     function testPayableFunctions() public {
@@ -226,6 +227,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         Starport.Loan memory loan =
             newLoan(originationDetails, bytes32(uint256(2)), bytes32(uint256(2)), address(issuer));
+        skip(1);
 
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
@@ -242,6 +244,23 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         );
     }
 
+    function testGenerateOrdersWithLoanStartAtBlockTimestampInvalidLoan() public {
+        // 1155
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC1155SpentItem(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
+        );
+
+        Starport.Loan memory loan =
+            newLoan(originationDetails, bytes32(uint256(2)), bytes32(uint256(2)), address(issuer));
+        loan.toStorage(activeLoan);
+        vm.prank(seaportAddr);
+        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
+        custodian.generateOrder(
+            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
+        );
+    }
+
     function testGenerateOrderRepayERC1155AndERC20AndNativeHandlerAuthorized() public {
         //1155
         Starport.Loan memory originationDetails = _generateOriginationDetails(
@@ -250,6 +269,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         Starport.Loan memory loan =
             newLoan(originationDetails, bytes32(uint256(3)), bytes32(uint256(3)), address(issuer));
+        skip(1);
 
         loan.toStorage(activeLoan);
         mockHookCall(activeLoan.terms.status, false);
@@ -269,29 +289,11 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         loan.toStorage(activeLoan);
 
+        skip(1);
         vm.prank(seaportAddr);
         custodian.generateOrder(
             activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
         );
-
-        // Native no longer supported unless we add conduti support
-        //Native
-        // loanDetails = _generateOriginationDetails(
-        //     _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        // );
-
-        // loan = newLoan(
-        //     NewLoanData(address(custodian), new Starport.Caveat[](0), abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-
-        // loan.toStorage(activeLoan);
-
-        // vm.prank(seaportAddr);
-        // custodian.generateOrder(
-        //     activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Settlement, activeLoan)
-        // );
     }
 
     function testGenerateOrderRepayERC1155AndERC20AndNative() public {
@@ -302,7 +304,7 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
 
         Starport.Loan memory loan =
             newLoan(originationDetails, bytes32(uint256(5)), bytes32(uint256(5)), address(issuer));
-
+        skip(1);
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
         custodian.generateOrder(
@@ -315,30 +317,12 @@ contract TestCustodian is StarPortTest, DeepEq, MockCall {
         );
 
         loan = newLoan(originationDetails, bytes32(uint256(6)), bytes32(uint256(6)), address(this));
-
+        skip(1);
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
         custodian.generateOrder(
             activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
-
-        //Native
-        // loanDetails = _generateOriginationDetails(
-        //     _getNativeConsideration(), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
-        // );
-
-        // loan = newLoan(
-        //     NewLoanData(address(custodian), new Starport.Caveat[](0), abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-
-        // loan.toStorage(activeLoan);
-
-        // vm.prank(seaportAddr);
-        // custodian.generateOrder(
-        //     activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
-        // );
     }
 
     function testGenerateOrderRepayNotBorrower() public {

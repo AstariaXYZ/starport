@@ -251,9 +251,27 @@ contract IntegrationTestCaveats is StarPortTest, DeepEq, MockCall {
 
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
+        skip(1);
         vm.prank(loan.borrower);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
         vm.expectRevert(LenderEnforcer.InvalidLoanTerms.selector);
+        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData);
+    }
+
+    function testRefinanceLoanStartAtBlockTimestampInvalidLoan() public {
+        Starport.Loan memory loan = newLoanWithDefaultTerms();
+
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+
+        _setApprovalsForSpentItems(lender.addr, loan.debt);
+
+        vm.prank(loan.borrower);
+        vm.expectRevert(Starport.InvalidLoan.selector);
         SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData);
     }
 }

@@ -24,6 +24,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
+        skip(1);
         {
             vm.startPrank(recaller.addr);
             vm.expectRevert(BaseRecall.RecallBeforeHoneymoonExpiry.selector);

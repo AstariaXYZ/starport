@@ -204,6 +204,9 @@ contract Custodian is ERC721, ContractOffererInterface {
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
+        if (loan.start == block.timestamp) {
+            revert InvalidLoan();
+        }
         if (action == Actions.Repayment && SettlementHook(loan.terms.status).isActive(loan)) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
@@ -299,7 +302,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
-        if (!SP.active(loan.getId())) {
+        if (loan.start == block.timestamp || !SP.active(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = SettlementHook(loan.terms.status).isActive(loan);

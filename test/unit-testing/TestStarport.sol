@@ -164,13 +164,9 @@ contract TestStarport is StarPortTest, DeepEq {
         SP.unpause();
     }
 
-    function testIssued() public {
-        assert(SP.getExtraData(activeLoan.getId()) > uint8(0));
-    }
-
     function testInitializedFlagSetProperly() public {
         activeLoan.borrower = address(0);
-        assert(SP.getExtraData(activeLoan.getId()) == uint8(Starport.FieldFlags.UNINITIALIZED));
+        assert(SP.inactive(activeLoan.getId()));
     }
 
     function testActive() public {
