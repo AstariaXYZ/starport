@@ -41,7 +41,7 @@ contract SimpleInterestPricing is BasePricing {
         return StarportLib.calculateSimpleInterest(delta_t, amount, rate);
     }
 
-    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual

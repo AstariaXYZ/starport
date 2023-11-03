@@ -110,12 +110,12 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
         simplePricing.calculateInterest(time, amount, rate - (rate * 2));
     }
 
-    function test_isValidRefinance() public {
+    function test_getRefinanceConsideration() public {
         SimpleInterestPricing simplePricing = new SimpleInterestPricing(SP);
 
         uint256 baseRate = (uint256(1e16) * 150) / (365 * 1 days);
 
-        simplePricing.isValidRefinance(
+        simplePricing.getRefinanceConsideration(
             targetLoan,
             abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2})),
             address(0)
@@ -123,7 +123,7 @@ contract TestSimpleInterestPricing is StarPortTest, DeepEq {
 
         vm.expectRevert(bytes4(keccak256("InvalidRefinance()")));
 
-        simplePricing.isValidRefinance(
+        simplePricing.getRefinanceConsideration(
             targetLoan,
             abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2})),
             address(0)

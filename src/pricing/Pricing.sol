@@ -39,7 +39,7 @@ abstract contract Pricing {
         virtual
         returns (SpentItem[] memory, SpentItem[] memory);
 
-    function isValidRefinance(Starport.Loan memory loan, bytes calldata newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes calldata newPricingData, address fulfiller)
         external
         view
         virtual

@@ -21,7 +21,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
     error InsufficientRefinance();
 
-    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual
@@ -33,7 +33,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         )
     {
         // borrowers can refinance a loan at any time
-        if (caller != loan.borrower) {
+        if (fulfiller != loan.borrower) {
             // check if a recall is occuring
             AstariaV1SettlementHook hook = AstariaV1SettlementHook(loan.terms.status);
             Details memory newDetails = abi.decode(newPricingData, (Details));
@@ -64,7 +64,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 // split is proportional to the difference in rate
                 proportion = 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
-            recallConsideration = hook.generateRecallConsideration(loan, proportion, caller, receiver);
+            recallConsideration = hook.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);

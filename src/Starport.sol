@@ -225,7 +225,7 @@ contract Starport is ERC721, PausableNonReentrant {
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
             AdditionalTransfer[] memory additionalTransfers
-        ) = Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, msg.sender);
+        ) = Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, msg.sender);
 
         _settle(loan);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);

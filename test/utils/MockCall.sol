@@ -20,7 +20,7 @@ abstract contract MockCall is TestBase {
     ) public {
         vm.mockCall(
             pricing,
-            abi.encodeWithSelector(Pricing.isValidRefinance.selector),
+            abi.encodeWithSelector(Pricing.getRefinanceConsideration.selector),
             abi.encode(considerationPayment, carryPayment, additionalTransfers)
         );
     }

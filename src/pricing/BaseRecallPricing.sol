@@ -33,7 +33,7 @@ import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 abstract contract BaseRecallPricing is BasePricing {
-    function isValidRefinance(Starport.Loan memory loan, bytes memory newPricingData, address caller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual

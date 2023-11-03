@@ -517,7 +517,7 @@ contract StarPortTest is BaseOrderTest {
         returns (Starport.Loan memory)
     {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
-            Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, fulfiller);
+            Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, fulfiller);
         return SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
     }
 

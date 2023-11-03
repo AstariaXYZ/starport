@@ -63,7 +63,7 @@ contract AstariaV1Test is StarPortTest {
         returns (LenderEnforcer.Details memory)
     {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
-            Pricing(loan.terms.pricing).isValidRefinance(loan, pricingData, transactor);
+            Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, transactor);
 
         loan = SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
         loan.issuer = transactor;
