@@ -1,0 +1,42 @@
+sequenceDiagram
+    title Starport Refinance Sequence Diagram
+    participant F as Fulfiller
+    participant R as Refinancer
+    participant L as Lender
+    participant R as Recaller
+
+
+    F->>LoanManager: refinance
+    LoanManager->>Pricing: isValidRefinance
+    Pricing->>LoanManager: (SpentItem[] ConsiderPayment, SpentItem[] CarryPayment, AdditionalTransfer[] AT)
+
+    LoanManager->>LoanManager: settle loan
+
+    loop Transfer 1->n ConsiderPayment items
+        R->>L: Move ConsiderPayment to Lender
+    end
+    opt CarryPayment length > 0
+        R->>Originator: Move CarryPayment to Originator
+    end
+
+    opt F is not Refinancer and F is not approved
+        loop Validate 1->n Caveats
+            LoanManager->>CaveatEnforcer: validate
+        end
+    end
+    opt AdditionalTransferItems length > 0
+        LoanManager->>LoanManager: validateAdditionalTransfers
+        loop 1->n
+            alt From is Borrower
+                B->>AdditionalTransferRecipient: AdditionalTransferItem from Borrower -> AdditionalTransferRecipient
+            else From is Lender
+                L->>AdditionalTransferRecipient: AdditionalTransferItem from Lender -> AdditionalTransferRecipient
+            else From is F
+                F->>AdditionalTransferRecipient: AdditionalTransferItem from Fulfiller -> AdditionalTransferRecipient
+            end
+        end
+    end
+
+    opt Lender is contract
+        LoanManager->>L: onERC721Received
+    end

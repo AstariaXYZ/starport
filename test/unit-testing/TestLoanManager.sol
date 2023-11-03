@@ -6,6 +6,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 
 contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
@@ -98,6 +99,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     MockCustodian public mockCustodian;
 
     event CaveatNonceIncremented(uint256 newNonce);
+    event CaveatSaltInvalidated(bytes32 invalidatedSalt);
 
     event Open(uint256 LoanId, LoanManager.Loan loan);
 
@@ -119,10 +121,18 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     function testIncrementCaveatNonce() public {
+        vm.roll(5);
         uint256 newNonce = LM.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);
         vm.expectEmit();
         emit CaveatNonceIncremented(newNonce);
         LM.incrementCaveatNonce();
+    }
+
+    function testInvalidateCaveatSalt() public {
+        bytes32 salt = bytes32(uint256(2));
+        vm.expectEmit();
+        emit CaveatSaltInvalidated(salt);
+        LM.invalidateCaveatSalt(salt);
     }
 
     function testSupportsInterface() public {
@@ -145,18 +155,19 @@ contract TestLoanManager is StarPortTest, DeepEq {
     }
 
     event Paused();
-    event UnPaused();
+    event Unpaused();
 
     function testPause() public {
-        vm.expectEmit();
+        vm.expectEmit(address(LM));
         emit Paused();
         LM.pause();
     }
 
-    function testUnPause() public {
-        vm.expectEmit();
-        emit UnPaused();
-        LM.unPause();
+    function testUnpause() public {
+        LM.pause();
+        vm.expectEmit(address(LM));
+        emit Unpaused();
+        LM.unpause();
     }
 
     function testIssued() public {
@@ -211,7 +222,7 @@ contract TestLoanManager is StarPortTest, DeepEq {
     function testCannotOriginateWhilePaused() public {
         LM.pause();
         LoanManager.Loan memory loan = generateDefaultLoanTerms();
-        vm.expectRevert(abi.encodeWithSelector(LoanManager.IsPaused.selector));
+        vm.expectRevert(abi.encodeWithSelector(PausableNonReentrant.IsPaused.selector));
         LM.originate(new AdditionalTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 

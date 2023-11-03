@@ -35,12 +35,13 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
 interface LoanSettledCallback {
     function onLoanSettled(LoanManager.Loan calldata loan) external;
 }
 
-contract LoanManager is Ownable, ERC721 {
+contract LoanManager is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
     using {StarPortLib.toReceivedItems} for SpentItem[];
@@ -62,7 +63,6 @@ contract LoanManager is Ownable, ERC721 {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
-    bool public paused;
     address public feeTo;
     uint88 public defaultFeeRake;
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
@@ -111,9 +111,8 @@ contract LoanManager is Ownable, ERC721 {
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, LoanManager.Loan loan);
-    event Paused();
-    event UnPaused();
     event CaveatNonceIncremented(uint256 newNonce);
+    event CaveatSaltInvalidated(bytes32 invalidatedSalt);
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -132,7 +131,6 @@ contract LoanManager is Ownable, ERC721 {
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error MalformedRefinance();
-    error IsPaused();
 
     constructor(ConsiderationInterface seaport_) {
         address custodian = address(new Custodian(this, seaport_));
@@ -174,12 +172,6 @@ contract LoanManager is Ownable, ERC721 {
     //        }
     //    }
 
-    function incrementCaveatNonce() external {
-        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
-        caveatNonces[msg.sender] = newNonce;
-        emit CaveatNonceIncremented(newNonce);
-    }
-
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
     }
@@ -188,34 +180,21 @@ contract LoanManager is Ownable, ERC721 {
         revert CannotTransferLoans();
     }
 
-    function pause() external onlyOwner {
-        paused = true;
-        emit Paused();
-    }
-
-    function unPause() external onlyOwner {
-        paused = false;
-        emit UnPaused();
-    }
-
     function originate(
         AdditionalTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan
-    ) external payable {
-        if (paused) {
-            revert IsPaused();
-        }
+    ) external payable pausableNonReentrant {
         //cache the addresses
         address borrower = loan.borrower;
         address issuer = loan.issuer;
         address feeRecipient = feeTo;
-        if (msg.sender != loan.borrower && !(approvals[borrower][msg.sender] == ApprovalType.BORROWER)) {
+        if (msg.sender != borrower && approvals[borrower][msg.sender] != ApprovalType.BORROWER) {
             _validateAndEnforceCaveats(borrowerCaveat, borrower, additionalTransfers, loan);
         }
 
-        if (msg.sender != issuer && !(approvals[issuer][msg.sender] == ApprovalType.LENDER)) {
+        if (msg.sender != issuer && approvals[issuer][msg.sender] != ApprovalType.LENDER) {
             _validateAndEnforceCaveats(lenderCaveat, issuer, additionalTransfers, loan);
         }
 
@@ -246,10 +225,7 @@ contract LoanManager is Ownable, ERC721 {
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         LoanManager.Loan memory loan,
         bytes calldata pricingData
-    ) external {
-        if (paused) {
-            revert IsPaused();
-        }
+    ) external pausableNonReentrant {
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -260,18 +236,21 @@ contract LoanManager is Ownable, ERC721 {
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
         _transferSpentItems(considerationPayment, lender, loan.issuer);
-        _transferSpentItems(carryPayment, lender, loan.originator);
+
+        if (carryPayment.length > 0) {
+            _transferSpentItems(carryPayment, lender, loan.originator);
+        }
 
         loan.issuer = lender;
         loan.originator = address(0);
         loan.start = 0;
 
-        if (msg.sender != loan.issuer && !(approvals[loan.issuer][msg.sender] == ApprovalType.LENDER)) {
-            _validateAndEnforceCaveats(lenderCaveat, loan.issuer, additionalTransfers, loan);
+        if (msg.sender != lender && approvals[lender][msg.sender] != ApprovalType.LENDER) {
+            _validateAndEnforceCaveats(lenderCaveat, lender, additionalTransfers, loan);
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfers(loan.borrower, loan.issuer, msg.sender, additionalTransfers);
+            _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
             StarPortLib.transferAdditionalTransfers(additionalTransfers);
         }
 
@@ -467,6 +446,17 @@ contract LoanManager is Ownable, ERC721 {
                 )
             )
         );
+    }
+
+    function incrementCaveatNonce() external {
+        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
+        caveatNonces[msg.sender] = newNonce;
+        emit CaveatNonceIncremented(newNonce);
+    }
+
+    function invalidateCaveatSalt(bytes32 salt) external {
+        invalidHashes[msg.sender][salt] = true;
+        emit CaveatSaltInvalidated(salt);
     }
 
     /**
