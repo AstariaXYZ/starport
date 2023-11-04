@@ -211,22 +211,6 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         uint256 currentAuctionPrice = AstariaV1Settlement(loan.terms.settlement).getCurrentAuctionPrice(loan);
     }
 
-    //    function testV1SettlementHandlerExecute() public {
-    //        Starport.Terms memory terms = Starport.Terms({
-    //            status: address(hook),
-    //            settlement: address(settlement),
-    //            pricing: address(pricing),
-    //            pricingData: defaultPricingData,
-    //            settlementData: defaultSettlementData,
-    //            statusData: defaultStatusData
-    //        });
-    //        Starport.Loan memory loan =
-    //            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-    //
-    //        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.ExecuteHandlerNotImplemented.selector));
-    //        AstariaV1Settlement(loan.terms.settlement).postSettlement(loan, address(this));
-    //    }
-
     function testV1SettlementHandlerValidate() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
