@@ -128,7 +128,7 @@ contract StarportTest is BaseOrderTest {
 
     Pricing pricing;
     Settlement settlement;
-    Status hook;
+    Status status;
 
     uint256 defaultLoanDuration = 14 days;
 
@@ -205,7 +205,7 @@ contract StarportTest is BaseOrderTest {
         SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(SP);
         settlement = new FixedTermDutchAuctionSettlement(SP);
-        hook = new FixedTermStatus();
+        status = new FixedTermStatus();
         vm.label(address(erc721s[0]), "Collateral NFT");
         vm.label(address(erc721s[1]), "Collateral2 NFT");
         vm.label(address(erc20s[0]), "Debt ERC20");
@@ -484,7 +484,7 @@ contract StarportTest is BaseOrderTest {
             collateral: newCollateral,
             debt: newDebt,
             terms: Starport.Terms({
-                status: address(hook),
+                status: address(status),
                 settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: defaultPricingData,

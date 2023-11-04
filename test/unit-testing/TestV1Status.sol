@@ -20,7 +20,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testIsActive() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -35,7 +35,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testIsRecalledInsideWindow() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -63,7 +63,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testInvalidRecallLoanDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -87,7 +87,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testInvalidRecallInvalidStakeType() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -113,7 +113,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testCannotRecallTwice() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -137,7 +137,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testIsRecalledOutsideWindow() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -162,7 +162,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testGenerateRecallConsideration() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -201,7 +201,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testRecallRateEmptyRecall() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -219,7 +219,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testRecallRateActiveRecall() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -245,7 +245,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testCannotWithdrawWithdrawDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -261,7 +261,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
     function testCannotWithdrawLoanHasNotBeenRefinanced() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,

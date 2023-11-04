@@ -222,6 +222,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
+            _settlementExecute(loan, fulfiller);
         } else if (action == Actions.Settlement && !Status(loan.terms.status).isActive(loan)) {
             address authorized;
             //add in originator fee
@@ -236,18 +237,11 @@ contract Custodian is ERC721, ContractOffererInterface {
                 _setOfferApprovalsWithSeaport(offer);
             } else if (authorized == loan.terms.settlement || authorized == loan.issuer) {
                 _moveCollateralToAuthorized(loan.collateral, authorized);
-                _beforeSettlementHandlerHook(loan);
-                if (
-                    authorized == loan.terms.settlement
-                        && Settlement(loan.terms.settlement).execute(loan, fulfiller) != Settlement.execute.selector
-                ) {
-                    revert InvalidHandlerExecution();
-                }
-                _afterSettlementHandlerHook(loan);
             } else {
                 revert InvalidFulfiller();
             }
             _settleLoan(loan);
+            _settlementExecute(loan, fulfiller);
         } else {
             revert InvalidAction();
         }
@@ -398,6 +392,20 @@ contract Custodian is ERC721, ContractOffererInterface {
         for (uint256 i = 0; i < offer.length; i++) {
             _transferCollateralAuthorized(offer[i], authorized);
         }
+    }
+
+    /**
+     * @dev settle the loan with the LoanManager
+     *
+     * @param loan              The the loan that is settled
+     * @param fulfiller      The address executing seaport
+     */
+    function _settlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
+        _beforeSettlementHandlerHook(loan);
+        if (Settlement(loan.terms.settlement).execute(loan, fulfiller) != Settlement.execute.selector) {
+            revert InvalidHandlerExecution();
+        }
+        _afterSettlementHandlerHook(loan);
     }
 
     /**

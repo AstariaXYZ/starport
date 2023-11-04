@@ -6,7 +6,6 @@ import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
@@ -146,7 +145,13 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     }
 
     function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        revert ExecuteHandlerNotImplemented();
+        //        TODO: do we need the commented out code if we dont care about reverts anyways, seems like extra gas
+        //        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        //        if (recallStart != 0 || recaller != address(0)) {
+        //we dont wanna revert if theres ever a halt in the underlying call, settlement must complete
+        loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
+        //        }
+        return Settlement.execute.selector;
     }
 
     function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {

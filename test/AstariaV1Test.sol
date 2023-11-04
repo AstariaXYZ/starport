@@ -29,12 +29,12 @@ contract AstariaV1Test is StarportTest {
 
         pricing = new AstariaV1Pricing(SP);
         settlement = new AstariaV1Settlement(SP);
-        hook = new AstariaV1Status(SP);
+        status = new AstariaV1Status(SP);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
 
         vm.startPrank(recaller.addr);
-        erc20s[0].approve(address(hook), 1e18);
+        erc20s[0].approve(address(status), 1e18);
         vm.stopPrank();
 
         // // 1% interest rate per second

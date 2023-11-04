@@ -25,6 +25,7 @@ import {
     OrderType
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Status} from "starport-core/status/Status.sol";
 
 contract EnglishAuctionSettlement is Settlement {
     using FixedPointMathLib for uint256;
@@ -56,7 +57,7 @@ contract EnglishAuctionSettlement is Settlement {
     }
 
     function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        if (fulfiller != address(this)) {
+        if (fulfiller != address(this) && !Status(loan.terms.status).isActive(loan)) {
             revert("must liquidate via the handler to trigger english auction");
         }
         return Settlement.execute.selector;

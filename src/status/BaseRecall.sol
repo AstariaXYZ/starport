@@ -117,7 +117,7 @@ abstract contract BaseRecall {
     }
 
     // transfers all stake to anyone who asks after the LM token is burned
-    function withdraw(Starport.Loan calldata loan, address payable receiver) external {
+    function withdraw(Starport.Loan calldata loan, address receiver) external {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
@@ -171,12 +171,11 @@ abstract contract BaseRecall {
         }
     }
 
-    function generateRecallConsideration(
-        Starport.Loan calldata loan,
-        uint256 proportion,
-        address from,
-        address payable to
-    ) external view returns (AdditionalTransfer[] memory consideration) {
+    function generateRecallConsideration(Starport.Loan calldata loan, uint256 proportion, address from, address to)
+        external
+        view
+        returns (AdditionalTransfer[] memory consideration)
+    {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         return _generateRecallConsideration(loan, 0, details.recallStakeDuration, proportion, from, to);
     }
@@ -187,7 +186,7 @@ abstract contract BaseRecall {
         uint256 end,
         uint256 proportion,
         address from,
-        address payable to
+        address to
     ) internal view returns (AdditionalTransfer[] memory additionalTransfers) {
         uint256[] memory stake = _getRecallStake(loan, start, end);
         additionalTransfers = new AdditionalTransfer[](stake.length);
