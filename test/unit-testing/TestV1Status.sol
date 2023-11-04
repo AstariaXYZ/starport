@@ -80,7 +80,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         erc20s[0].approve(loan.terms.status, 10e18);
 
         skip(details.honeymoon);
-        vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(false));
+        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(true));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanDoesNotExist.selector));
         AstariaV1Status(loan.terms.status).recall(loan);
     }
@@ -103,10 +103,10 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
         skip(details.honeymoon);
-        vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(true));
+        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(false));
         AstariaV1Status(loan.terms.status).recall(loan);
         skip(details.recallWindow);
-        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(true));
+        vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(false));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.InvalidItemType.selector));
         AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
@@ -254,7 +254,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         });
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loan.getId()), abi.encode(true));
+        vm.mockCall(address(SP), abi.encodeWithSelector(SP.active.selector, loan.getId()), abi.encode(false));
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.WithdrawDoesNotExist.selector));
         AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
