@@ -32,15 +32,13 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 import {StrategistOriginator} from "starport-core/originators/StrategistOriginator.sol";
 
 import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
-import {CompoundInterestPricing} from "starport-core/pricing/CompoundInterestPricing.sol";
+
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
+
 import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
-import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
 import {FixedTermDutchAuctionSettlement} from "starport-core/settlement/FixedTermDutchAuctionSettlement.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
 import {EnglishAuctionSettlement} from "starport-core/settlement/EnglishAuctionSettlement.sol";
-import {AstariaV1Settlement} from "starport-core/settlement/AstariaV1Settlement.sol";
 
 import {Starport} from "starport-core/Starport.sol";
 
@@ -111,14 +109,12 @@ contract StarportTest is BaseOrderTest {
     MockIssuer public issuer;
 
     Status fixedTermStatus;
-    Status astariaStatus;
+
 
     Settlement dutchAuctionSettlement;
     Settlement englishAuctionSettlement;
-    Settlement astariaSettlement;
 
     Pricing simpleInterestPricing;
-    Pricing astariaPricing;
 
     //    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     ConsiderationInterface public seaport;
@@ -251,7 +247,7 @@ contract StarportTest is BaseOrderTest {
         /////////
 
         fixedTermStatus = new FixedTermStatus();
-        astariaStatus = new AstariaV1Status(SP);
+
 
         dutchAuctionSettlement = new FixedTermDutchAuctionSettlement(SP);
         englishAuctionSettlement = new EnglishAuctionSettlement({
@@ -259,10 +255,9 @@ contract StarportTest is BaseOrderTest {
             consideration_: seaport,
             EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
         });
-        astariaSettlement = new AstariaV1Settlement(SP);
 
         simpleInterestPricing = new SimpleInterestPricing(SP);
-        astariaPricing = new AstariaV1Pricing(SP);
+
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
