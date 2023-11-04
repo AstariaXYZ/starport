@@ -12,6 +12,7 @@ import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import "forge-std/console.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
@@ -21,7 +22,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
     error InsufficientRefinance();
 
-    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan memory loan, bytes calldata newPricingData, address fulfiller)
         external
         view
         virtual
@@ -35,19 +36,18 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         // borrowers can refinance a loan at any time
         if (fulfiller != loan.borrower) {
             // check if a recall is occuring
-            AstariaV1Status hook = AstariaV1Status(loan.terms.status);
-            Details memory newDetails = abi.decode(newPricingData, (Details));
-            if (hook.isRecalled(loan)) {
-                uint256 rate = hook.getRecallRate(loan);
-                // offered loan did not meet the terms of the recall auction
-                if (newDetails.rate > rate) {
-                    revert InsufficientRefinance();
-                }
-            }
-            // recall is not occuring
-            else {
+            AstariaV1Status status = AstariaV1Status(loan.terms.status);
+
+            if (!status.isRecalled(loan)) {
                 revert InvalidRefinance();
             }
+            Details memory newDetails = abi.decode(newPricingData, (Details));
+            uint256 rate = status.getRecallRate(loan);
+            // offered loan did not meet the terms of the recall auction
+            if (newDetails.rate > rate) {
+                revert InsufficientRefinance();
+            }
+
             Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
 
             uint256 proportion;
@@ -57,14 +57,14 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             // recaller stake is refunded
             if (newDetails.rate > oldDetails.rate) {
                 proportion = 1e18;
-                (receiver,) = hook.recalls(loanId);
+                (receiver,) = status.recalls(loanId);
             } else {
                 // scenario where the recaller is penalized
                 // essentially the old lender and the new lender split the stake of the recaller
                 // split is proportional to the difference in rate
                 proportion = 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
-            recallConsideration = hook.generateRecallConsideration(loan, proportion, fulfiller, receiver);
+            recallConsideration = status.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);

@@ -470,7 +470,7 @@ contract StarportTest is BaseOrderTest {
         return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
     }
 
-    function generateDefaultLoanTerms() public view returns (Starport.Loan memory) {
+    function generateDefaultLoanTerms() public view virtual returns (Starport.Loan memory) {
         SpentItem[] memory newCollateral = new SpentItem[](1);
         newCollateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), identifier: 1, amount: 1});
         SpentItem[] memory newDebt = new SpentItem[](1);
