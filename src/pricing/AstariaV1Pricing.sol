@@ -12,7 +12,6 @@ import {BaseRecall} from "starport-core/status/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import "forge-std/console.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;

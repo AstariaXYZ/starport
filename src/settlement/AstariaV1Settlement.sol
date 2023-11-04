@@ -9,7 +9,6 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import "forge-std/console2.sol";
 
 contract AstariaV1Settlement is DutchAuctionSettlement {
     using {StarportLib.getId} for Starport.Loan;

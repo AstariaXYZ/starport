@@ -3,7 +3,6 @@ pragma solidity ^0.8.17;
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {Starport} from "starport-core/Starport.sol";
-import "forge-std/console.sol";
 
 enum Actions {
     Nothing,

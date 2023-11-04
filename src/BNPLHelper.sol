@@ -15,7 +15,6 @@ import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Seaport} from "seaport/contracts/Seaport.sol";
 import {Starport} from "./Starport.sol";
 import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
-import "forge-std/console.sol";
 
 interface IVault {
     function flashLoan(

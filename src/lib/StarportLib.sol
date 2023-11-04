@@ -2,13 +2,12 @@ pragma solidity ^0.8.17;
 
 import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Starport} from "starport-core/Starport.sol";
-import "forge-std/console.sol";
+
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console2.sol";
 
 enum Actions {
     Nothing,

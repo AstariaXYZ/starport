@@ -34,7 +34,6 @@ import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import "forge-std/console2.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;

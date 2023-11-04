@@ -25,7 +25,6 @@ import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Status} from "starport-core/status/Status.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console2.sol";
 
 import {BaseStatus} from "starport-core/status/BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
