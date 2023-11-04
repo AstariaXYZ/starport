@@ -150,13 +150,18 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         override
         returns (bytes4)
     {
-        //        TODO: do we need the commented out code if we dont care about reverts anyways, seems like extra gas
-        //        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
-        //        if (recallStart != 0 || recaller != address(0)) {
-        //we dont wanna revert if theres ever a halt in the underlying call, settlement must complete
-        loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
-        //        }
+        _executeWithdraw(loan, fulfiller);
         return Settlement.postSettlement.selector;
+    }
+
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        _executeWithdraw(loan, fulfiller);
+
+        return Settlement.postRepayment.selector;
+    }
+
+    function _executeWithdraw(Starport.Loan calldata loan, address fulfiller) internal {
+        loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
     }
 
     function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {

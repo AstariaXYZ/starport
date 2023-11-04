@@ -61,6 +61,42 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         assert(AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 
+    function testRecallAndRefinanceInsideWindow() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+
+        erc20s[0].mint(address(this), 10e18);
+        erc20s[0].approve(loan.terms.status, 10e18);
+
+        skip(details.honeymoon);
+        vm.expectEmit();
+        emit Recalled(loanId, address(this), block.timestamp + details.recallWindow);
+        AstariaV1Status(loan.terms.status).recall(loan);
+        (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
+        skip(details.recallWindow - 1);
+        address newLender = address(55);
+
+        BasePricing.Details memory newPricingData = abi.decode(defaultPricingData, (BasePricing.Details));
+        newPricingData.rate = newPricingData.rate * 2;
+
+        vm.startPrank(newLender);
+        erc20s[0].mint(newLender, 10e18);
+        erc20s[0].approve(address(SP), 10e18);
+        SP.refinance(newLender, _emptyCaveat(), loan, abi.encode(newPricingData));
+        assert(erc20s[0].balanceOf(address(loan.terms.status)) == 0);
+    }
+
     function testInvalidRecallLoanDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),

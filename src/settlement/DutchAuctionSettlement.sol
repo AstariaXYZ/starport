@@ -16,9 +16,7 @@ import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
-    constructor(Starport SP_) Settlement(SP_) {
-        SP = SP_;
-    }
+    constructor(Starport SP_) Settlement(SP_) {}
 
     using FixedPointMathLib for uint256;
 

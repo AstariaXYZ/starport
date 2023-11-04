@@ -152,7 +152,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
                 erc20s[0].approve(address(SP), stake);
                 refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
-                console.log("here2");
+                console.log("here2", stake);
             }
 
             uint256 delta_t = block.timestamp - loan.start;
@@ -182,19 +182,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
 
             {
-                uint256 oldOriginatorAfter = erc20s[0].balanceOf(loan.originator);
                 assertEq(
-                    oldOriginatorAfter,
+                    erc20s[0].balanceOf(loan.originator),
                     oldOriginatorBefore + interest.mulWad(pricingDetails.carryRate),
                     "Carry payment to old originator calculated incorrectly"
                 );
             }
 
             {
-                uint256 newFullfillerAfter = erc20s[0].balanceOf(address(this));
                 assertEq(
-                    newFullfillerAfter,
-                    newFullfillerBefore - stake,
+                    erc20s[0].balanceOf(address(this)),
+                    newFullfillerBefore,
                     "New fulfiller did not repay recaller stake correctly"
                 );
             }
@@ -205,22 +203,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
             }
         }
         {
-            uint256 withdrawerBalanceBefore = erc20s[0].balanceOf(address(this));
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
             BaseRecall recallContract = BaseRecall(address(status));
 
             // attempt a withdraw after the loan has been successfully refinanced
-            recallContract.withdraw(loan, payable(address(this)));
-            uint256 withdrawerBalanceAfter = erc20s[0].balanceOf(address(this));
+            //            recallContract.withdraw(loan, payable(address(this)));
+
             uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
-            assertEq(
-                withdrawerBalanceBefore + stake, withdrawerBalanceAfter, "Withdrawer did not recover stake as expected"
-            );
-            assertEq(
-                recallContractBalanceBefore - stake,
-                recallContractBalanceAfter,
-                "BaseRecall did not return the stake as expected"
-            );
+            assertEq(recallContractBalanceAfter, uint256(0), "BaseRecall did get emptied as expected");
         }
     }
 
