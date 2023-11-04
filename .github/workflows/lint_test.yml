@@ -32,7 +32,7 @@ jobs:
         run: forge test -vvv
 
       - name: Snapshot
-        run: forge snapshot --check
+        run: forge snapshot --check --no-match-path '*fuzz*'
 
 
 

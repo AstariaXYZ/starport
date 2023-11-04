@@ -57,7 +57,7 @@ contract TestNewLoan is StarportTest {
         Custodian custody = Custodian(SP.defaultCustodian());
 
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,

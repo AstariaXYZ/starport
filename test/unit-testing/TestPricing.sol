@@ -35,7 +35,7 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
             collateral: newCollateral,
             debt: newDebt,
             terms: Starport.Terms({
-                status: address(hook),
+                status: address(status),
                 settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: abi.encode(

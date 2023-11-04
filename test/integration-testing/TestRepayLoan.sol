@@ -13,7 +13,7 @@ contract TestRepayLoan is StarportTest {
     function testRepayLoanBase() public {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -37,7 +37,7 @@ contract TestRepayLoan is StarportTest {
 
     function testRepayLoanInvalidRepayer() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -105,7 +105,7 @@ contract TestRepayLoan is StarportTest {
     function testRepayLoanApprovedRepayer() public {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -122,7 +122,7 @@ contract TestRepayLoan is StarportTest {
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
-        custodian.setRepayApproval(address(this), true);
+        custodian.mintWithApprovalSet(loan, address(this));
         vm.stopPrank();
 
         _repayLoan(loan, address(this));
@@ -131,7 +131,7 @@ contract TestRepayLoan is StarportTest {
     // calling generateOrder on the Custodian to test the onlySeaport modifier
     function testRepayLoanGenerateOrderNotSeaport() public {
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -155,7 +155,7 @@ contract TestRepayLoan is StarportTest {
     function testRepayLoanInSettlement() public {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,
@@ -220,7 +220,7 @@ contract TestRepayLoan is StarportTest {
     function testRepayLoanThatDoesNotExist() public {
         uint256 borrowAmount = 1e18;
         Starport.Terms memory terms = Starport.Terms({
-            status: address(hook),
+            status: address(status),
             settlement: address(settlement),
             pricing: address(pricing),
             pricingData: defaultPricingData,

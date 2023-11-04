@@ -164,6 +164,11 @@ contract TestStarport is StarportTest, DeepEq {
         SP.unpause();
     }
 
+    function testApplyRefinanceConsiderationToLoanMalformed() public {
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(activeLoan, new SpentItem[](0), new SpentItem[](0), "");
+    }
+
     function testInitializedFlagSetProperly() public {
         activeLoan.borrower = address(0);
         assert(SP.inactive(activeLoan.getId()));
