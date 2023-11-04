@@ -52,6 +52,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     error InvalidHandlerExecution();
     error InvalidLoan();
     error InvalidRepayer();
+    error NotAuthorized();
     error NotSeaport();
     error NotEnteredViaSeaport();
     error NotStarport();
@@ -154,16 +155,24 @@ contract Custodian is ERC721, ContractOffererInterface {
 
         _safeMint(loan.borrower, loanId, encodedLoan);
     }
-
     /**
-     * @dev Set's approvals for who can repay a loan on behalf of the borrower.
+     * @dev Mints a custody token for a loan.
      *
-     * @param who              The address of the account to modify approval for
-     * @param approved         The approval status
+     * @param loan             The loan to mint a custody token for
+     * @param approvedTo       The address with pre approvals set
      */
-    function setRepayApproval(address who, bool approved) external {
-        repayApproval[msg.sender][who] = approved;
-        emit RepayApproval(msg.sender, who, approved);
+
+    function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external {
+        bytes memory encodedLoan = abi.encode(loan);
+        uint256 loanId = uint256(keccak256(encodedLoan));
+        if (loan.custodian != address(this) || !SP.active(loanId)) {
+            revert InvalidLoan();
+        }
+        if (msg.sender != loan.borrower) {
+            revert NotAuthorized();
+        }
+        _safeMint(loan.borrower, loanId, encodedLoan);
+        _approve(loan.borrower, approvedTo, loanId);
     }
 
     /**
@@ -208,7 +217,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         }
         if (action == Actions.Repayment && Status(loan.terms.status).isActive(loan)) {
             address borrower = getBorrower(loan);
-            if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
+            if (fulfiller != borrower && fulfiller != _getApproved(loan.getId())) {
                 revert InvalidRepayer();
             }
 
@@ -222,7 +231,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
 
             _settleLoan(loan);
-            _settlementExecute(loan, fulfiller);
+            _postRepaymentExecute(loan, fulfiller);
         } else if (action == Actions.Settlement && !Status(loan.terms.status).isActive(loan)) {
             address authorized;
             //add in originator fee
@@ -241,7 +250,7 @@ contract Custodian is ERC721, ContractOffererInterface {
                 revert InvalidFulfiller();
             }
             _settleLoan(loan);
-            _settlementExecute(loan, fulfiller);
+            _postSettlementExecute(loan, fulfiller);
         } else {
             revert InvalidAction();
         }
@@ -400,9 +409,29 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param loan              The the loan that is settled
      * @param fulfiller      The address executing seaport
      */
-    function _settlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
+    function _postSettlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         _beforeSettlementHandlerHook(loan);
-        if (Settlement(loan.terms.settlement).execute(loan, fulfiller) != Settlement.execute.selector) {
+        if (
+            Settlement(loan.terms.settlement).postSettlement{gas: 100_000}(loan, fulfiller)
+                != Settlement.postSettlement.selector
+        ) {
+            revert InvalidHandlerExecution();
+        }
+        _afterSettlementHandlerHook(loan);
+    }
+    /**
+     * @dev settle the loan with the LoanManager
+     *
+     * @param loan              The the loan that is settled
+     * @param fulfiller      The address executing seaport
+     */
+
+    function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
+        _beforeSettlementHandlerHook(loan);
+        if (
+            Settlement(loan.terms.settlement).postRepayment{gas: 100_000}(loan, fulfiller)
+                != Settlement.postRepayment.selector
+        ) {
             revert InvalidHandlerExecution();
         }
         _afterSettlementHandlerHook(loan);

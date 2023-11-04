@@ -56,11 +56,20 @@ contract EnglishAuctionSettlement is Settlement {
         return details.reservePrice.length == loan.debt.length;
     }
 
-    function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        if (fulfiller != address(this) && !Status(loan.terms.status).isActive(loan)) {
+    function postSettlement(Starport.Loan calldata loan, address fulfiller)
+        external
+        virtual
+        override
+        returns (bytes4)
+    {
+        if (fulfiller != address(this)) {
             revert("must liquidate via the handler to trigger english auction");
         }
-        return Settlement.execute.selector;
+        return Settlement.postSettlement.selector;
+    }
+
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return Settlement.postRepayment.selector;
     }
 
     function getSettlement(Starport.Loan calldata loan)

@@ -30,8 +30,17 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         uint256 window;
     }
 
-    function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        return Settlement.execute.selector;
+    function postSettlement(Starport.Loan calldata loan, address fulfiller)
+        external
+        virtual
+        override
+        returns (bytes4)
+    {
+        return Settlement.postSettlement.selector;
+    }
+
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        return Settlement.postRepayment.selector;
     }
 
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);

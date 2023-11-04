@@ -122,7 +122,7 @@ contract TestRepayLoan is StarportTest {
         uint256 interest =
             SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
-        custodian.setRepayApproval(address(this), true);
+        custodian.mintWithApprovalSet(loan, address(this));
         vm.stopPrank();
 
         _repayLoan(loan, address(this));

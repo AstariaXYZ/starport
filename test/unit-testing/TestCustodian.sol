@@ -71,10 +71,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.mint.selector, activeLoan));
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(Custodian.setRepayApproval.selector, address(0), false)
-        );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
             abi.encodeWithSelector(
                 Custodian.ratifyOrder.selector,
                 new SpentItem[](0),
@@ -130,11 +126,26 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         custodian.tokenURI(uint256(0));
     }
 
-    function testSetRepayApproval() public {
-        vm.expectEmit(true, false, false, false);
-        emit RepayApproval(address(this), borrower.addr, true);
-        Custodian(custodian).setRepayApproval(borrower.addr, true);
-        assert(Custodian(custodian).repayApproval(address(this), borrower.addr));
+    event Approval(address owner, address account, uint256 id);
+
+    function testMintWithApprovalSetAsBorrower() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(3);
+        loan.start = block.timestamp;
+        loan.originator = borrower.addr;
+        newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
+        //        vm.expectEmit();
+        //        emit Transfer(address(0), borrower.addr, loan.getId());
+        //        vm.expectEmit(address(custodian));
+        //        emit Approval(loan.borrower, address(this), loan.getId());
+        vm.prank(borrower.addr);
+        Custodian(custodian).mintWithApprovalSet(loan, address(this));
+        assert(Custodian(custodian).getApproved(loan.getId()) == address(this));
+    }
+
+    function testMintWithApprovalSetNotAuthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotAuthorized.selector));
+        Custodian(custodian).mintWithApprovalSet(activeLoan, address(this));
     }
 
     function testCannotMintInvalidLoanValidCustodian() public {
@@ -211,7 +222,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
 
     function testGenerateOrderRepayAsRepayApprovedBorrower() public {
         vm.prank(activeLoan.borrower);
-        custodian.setRepayApproval(address(this), true);
+        custodian.approve(address(this), activeLoan.getId());
         vm.prank(seaportAddr);
         custodian.generateOrder(
             address(this), new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)

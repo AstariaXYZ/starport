@@ -32,7 +32,9 @@ abstract contract Settlement is TokenReceiverInterface {
         SP = SP_;
     }
 
-    function execute(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+    function postSettlement(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
 
     function validate(Starport.Loan calldata loan) external view virtual returns (bool);
 

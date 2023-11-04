@@ -224,7 +224,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     //            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
     //
     //        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.ExecuteHandlerNotImplemented.selector));
-    //        AstariaV1Settlement(loan.terms.settlement).execute(loan, address(this));
+    //        AstariaV1Settlement(loan.terms.settlement).postSettlement(loan, address(this));
     //    }
 
     function testV1SettlementHandlerValidate() public {

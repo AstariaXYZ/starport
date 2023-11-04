@@ -18,8 +18,13 @@ contract FixedTermDutchAuctionSettlement is DutchAuctionSettlement {
         return loan.start + details.loanDuration;
     }
 
-    function execute(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        return Settlement.execute.selector;
+    function postSettlement(Starport.Loan calldata loan, address fulfiller)
+        external
+        virtual
+        override
+        returns (bytes4)
+    {
+        return Settlement.postSettlement.selector;
     }
 
     function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
