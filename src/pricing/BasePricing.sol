@@ -25,7 +25,6 @@ import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {Status} from "starport-core/status/Status.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import "forge-std/console2.sol";
 
 import {BaseStatus} from "starport-core/status/BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
@@ -48,8 +47,11 @@ abstract contract BasePricing is Pricing {
         returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        if (details.carryRate > 0) carryConsideration = new SpentItem[](loan.debt.length);
-        else carryConsideration = new SpentItem[](0);
+        if (details.carryRate > 0) {
+            carryConsideration = new SpentItem[](loan.debt.length);
+        } else {
+            carryConsideration = new SpentItem[](0);
+        }
         repayConsideration = new SpentItem[](loan.debt.length);
 
         uint256 i = 0;

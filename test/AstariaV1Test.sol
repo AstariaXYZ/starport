@@ -20,7 +20,7 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 contract AstariaV1Test is StarportTest {
     Account recaller;
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         recaller = makeAndAllocateAccount("recaller");

@@ -6,7 +6,6 @@ import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import "forge-std/console2.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
     using FixedPointMathLib for uint256;
