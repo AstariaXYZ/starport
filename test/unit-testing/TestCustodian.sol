@@ -239,32 +239,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
             address(this), new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
         );
     }
-    //TODO: add assertions
-
-    function testGenerateOrderRepayERC1155WithRevert() public {
-        // 1155
-        Starport.Loan memory originationDetails = _generateOriginationDetails(
-            _getERC1155SpentItem(erc1155s[0]), _getERC20SpentItem(erc20s[0], borrowAmount), address(issuer)
-        );
-
-        Starport.Loan memory loan =
-            newLoan(originationDetails, bytes32(uint256(2)), bytes32(uint256(2)), address(issuer));
-        skip(1);
-
-        loan.toStorage(activeLoan);
-        vm.prank(seaportAddr);
-        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
-        vm.mockCallRevert(
-            address(issuer),
-            abi.encodeWithSelector(
-                LoanSettledCallback.onLoanSettled.selector, abi.encode(Actions.Repayment, activeLoan)
-            ),
-            new bytes(0)
-        );
-        custodian.generateOrder(
-            activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)
-        );
-    }
 
     function testGenerateOrdersWithLoanStartAtBlockTimestampInvalidLoan() public {
         // 1155
@@ -276,7 +250,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
             newLoan(originationDetails, bytes32(uint256(2)), bytes32(uint256(2)), address(issuer));
         loan.toStorage(activeLoan);
         vm.prank(seaportAddr);
-        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
         custodian.generateOrder(
             activeLoan.borrower, new SpentItem[](0), activeDebt, abi.encode(Actions.Repayment, activeLoan)

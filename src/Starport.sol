@@ -37,10 +37,6 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
-interface LoanSettledCallback {
-    function onLoanSettled(Starport.Loan calldata loan) external;
-}
-
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
@@ -473,10 +469,6 @@ contract Starport is ERC721, PausableNonReentrant {
             _burn(tokenId);
         }
         _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
-
-        if (loan.issuer.code.length > 0) {
-            loan.issuer.call(abi.encodeWithSelector(LoanSettledCallback.onLoanSettled.selector, loan));
-        }
         emit Close(tokenId);
     }
 
