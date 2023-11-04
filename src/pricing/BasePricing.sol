@@ -48,8 +48,11 @@ abstract contract BasePricing is Pricing {
         returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        if (details.carryRate > 0) carryConsideration = new SpentItem[](loan.debt.length);
-        else carryConsideration = new SpentItem[](0);
+        if (details.carryRate > 0) {
+            carryConsideration = new SpentItem[](loan.debt.length);
+        } else {
+            carryConsideration = new SpentItem[](0);
+        }
         repayConsideration = new SpentItem[](loan.debt.length);
 
         uint256 i = 0;
