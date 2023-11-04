@@ -412,14 +412,12 @@ contract Custodian is ERC721, ContractOffererInterface {
      */
     function _postSettlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         _beforeSettlementHandlerHook(loan);
-        if (
-            Settlement(loan.terms.settlement).postSettlement{gas: 100_000}(loan, fulfiller)
-                != Settlement.postSettlement.selector
-        ) {
+        if (Settlement(loan.terms.settlement).postSettlement(loan, fulfiller) != Settlement.postSettlement.selector) {
             revert InvalidPostSettlement();
         }
         _afterSettlementHandlerHook(loan);
     }
+
     /**
      * @dev settle the loan with the LoanManager
      *
@@ -429,10 +427,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         _beforeSettlementHandlerHook(loan);
-        if (
-            Settlement(loan.terms.settlement).postRepayment{gas: 100_000}(loan, fulfiller)
-                != Settlement.postRepayment.selector
-        ) {
+        if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
             revert InvalidPostRepayment();
         }
         _afterSettlementHandlerHook(loan);

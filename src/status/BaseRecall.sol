@@ -86,6 +86,7 @@ abstract contract BaseRecall {
     function getRecallRate(Starport.Loan calldata loan) external view returns (uint256) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 loanId = loan.getId();
+
         // calculates the porportion of time elapsed, then multiplies times the max rate
         return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow));
     }
@@ -97,33 +98,32 @@ abstract contract BaseRecall {
             revert RecallBeforeHoneymoonExpiry();
         }
 
-        if (loan.issuer != msg.sender && loan.borrower != msg.sender) {
-            AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-                loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
-            );
-            StarportLib.transferAdditionalTransfers(recallConsideration);
-        }
         uint256 loanId = loan.getId();
-
-        if (!SP.active(loanId)) {
+        if (SP.inactive(loanId)) {
             revert LoanDoesNotExist();
         }
 
         if (recalls[loanId].start > 0) {
             revert RecallAlreadyExists();
         }
+
+        AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
+            msg.sender, loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
+        );
+        if (recallConsideration.length > 0) {
+            StarportLib.transferAdditionalTransfers(recallConsideration);
+        }
+
         recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
         emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
     }
 
     // transfers all stake to anyone who asks after the LM token is burned
     function withdraw(Starport.Loan calldata loan, address receiver) external {
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        bytes memory encodedLoan = abi.encode(loan);
-        uint256 loanId = uint256(keccak256(encodedLoan));
+        uint256 loanId = loan.getId();
 
         // loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
-        if (!SP.inactive(loanId)) {
+        if (SP.active(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
 
@@ -133,37 +133,28 @@ abstract contract BaseRecall {
             revert WithdrawDoesNotExist();
         }
 
-        if (loan.issuer != recall.recaller && loan.borrower != recall.recaller) {
-            AdditionalTransfer[] memory recallConsideration =
-                _generateRecallConsideration(loan, 0, details.recallStakeDuration, 1e18, address(this), receiver);
-            recall.recaller = payable(address(0));
-            recall.start = 0;
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
+        AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
+            recall.recaller, loan, 0, details.recallStakeDuration, 1e18, address(this), receiver
+        );
 
-            for (uint256 i; i < recallConsideration.length;) {
-                if (loan.debt[i].itemType != ItemType.ERC20) {
-                    revert InvalidItemType();
-                }
-
-                ERC20(loan.debt[i].token).transfer(receiver, recallConsideration[i].amount);
-
-                unchecked {
-                    ++i;
-                }
-            }
+        if (recallConsideration.length > 0) {
+            _withdrawRecallStake(recallConsideration);
         }
+
+        recall.recaller = payable(address(0));
+        recall.start = 0;
 
         emit Withdraw(loanId, receiver);
     }
 
-    function _getRecallStake(Starport.Loan memory loan, uint256 start, uint256 end)
-        internal
-        view
-        returns (uint256[] memory recallStake)
-    {
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        recallStake = new uint256[](loan.debt.length);
-        for (uint256 i; i < loan.debt.length;) {
-            recallStake[i] = BasePricing(loan.terms.pricing).getInterest(loan, details.rate, start, end, i);
+    function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
+        uint256 i = 0;
+        for (i; i < transfers.length;) {
+            if (transfers[i].itemType != ItemType.ERC20) {
+                revert InvalidItemType();
+            }
+            ERC20(transfers[i].token).transfer(transfers[i].to, transfers[i].amount);
 
             unchecked {
                 ++i;
@@ -177,10 +168,13 @@ abstract contract BaseRecall {
         returns (AdditionalTransfer[] memory consideration)
     {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
-        return _generateRecallConsideration(loan, 0, details.recallStakeDuration, proportion, from, to);
+        uint256 loanId = loan.getId();
+        Recall memory recall = recalls[loanId];
+        return _generateRecallConsideration(recall.recaller, loan, 0, details.recallStakeDuration, proportion, from, to);
     }
 
     function _generateRecallConsideration(
+        address recaller,
         Starport.Loan calldata loan,
         uint256 start,
         uint256 end,
@@ -188,21 +182,28 @@ abstract contract BaseRecall {
         address from,
         address to
     ) internal view returns (AdditionalTransfer[] memory additionalTransfers) {
-        uint256[] memory stake = _getRecallStake(loan, start, end);
-        additionalTransfers = new AdditionalTransfer[](stake.length);
+        if (loan.issuer != recaller && loan.borrower != recaller) {
+            additionalTransfers = new AdditionalTransfer[](loan.debt.length);
 
-        for (uint256 i; i < additionalTransfers.length;) {
-            additionalTransfers[i] = AdditionalTransfer({
-                itemType: loan.debt[i].itemType,
-                identifier: loan.debt[i].identifier,
-                amount: stake[i].mulWad(proportion),
-                token: loan.debt[i].token,
-                from: from,
-                to: to
-            });
-            unchecked {
-                ++i;
+            uint256 delta_t = end - start;
+            BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            for (uint256 i; i < additionalTransfers.length;) {
+                uint256 stake =
+                    BasePricing(loan.terms.pricing).calculateInterest(delta_t, loan.debt[i].amount, details.rate);
+                additionalTransfers[i] = AdditionalTransfer({
+                    itemType: loan.debt[i].itemType,
+                    identifier: loan.debt[i].identifier,
+                    amount: stake.mulWad(proportion),
+                    token: loan.debt[i].token,
+                    from: from,
+                    to: to
+                });
+                unchecked {
+                    ++i;
+                }
             }
+        } else {
+            additionalTransfers = new AdditionalTransfer[](0);
         }
     }
 }

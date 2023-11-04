@@ -36,6 +36,7 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
 
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
@@ -121,6 +122,7 @@ contract Starport is ERC721, PausableNonReentrant {
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error MalformedRefinance();
+    error InvalidPostRepayment();
 
     constructor(ConsiderationInterface seaport_) {
         address custodian = address(new Custodian(this, seaport_));
@@ -227,6 +229,7 @@ contract Starport is ERC721, PausableNonReentrant {
         ) = Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, msg.sender);
 
         _settle(loan);
+        _postRepaymentExecute(loan, msg.sender);
         loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
         StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
@@ -249,6 +252,18 @@ contract Starport is ERC721, PausableNonReentrant {
 
         //sets originator and start time
         _issueLoan(loan);
+    }
+
+    /**
+     * @dev settle the loan with the LoanManager
+     *
+     * @param loan              The the loan that is settled
+     * @param fulfiller      The address executing seaport
+     */
+    function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
+        if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
+            revert InvalidPostRepayment();
+        }
     }
 
     function applyRefinanceConsiderationToLoan(

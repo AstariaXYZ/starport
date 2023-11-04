@@ -26,7 +26,7 @@ import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStruct
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 
 abstract contract Settlement is TokenReceiverInterface {
-    Starport SP;
+    Starport public immutable SP;
 
     constructor(Starport SP_) {
         SP = SP_;
