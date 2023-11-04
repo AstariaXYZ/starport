@@ -61,7 +61,6 @@ import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
-import {LoanSettledCallback} from "starport-core/Starport.sol";
 import {Actions} from "starport-core/lib/StarportLib.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -77,9 +76,7 @@ interface IWETH9 {
     function withdraw(uint256) external;
 }
 
-contract MockIssuer is LoanSettledCallback, TokenReceiverInterface {
-    function onLoanSettled(Starport.Loan memory loan) external {}
-
+contract MockIssuer is TokenReceiverInterface {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         external
         override
