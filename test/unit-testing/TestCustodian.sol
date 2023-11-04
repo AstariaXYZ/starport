@@ -143,6 +143,17 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         assert(Custodian(custodian).getApproved(loan.getId()) == address(this));
     }
 
+    function testMintWithApprovalSetAsBorrowerInvalidLoan() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0].identifier = uint256(3);
+        loan.start = block.timestamp;
+        loan.originator = borrower.addr;
+        loan.custodian = address(this);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
+        vm.prank(borrower.addr);
+        Custodian(custodian).mintWithApprovalSet(loan, address(this));
+    }
+
     function testMintWithApprovalSetNotAuthorized() public {
         vm.expectRevert(abi.encodeWithSelector(Custodian.NotAuthorized.selector));
         Custodian(custodian).mintWithApprovalSet(activeLoan, address(this));
@@ -406,16 +417,26 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         vm.stopPrank();
     }
 
-    function testGenerateOrderInvalidHandlerExecution() public {
+    function testGenerateOrderInvalidPostSettlement() public {
         vm.startPrank(seaportAddr);
         bytes memory context = abi.encode(Actions.Settlement, activeLoan);
         mockStatusCall(activeLoan.terms.status, false);
         mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(activeLoan.terms.settlement));
-        mockHandlerExecuteFail(activeLoan.terms.settlement);
-        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidHandlerExecution.selector));
+        mockPostSettlementFail(activeLoan.terms.settlement);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidPostSettlement.selector));
         custodian.generateOrder(alice, new SpentItem[](0), activeDebt, context);
 
         vm.stopPrank();
+    }
+
+    function testGenerateOrderInvalidPostRepayment() public {
+        bytes memory context = abi.encode(Actions.Repayment, activeLoan);
+        mockStatusCall(activeLoan.terms.status, true);
+        //        mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(activeLoan.terms.settlement));
+        mockPostRepaymentFail(activeLoan.terms.settlement);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidPostRepayment.selector));
+        vm.prank(seaportAddr);
+        custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), activeDebt, context);
     }
 
     function testPreviewOrderRepay() public {

@@ -31,7 +31,11 @@ abstract contract MockCall is TestBase {
         );
     }
 
-    function mockHandlerExecuteFail(address settlement) public {
+    function mockPostSettlementFail(address settlement) public {
         vm.mockCall(settlement, abi.encodeWithSelector(Settlement.postSettlement.selector), abi.encode(bytes4(0)));
+    }
+
+    function mockPostRepaymentFail(address settlement) public {
+        vm.mockCall(settlement, abi.encodeWithSelector(Settlement.postRepayment.selector), abi.encode(bytes4(0)));
     }
 }

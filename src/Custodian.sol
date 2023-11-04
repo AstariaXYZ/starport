@@ -49,7 +49,8 @@ contract Custodian is ERC721, ContractOffererInterface {
     error ImplementInChild();
     error InvalidAction();
     error InvalidFulfiller();
-    error InvalidHandlerExecution();
+    error InvalidPostSettlement();
+    error InvalidPostRepayment();
     error InvalidLoan();
     error InvalidRepayer();
     error NotAuthorized();
@@ -415,7 +416,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             Settlement(loan.terms.settlement).postSettlement{gas: 100_000}(loan, fulfiller)
                 != Settlement.postSettlement.selector
         ) {
-            revert InvalidHandlerExecution();
+            revert InvalidPostSettlement();
         }
         _afterSettlementHandlerHook(loan);
     }
@@ -432,7 +433,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             Settlement(loan.terms.settlement).postRepayment{gas: 100_000}(loan, fulfiller)
                 != Settlement.postRepayment.selector
         ) {
-            revert InvalidHandlerExecution();
+            revert InvalidPostRepayment();
         }
         _afterSettlementHandlerHook(loan);
     }
