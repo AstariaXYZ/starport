@@ -304,7 +304,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
-        if (loan.start == block.timestamp || !SP.active(loan.getId())) {
+        if (loan.start == block.timestamp || SP.inactive(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = Status(loan.terms.status).isActive(loan);
@@ -360,7 +360,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).setApprovalForAll(address(seaport), true);
         } else if (offer.itemType == ItemType.ERC20) {
-            ERC20(offer.token).approve(address(seaport), offer.amount);
+            ERC20(offer.token).approve(address(seaport), type(uint256).max);
         }
     }
 
