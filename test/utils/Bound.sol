@@ -35,9 +35,9 @@ abstract contract Bound is StdUtils {
             used[input.identifier] = true;
         } else if (itemType == ItemType.ERC20) {
             input.identifier = 0;
-            input.amount = _boundMin(1, type(uint32).max);
+            input.amount = _boundMin(1, type(uint216).max);
         } else if (itemType == ItemType.ERC1155) {
-            input.amount = _boundMin(1, type(uint64).max);
+            input.amount = _boundMin(1, type(uint128).max);
         }
 
         ret = SpentItem({itemType: itemType, token: token, identifier: input.identifier, amount: input.amount});
@@ -54,10 +54,6 @@ abstract contract Bound is StdUtils {
     function _boundReceivedItem(Fuzz.ReceivedItem memory input) internal view returns (ReceivedItem memory ret) {
         ItemType itemType = _boundItemType(input.itemType);
         address token = _boundTokenByItemType(itemType);
-        //        if (itemType == uint8(ItemType.ERC721)) {
-        //            assert(!used[input.identifier]);
-        //            used[itemType] = input.identifier;
-        //        }
         ret = ReceivedItem({
             itemType: itemType,
             token: token,

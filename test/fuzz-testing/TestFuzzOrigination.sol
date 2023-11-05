@@ -95,7 +95,7 @@ contract TestFuzzOrigination is StarportTest, Bound {
         debt[0] = SpentItem({
             itemType: ItemType.ERC20,
             identifier: 0,
-            amount: _boundMin(1, type(uint64).max),
+            amount: _boundMin(1, type(uint128).max),
             token: address(erc20s[0])
         });
         loan.debt = debt;
@@ -105,20 +105,22 @@ contract TestFuzzOrigination is StarportTest, Bound {
         return loan;
     }
 
-    function willArithmeticOverflow(Starport.Loan memory loan) internal view {
+    function willArithmeticOverflow(Starport.Loan memory loan) internal view returns (bool) {
         FixedTermStatus.Details memory statusDetails = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         try BasePricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
             SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
-        ) {} catch {
-            revert("arithmetic overflow");
+        ) {
+            return false;
+        } catch {
+            return true;
         }
     }
 
     function testFuzzNewOrigination(FuzzLoan memory params) public {
         vm.assume(params.collateral.length > 1);
         Starport.Loan memory loan = boundFuzzLoan(params);
-        willArithmeticOverflow(loan);
+        vm.assume(!willArithmeticOverflow(loan));
         _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
         _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
 
