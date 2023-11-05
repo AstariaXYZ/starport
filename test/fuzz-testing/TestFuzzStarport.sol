@@ -2,7 +2,7 @@
 import "starport-test/StarportTest.sol";
 import "starport-test/utils/Bound.sol";
 
-contract TestFuzzOrigination is StarportTest, Bound {
+contract TestFuzzStarport is StarportTest, Bound {
     function setUp() public override {
         super.setUp();
 
