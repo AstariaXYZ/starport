@@ -1,5 +1,5 @@
-DiffFuzzTestStarportLib:testSpentToReceived((uint8,address,uint256,uint256)[]) (runs: 256, μ: 880542, ~: 883149)
-DiffFuzzTestStarportLib:testUnboundSpentToReceived((uint8,address,uint256,uint256)[]) (runs: 256, μ: 232899, ~: 237832)
+DiffFuzzTestStarportLib:testSpentToReceived((uint8,address,uint256,uint256)[]) (runs: 256, μ: 880533, ~: 883411)
+DiffFuzzTestStarportLib:testUnboundSpentToReceived((uint8,address,uint256,uint256)[]) (runs: 256, μ: 232912, ~: 237832)
 IntegrationTestCaveats:testOriginateUnapprovedFulfiller() (gas: 341166)
 IntegrationTestCaveats:testOriginateWBorrowerApproval() (gas: 298037)
 IntegrationTestCaveats:testOriginateWCaveats() (gas: 272104)

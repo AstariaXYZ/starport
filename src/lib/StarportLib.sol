@@ -42,12 +42,6 @@ library StarportLib {
     uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
     int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
 
-    function getAction(bytes calldata data) internal pure returns (Actions action) {
-        assembly {
-            action := calldataload(data.offset)
-        }
-    }
-
     function getCustodian(bytes calldata data) internal pure returns (address custodian) {
         assembly {
             custodian := calldataload(add(data.offset, CUSTODIAN_WORD_OFFSET))
