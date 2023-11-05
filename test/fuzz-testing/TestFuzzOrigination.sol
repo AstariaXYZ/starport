@@ -41,24 +41,25 @@ contract TestFuzzOrigination is StarportTest, Bound {
 
     function boundPricingData() internal view returns (bytes memory pricingData) {
         BasePricing.Details memory details = BasePricing.Details({
-            rate: _boundMin(0, (uint256(1e16) * 150) / (365 * 1 days)),
-            carryRate: _boundMin(0, uint256((1e16 * 100)))
+            rate: _boundMax(0, (uint256(1e16) * 150) / (365 * 1 days)),
+            carryRate: _boundMax(0, uint256((1e16 * 100)))
         });
         pricingData = abi.encode(details);
     }
 
     function boundStatusData() internal view returns (bytes memory statusData) {
-        FixedTermStatus.Details memory details = FixedTermStatus.Details({loanDuration: _boundMin(1 hours, 1095 days)});
-        statusData = abi.encode(details);
+        FixedTermStatus.Details memory boundDetails =
+            FixedTermStatus.Details({loanDuration: _boundMax(1 hours, 1095 days)});
+        statusData = abi.encode(boundDetails);
     }
 
     function boundSettlementData() internal view returns (bytes memory settlementData) {
-        DutchAuctionSettlement.Details memory details = DutchAuctionSettlement.Details({
-            startingPrice: _boundMin(1000 ether, 501 ether),
-            endingPrice: _boundMin(500 ether, 1 ether),
-            window: _boundMin(1 days, 100 days)
+        DutchAuctionSettlement.Details memory boundDetails = DutchAuctionSettlement.Details({
+            startingPrice: _boundMax(501 ether, 1000 ether),
+            endingPrice: _boundMax(1 ether, 500 ether),
+            window: _boundMax(1 days, 100 days)
         });
-        settlementData = abi.encode(details);
+        settlementData = abi.encode(boundDetails);
     }
 
     function boundFuzzLenderTerms() internal view returns (Starport.Terms memory terms) {
@@ -163,7 +164,7 @@ contract TestFuzzOrigination is StarportTest, Bound {
         return loan;
     }
 
-    function testFuzzRepayment(FuzzRepaymentLoan memory params) public {
+    function testFuzzRepaymentFails(FuzzRepaymentLoan memory params) public {
         vm.assume(params.collateral.length > 1);
         Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
         Starport.Loan memory loan = boundFuzzLoan(params.collateral);
@@ -208,6 +209,57 @@ contract TestFuzzOrigination is StarportTest, Bound {
             criteriaResolvers: new CriteriaResolver[](0),
             fulfillerConduitKey: bytes32(0),
             recipient: address(badLoan.borrower)
+        });
+    }
+
+    function testFuzzRepaymentSuccess(FuzzLoan memory params) public {
+        vm.assume(params.collateral.length > 1);
+        Starport.Loan memory loan = boundFuzzLoan(params.collateral);
+        vm.assume(!willArithmeticOverflow(loan));
+        _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
+        _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
+
+        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+        address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
+        Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+        FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
+        uint256 skipTime = _boundMax(1, statusDetails.loanDuration - 1);
+        console.log(statusDetails.loanDuration);
+        skip(skipTime);
+        console.log(block.timestamp);
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
+            .previewOrder(
+            address(SP.seaport()),
+            goodLoan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Repayment, goodLoan)
+        );
+        for (uint256 i = 0; i < paymentConsideration.length; i++) {
+            erc20s[0].mint(goodLoan.borrower, paymentConsideration[i].amount);
+        }
+
+        vm.prank(goodLoan.borrower);
+        erc20s[0].approve(address(SP.seaport()), type(uint256).max);
+
+        OrderParameters memory op = _buildContractOrder(
+            address(goodLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Repayment, goodLoan)
+        });
+
+        vm.prank(goodLoan.borrower);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(goodLoan.borrower)
         });
     }
 }
