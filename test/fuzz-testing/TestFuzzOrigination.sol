@@ -71,24 +71,29 @@ contract TestFuzzOrigination is StarportTest, Bound {
     }
 
     struct FuzzLoan {
-        address custodian; //where the collateral is being held
-        address issuer; //the capital issuer/lender
         address fulfiller;
         Fuzz.SpentItem[] collateral; //array of collateral
     }
 
-    function boundFuzzLoan(FuzzLoan memory params) internal returns (Starport.Loan memory loan) {
+    struct FuzzRepaymentLoan {
+        address fulfiller;
+        Fuzz.SpentItem[] collateral;
+        Fuzz.SpentItem[10] repayCollateral;
+        Fuzz.SpentItem[10] repayDebt;
+        address[3] badAddresses;
+    }
+
+    function boundFuzzLoan(Fuzz.SpentItem[] memory collateral) internal returns (Starport.Loan memory loan) {
         uint256 length = _boundMin(1, 4);
         loan.terms = boundFuzzLenderTerms();
         uint256 i = 0;
-        if (length > params.collateral.length) {
-            length = params.collateral.length;
+        if (length > collateral.length) {
+            length = collateral.length;
         }
         SpentItem[] memory ret = new SpentItem[](length);
 
-        console.log(params.collateral.length);
         for (; i < length; i++) {
-            ret[i] = _boundSpentItem(params.collateral[i]);
+            ret[i] = _boundSpentItem(collateral[i]);
         }
         loan.collateral = ret;
         SpentItem[] memory debt = new SpentItem[](1);
@@ -117,9 +122,9 @@ contract TestFuzzOrigination is StarportTest, Bound {
         }
     }
 
-    function testFuzzNewOrigination(FuzzLoan memory params) public {
+    function testFuzzNewOrigination(FuzzLoan memory params) public returns (Starport.Loan memory) {
         vm.assume(params.collateral.length > 1);
-        Starport.Loan memory loan = boundFuzzLoan(params);
+        Starport.Loan memory loan = boundFuzzLoan(params.collateral);
         vm.assume(!willArithmeticOverflow(loan));
         _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
         _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
@@ -127,6 +132,80 @@ contract TestFuzzOrigination is StarportTest, Bound {
         bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
         bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
         address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
-        newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+        return newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+    }
+
+    function boundBadLoan(
+        Fuzz.SpentItem[10] memory collateral,
+        Fuzz.SpentItem[10] memory debt,
+        address[3] memory badAddresses
+    ) public returns (Starport.Loan memory loan) {
+        uint256 length = _boundMin(0, collateral.length);
+        loan.terms = boundFuzzLenderTerms();
+        uint256 i = 0;
+        SpentItem[] memory ret = new SpentItem[](length);
+
+        for (; i < length; i++) {
+            ret[i] = _boundSpentItem(collateral[i], false);
+        }
+        loan.collateral = ret;
+        length = _boundMin(0, debt.length);
+        i = 0;
+
+        ret = new SpentItem[](length);
+        for (; i < length; i++) {
+            ret[i] = _boundSpentItem(debt[i]);
+        }
+        loan.debt = ret;
+        loan.borrower = _toAddress(_boundMin(_toUint(badAddresses[0]), 100));
+        loan.custodian = _toAddress(_boundMin(_toUint(badAddresses[1]), 100));
+        loan.issuer = _toAddress(_boundMin(_toUint(badAddresses[2]), 100));
+        return loan;
+    }
+
+    function testFuzzRepayment(FuzzRepaymentLoan memory params) public {
+        vm.assume(params.collateral.length > 1);
+        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory loan = boundFuzzLoan(params.collateral);
+        vm.assume(!willArithmeticOverflow(loan));
+        _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
+        _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
+
+        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+        address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
+        Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+
+        skip(1);
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
+            .previewOrder(
+            address(SP.seaport()),
+            goodLoan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Repayment, goodLoan)
+        );
+
+        OrderParameters memory op = _buildContractOrder(
+            address(goodLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Repayment, badLoan)
+        });
+
+        if (keccak256(abi.encode(goodLoan)) != keccak256(abi.encode(badLoan))) {
+            vm.expectRevert();
+        }
+        vm.prank(goodLoan.borrower);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(goodLoan.borrower)
+        });
     }
 }

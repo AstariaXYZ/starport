@@ -26,11 +26,17 @@ abstract contract Bound is StdUtils {
     function _boundTokenByItemType(ItemType itemType) internal view virtual returns (address);
 
     function _boundSpentItem(Fuzz.SpentItem memory input) internal returns (SpentItem memory ret) {
+        return _boundSpentItem(input, true);
+    }
+
+    function _boundSpentItem(Fuzz.SpentItem memory input, bool assume) internal returns (SpentItem memory ret) {
         ItemType itemType = _boundItemType(input.itemType);
         address token = _boundTokenByItemType(itemType);
         if (itemType == ItemType.ERC721) {
             input.identifier = _boundMin(4, type(uint256).max);
-            vm.assume(!used[input.identifier]);
+            if (assume) {
+                vm.assume(!used[input.identifier]);
+            }
             input.amount = 1;
             used[input.identifier] = true;
         } else if (itemType == ItemType.ERC20) {
