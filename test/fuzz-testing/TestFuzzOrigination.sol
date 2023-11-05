@@ -175,7 +175,9 @@ contract TestFuzzOrigination is StarportTest, Bound {
         bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
         address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
         Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
-
+        badLoan.collateral = loan.collateral;
+        badLoan.debt = loan.debt;
+        badLoan.custodian = loan.custodian;
         skip(1);
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
@@ -200,12 +202,12 @@ contract TestFuzzOrigination is StarportTest, Bound {
         if (keccak256(abi.encode(goodLoan)) != keccak256(abi.encode(badLoan))) {
             vm.expectRevert();
         }
-        vm.prank(goodLoan.borrower);
+        vm.prank(badLoan.borrower);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),
             fulfillerConduitKey: bytes32(0),
-            recipient: address(goodLoan.borrower)
+            recipient: address(badLoan.borrower)
         });
     }
 }

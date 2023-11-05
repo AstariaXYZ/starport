@@ -304,7 +304,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
 
-        if (loan.start == block.timestamp || !SP.active(loan.getId())) {
+        if (loan.start == block.timestamp || SP.inactive(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = Status(loan.terms.status).isActive(loan);
