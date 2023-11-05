@@ -27,7 +27,11 @@ contract DiffFuzzTestStarportLib is Test, Bound, DeepEq {
         refContract = new RefStarportLibImpl();
     }
 
-    function testSpentToReceived(Fuzz.SpentItem[] memory unbSpentItems) public view {
+    function _boundTokenByItemType(ItemType itemType) internal view override returns (address token) {
+        token = _toAddress(_boundMin(100, 1000));
+    }
+
+    function testSpentToReceived(Fuzz.SpentItem[] memory unbSpentItems) public {
         SpentItem[] memory spentItems = _boundSpentItems(unbSpentItems);
 
         ReceivedItem[] memory consideration0 = testContract.toReceivedItems(spentItems, address(1));

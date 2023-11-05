@@ -275,7 +275,7 @@ contract StarportTest is BaseOrderTest {
         uint256 i = 0;
         for (; i < items.length;) {
             if (items[i].itemType == ItemType.ERC20) {
-                ERC20(items[i].token).approve(address(SP), items[i].amount);
+                ERC20(items[i].token).approve(address(SP), type(uint256).max);
             } else if (items[i].itemType == ItemType.ERC721) {
                 ERC721(items[i].token).setApprovalForAll(address(SP), true);
             } else if (items[i].itemType == ItemType.ERC1155) {
