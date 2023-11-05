@@ -110,7 +110,6 @@ contract StarportTest is BaseOrderTest {
 
     Status fixedTermStatus;
 
-
     Settlement dutchAuctionSettlement;
     Settlement englishAuctionSettlement;
 
@@ -248,7 +247,6 @@ contract StarportTest is BaseOrderTest {
 
         fixedTermStatus = new FixedTermStatus();
 
-
         dutchAuctionSettlement = new FixedTermDutchAuctionSettlement(SP);
         englishAuctionSettlement = new EnglishAuctionSettlement({
             SP_: SP,
@@ -257,7 +255,6 @@ contract StarportTest is BaseOrderTest {
         });
 
         simpleInterestPricing = new SimpleInterestPricing(SP);
-
     }
 
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
