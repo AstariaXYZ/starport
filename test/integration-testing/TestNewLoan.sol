@@ -1,7 +1,6 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
-import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
 import {Originator} from "starport-core/originators/Originator.sol";

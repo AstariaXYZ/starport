@@ -29,11 +29,11 @@ import {ConsiderationInterface} from "seaport-types/src/interfaces/Consideration
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Status} from "starport-core/status/Status.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {Starport} from "starport-core/Starport.sol";
-import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {Status} from "./status/Status.sol";
+import {Settlement} from "./settlement/Settlement.sol";
+import {Pricing} from "./pricing/Pricing.sol";
+import {Starport} from "./Starport.sol";
+import {StarportLib, Actions} from "./lib/StarportLib.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;

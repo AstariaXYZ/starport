@@ -27,16 +27,15 @@ import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-type
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Custodian} from "starport-core/Custodian.sol";
+import {Pricing} from "./pricing/Pricing.sol";
+import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
+import {Custodian} from "./Custodian.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
+import {Settlement} from "./settlement/Settlement.sol";
 
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
