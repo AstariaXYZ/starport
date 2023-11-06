@@ -71,12 +71,6 @@ contract TestFuzzStarport is StarportTest, Bound {
         terms.settlementData = boundSettlementData();
     }
 
-    enum Fulfiller {
-        Random,
-        Borrower,
-        Lender
-    }
-
     struct FuzzLoan {
         address fulfiller;
         Fuzz.SpentItem[] collateral; //array of collateral
