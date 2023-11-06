@@ -223,11 +223,8 @@ contract TestFuzzStarport is StarportTest, Bound {
         bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
         address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
         Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
-        FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
-        uint256 skipTime = _boundMax(1, statusDetails.loanDuration - 1);
-        console.log(statusDetails.loanDuration);
-        skip(skipTime);
-        console.log(block.timestamp);
+        skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration - 1));
+
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
             address(SP.seaport()),
@@ -252,6 +249,107 @@ contract TestFuzzStarport is StarportTest, Bound {
             denominator: 1,
             signature: "0x",
             extraData: abi.encode(Actions.Repayment, goodLoan)
+        });
+
+        vm.prank(goodLoan.borrower);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(goodLoan.borrower)
+        });
+    }
+
+    function testFuzzSettlementFails(FuzzRepaymentLoan memory params) public {
+        vm.assume(params.collateral.length > 1);
+        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory loan = boundFuzzLoan(params.collateral);
+        vm.assume(!willArithmeticOverflow(loan));
+        _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
+        _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
+
+        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+        address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
+        Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+        badLoan.collateral = loan.collateral;
+        badLoan.debt = loan.debt;
+        badLoan.custodian = loan.custodian;
+        uint256 skipTime =
+            _boundMax(abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration, 1000 days);
+
+        skip(skipTime);
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
+            .previewOrder(
+            address(SP.seaport()),
+            goodLoan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Settlement, goodLoan)
+        );
+
+        OrderParameters memory op = _buildContractOrder(
+            address(goodLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Settlement, badLoan)
+        });
+
+        if (keccak256(abi.encode(goodLoan)) != keccak256(abi.encode(badLoan))) {
+            vm.expectRevert();
+        }
+        vm.prank(badLoan.borrower);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(badLoan.borrower)
+        });
+    }
+
+    function testFuzzSettlementSuccess(FuzzLoan memory params) public {
+        vm.assume(params.collateral.length > 1);
+        Starport.Loan memory loan = boundFuzzLoan(params.collateral);
+        vm.assume(!willArithmeticOverflow(loan));
+        _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
+        _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
+
+        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+        address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
+        Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+        FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
+
+        skip(_boundMax(abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration, 1000 days));
+
+        (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
+            .previewOrder(
+            address(SP.seaport()),
+            goodLoan.borrower,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Actions.Settlement, goodLoan)
+        );
+        for (uint256 i = 0; i < paymentConsideration.length; i++) {
+            erc20s[0].mint(goodLoan.borrower, paymentConsideration[i].amount);
+        }
+
+        vm.prank(goodLoan.borrower);
+        erc20s[0].approve(address(SP.seaport()), type(uint256).max);
+
+        OrderParameters memory op = _buildContractOrder(
+            address(goodLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
+        );
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Actions.Settlement, goodLoan)
         });
 
         vm.prank(goodLoan.borrower);
