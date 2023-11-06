@@ -216,7 +216,7 @@ contract Starport is ERC721, PausableNonReentrant {
         address lender,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
         Starport.Loan memory loan,
-        bytes calldata pricingData
+        bytes memory pricingData
     ) external pausableNonReentrant {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
@@ -269,7 +269,7 @@ contract Starport is ERC721, PausableNonReentrant {
         Starport.Loan memory loan,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
-        bytes calldata pricingData
+        bytes memory pricingData
     ) public pure returns (Starport.Loan memory) {
         if (
             considerationPayment.length == 0
