@@ -236,11 +236,8 @@ contract TestFuzzStarport is StarportTest, Bound {
         bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
         address fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
         Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
-        FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
-        uint256 skipTime = _boundMax(1, statusDetails.loanDuration - 1);
-        console.log(statusDetails.loanDuration);
-        skip(skipTime);
-        console.log(block.timestamp);
+        skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration - 1));
+
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
             address(SP.seaport()),
