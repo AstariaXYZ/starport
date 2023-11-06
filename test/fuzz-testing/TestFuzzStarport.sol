@@ -39,9 +39,9 @@ contract TestFuzzStarport is StarportTest, Bound {
         vm.stopPrank();
     }
 
-    function boundPricingData() internal view returns (bytes memory pricingData) {
+    function boundPricingData(uint256 min) internal view returns (bytes memory pricingData) {
         BasePricing.Details memory details = BasePricing.Details({
-            rate: _boundMax(0, (uint256(1e16) * 150) / (365 * 1 days)),
+            rate: _boundMax(min, (uint256(1e16) * 150) / (365 * 1 days)),
             carryRate: _boundMax(0, uint256((1e16 * 100)))
         });
         pricingData = abi.encode(details);
@@ -66,7 +66,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         terms.status = address(status);
         terms.settlement = address(settlement);
         terms.pricing = address(pricing);
-        terms.pricingData = boundPricingData();
+        terms.pricingData = boundPricingData(0);
         terms.statusData = boundStatusData();
         terms.settlementData = boundSettlementData();
     }
@@ -74,6 +74,13 @@ contract TestFuzzStarport is StarportTest, Bound {
     struct FuzzLoan {
         address fulfiller;
         Fuzz.SpentItem[] collateral; //array of collateral
+        uint8 fulfillerType;
+    }
+
+    struct FuzzRefinanceLoan {
+        FuzzLoan origination;
+        string refiKey;
+        uint8 refiFiller;
     }
 
     struct FuzzRepaymentLoan {
@@ -359,5 +366,77 @@ contract TestFuzzStarport is StarportTest, Bound {
             fulfillerConduitKey: bytes32(0),
             recipient: address(goodLoan.borrower)
         });
+    }
+
+    function testFuzzRefinance(FuzzRefinanceLoan memory params) public {
+        vm.assume(params.origination.collateral.length > 1);
+        Starport.Loan memory loan = boundFuzzLoan(params.origination.collateral);
+        loan.terms.pricingData = boundPricingData(1);
+        vm.assume(!willArithmeticOverflow(loan));
+        _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
+        _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
+
+        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+
+        address fulfiller;
+        if (params.origination.fulfillerType % 2 == 0) {
+            fulfiller = loan.borrower;
+        } else if (params.origination.fulfillerType % 3 == 0) {
+            fulfiller = loan.issuer;
+        } else {
+            fulfiller = _toAddress(_boundMin(_toUint(params.origination.fulfiller), 100));
+        }
+        Starport.Loan memory goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+
+        uint256 oldRate = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details)).rate;
+
+        uint256 newRate = _boundMax(oldRate - 1, (uint256(1e16) * 1000) / (365 * 1 days));
+        BasePricing.Details memory newPricingDetails = BasePricing.Details({rate: newRate, carryRate: 0});
+        Account memory account = makeAndAllocateAccount(params.refiKey);
+
+        address refiFulfiller;
+        skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration));
+        (
+            SpentItem[] memory considerationPayment,
+            SpentItem[] memory carryPayment,
+            AdditionalTransfer[] memory additionalTransfers
+        ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(
+            goodLoan, abi.encode(newPricingDetails), refiFulfiller
+        );
+        if (params.origination.fulfillerType % 2 == 0) {
+            refiFulfiller = loan.borrower;
+        } else if (params.origination.fulfillerType % 3 == 0) {
+            refiFulfiller = account.addr;
+        } else {
+            refiFulfiller = _toAddress(_boundMin(0, 100));
+        }
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({
+            loan: SP.applyRefinanceConsiderationToLoan(
+                goodLoan, considerationPayment, carryPayment, abi.encode(newPricingDetails)
+                )
+        });
+        _issueAndApproveTarget(details.loan.debt, account.addr, address(SP));
+
+        details.loan.issuer = account.addr;
+        details.loan.originator = address(0);
+        details.loan.start = 0;
+
+        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+            details: details,
+            signer: account,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        if (newRate > oldRate) {
+            vm.expectRevert();
+        }
+        vm.prank(refiFulfiller);
+        SP.refinance(
+            account.addr,
+            refiFulfiller != account.addr ? lenderCaveat : _emptyCaveat(),
+            goodLoan,
+            abi.encode(newPricingDetails)
+        );
     }
 }

@@ -269,7 +269,7 @@ contract Starport is ERC721, PausableNonReentrant {
         Starport.Loan memory loan,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
-        bytes memory pricingData
+        bytes calldata pricingData
     ) public pure returns (Starport.Loan memory) {
         if (
             considerationPayment.length == 0
