@@ -377,7 +377,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         });
     }
 
-    function testFuzzRefinanceSuccess(FuzzRefinanceLoan memory params) public {
+    function testFuzzRefinance(FuzzRefinanceLoan memory params) public {
         vm.assume(params.origination.collateral.length > 1);
         Starport.Loan memory loan = boundFuzzLoan(params.origination.collateral);
         loan.terms.pricingData = boundPricingData(1);
@@ -400,8 +400,8 @@ contract TestFuzzStarport is StarportTest, Bound {
 
         uint256 oldRate = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details)).rate;
 
-        BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: _boundMin(oldRate - 1, 0), carryRate: 0});
+        uint256 newRate = _boundMax(oldRate - 1, (uint256(1e16) * 1000) / (365 * 1 days));
+        BasePricing.Details memory newPricingDetails = BasePricing.Details({rate: newRate, carryRate: 0});
         Account memory account = makeAndAllocateAccount(params.refiKey);
 
         address refiFulfiller;
@@ -437,6 +437,9 @@ contract TestFuzzStarport is StarportTest, Bound {
             salt: bytes32(0),
             enforcer: address(lenderEnforcer)
         });
+        if (newRate > oldRate) {
+            vm.expectRevert();
+        }
         vm.prank(refiFulfiller);
         SP.refinance(
             account.addr,
