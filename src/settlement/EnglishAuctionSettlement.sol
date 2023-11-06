@@ -72,7 +72,7 @@ contract EnglishAuctionSettlement is Settlement {
         return Settlement.postRepayment.selector;
     }
 
-    function getSettlement(Starport.Loan calldata loan)
+    function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         override

@@ -38,7 +38,7 @@ abstract contract Settlement is TokenReceiverInterface {
 
     function validate(Starport.Loan calldata loan) external view virtual returns (bool);
 
-    function getSettlement(Starport.Loan calldata loan)
+    function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         virtual

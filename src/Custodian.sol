@@ -237,10 +237,10 @@ contract Custodian is ERC721, ContractOffererInterface {
             address authorized;
             //add in originator fee
 
-            _beforeGetSettlement(loan);
-            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlement(loan);
+            _beforeGetSettlementConsideration(loan);
+            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
-            _afterGetSettlement(loan);
+            _afterGetSettlementConsideration(loan);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
                 _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
@@ -320,7 +320,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
         } else if (action == Actions.Settlement && !loanActive) {
             address authorized;
-            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlement(loan);
+            (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
@@ -465,7 +465,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The loan being settled
      */
-    function _beforeGetSettlement(Starport.Loan memory loan) internal virtual {}
+    function _beforeGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the loan get settlement call
@@ -473,7 +473,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      *
      * @param loan              The loan being settled
      */
-    function _afterGetSettlement(Starport.Loan memory loan) internal virtual {}
+    function _afterGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
     /**
      * @dev  hook to call before the the loan settlement handler execute call
      *

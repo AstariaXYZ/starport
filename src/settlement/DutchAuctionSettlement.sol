@@ -43,7 +43,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
 
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
 
-    function getSettlement(Starport.Loan calldata loan)
+    function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         virtual

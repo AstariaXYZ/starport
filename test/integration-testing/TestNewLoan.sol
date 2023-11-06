@@ -406,7 +406,7 @@ contract TestNewLoan is StarportTest {
         );
 
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            Settlement(activeLoan.terms.settlement).getSettlement(activeLoan);
+            Settlement(activeLoan.terms.settlement).getSettlementConsideration(activeLoan);
         settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](
                settlementConsideration.length
