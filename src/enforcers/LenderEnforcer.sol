@@ -24,7 +24,14 @@ contract LenderEnforcer is CaveatEnforcer {
         Starport.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
-        Details memory details = abi.decode(caveatData, (Details));
+        _validate(additionalTransfers, loan, abi.decode(caveatData, (Details)));
+    }
+
+    function _validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        Details memory details
+    ) internal pure {
         details.loan.borrower = loan.borrower;
 
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) {
