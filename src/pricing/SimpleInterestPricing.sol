@@ -27,6 +27,7 @@ import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import "forge-std/console.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;
@@ -41,7 +42,7 @@ contract SimpleInterestPricing is BasePricing {
         return StarportLib.calculateSimpleInterest(delta_t, amount, rate);
     }
 
-    function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
         external
         view
         virtual
@@ -55,6 +56,14 @@ contract SimpleInterestPricing is BasePricing {
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
         Details memory newDetails = abi.decode(newPricingData, (Details));
 
+        console.log("sip oldData:");
+        console.logBytes(loan.terms.pricingData);
+        console.log("sip newData:");
+
+        console.logBytes(newPricingData);
+
+        console.log("sip oldDetails.rate: %s", oldDetails.rate);
+        console.log("sip newDetails.rate: %s", newDetails.rate);
         //todo: figure out the proper flow for here
         if ((newDetails.rate < oldDetails.rate)) {
             (repayConsideration, carryConsideration) = getPaymentConsideration(loan);

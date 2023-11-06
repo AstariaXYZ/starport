@@ -36,6 +36,7 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
 import {Settlement} from "./settlement/Settlement.sol";
+import "forge-std/console.sol";
 
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
@@ -240,6 +241,8 @@ contract Starport is ERC721, PausableNonReentrant {
         loan.originator = address(0);
         loan.start = 0;
 
+        console.log(lender);
+        console.log(msg.sender);
         if (msg.sender != lender && approvals[lender][msg.sender] != ApprovalType.LENDER) {
             _validateAndEnforceCaveats(lenderCaveat, lender, additionalTransfers, loan);
         }
@@ -269,7 +272,7 @@ contract Starport is ERC721, PausableNonReentrant {
         Starport.Loan memory loan,
         SpentItem[] memory considerationPayment,
         SpentItem[] memory carryPayment,
-        bytes memory pricingData
+        bytes calldata pricingData
     ) public pure returns (Starport.Loan memory) {
         if (
             considerationPayment.length == 0
