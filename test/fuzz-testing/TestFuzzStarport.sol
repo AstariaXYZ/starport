@@ -193,7 +193,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Repayment, goodLoan)
+            abi.encode(Custodian.Command(Actions.Repayment, goodLoan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -204,7 +204,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, badLoan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, badLoan, ""))
         });
 
         if (keccak256(abi.encode(goodLoan)) != keccak256(abi.encode(badLoan))) {
@@ -238,7 +238,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Repayment, goodLoan)
+            abi.encode(Custodian.Command(Actions.Repayment, goodLoan, ""))
         );
         for (uint256 i = 0; i < paymentConsideration.length; i++) {
             erc20s[0].mint(goodLoan.borrower, paymentConsideration[i].amount);
@@ -255,7 +255,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, goodLoan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, goodLoan, ""))
         });
 
         vm.prank(goodLoan.borrower);
@@ -292,7 +292,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Settlement, goodLoan)
+            abi.encode(Custodian.Command(Actions.Settlement, goodLoan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -339,7 +339,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Settlement, goodLoan)
+            abi.encode(Custodian.Command(Actions.Settlement, goodLoan, ""))
         );
         for (uint256 i = 0; i < paymentConsideration.length; i++) {
             erc20s[0].mint(goodLoan.borrower, paymentConsideration[i].amount);
@@ -356,7 +356,7 @@ contract TestFuzzStarport is StarportTest, Bound {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Settlement, goodLoan)
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, goodLoan, ""))
         });
 
         vm.prank(goodLoan.borrower);

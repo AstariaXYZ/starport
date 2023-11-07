@@ -613,7 +613,7 @@ contract StarportTest is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Settlement, activeLoan)
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
         });
 
         //        vm.recordLogs();
@@ -666,7 +666,7 @@ contract StarportTest is BaseOrderTest {
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Repayment, loan)
+            abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -677,7 +677,7 @@ contract StarportTest is BaseOrderTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, loan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         });
 
         //        vm.recordLogs();

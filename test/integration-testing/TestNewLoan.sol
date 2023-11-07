@@ -445,7 +445,7 @@ contract TestNewLoan is StarportTest {
             numerator: 1,
             denominator: 1,
             parameters: op,
-            extraData: abi.encode(Actions.Settlement, activeLoan),
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
             signature: ""
         });
 
