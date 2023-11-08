@@ -27,7 +27,9 @@ abstract contract MockCall is TestBase {
 
     function mockSettlementCall(address settlement, ReceivedItem[] memory receivedItems, address authorized) public {
         vm.mockCall(
-            settlement, abi.encodeWithSelector(Settlement.getSettlement.selector), abi.encode(receivedItems, authorized)
+            settlement,
+            abi.encodeWithSelector(Settlement.getSettlementConsideration.selector),
+            abi.encode(receivedItems, authorized)
         );
     }
 
