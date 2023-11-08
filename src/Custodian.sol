@@ -41,9 +41,6 @@ contract Custodian is ERC721, ContractOffererInterface {
     Starport public immutable SP;
     ConsiderationInterface public immutable seaport;
 
-    mapping(address => mapping(address => bool)) public repayApproval;
-
-    event RepayApproval(address borrower, address repayer, bool approved);
     event SeaportCompatibleContractDeployed();
 
     error ImplementInChild();
@@ -315,7 +312,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
         if (close.action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
-            if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
+            if (fulfiller != borrower && fulfiller != _getApproved(loan.getId())) {
                 revert InvalidRepayer();
             }
             offer = loan.collateral;
