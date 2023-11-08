@@ -67,7 +67,10 @@ contract TestRepayLoan is StarportTest {
             vm.startPrank(address(SP.seaport()));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
             custodian.generateOrder(
-                address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
+                address(this),
+                new SpentItem[](0),
+                new SpentItem[](0),
+                abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
             );
             vm.stopPrank();
         }
@@ -77,7 +80,7 @@ contract TestRepayLoan is StarportTest {
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Repayment, loan)
+            abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -88,7 +91,7 @@ contract TestRepayLoan is StarportTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, loan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         });
 
         bytes32 orderHash = getOrderHash(address(custodian));
@@ -146,7 +149,10 @@ contract TestRepayLoan is StarportTest {
             vm.startPrank(fulfiller.addr);
             vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
             custodian.generateOrder(
-                address(this), new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
+                address(this),
+                new SpentItem[](0),
+                new SpentItem[](0),
+                abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
             );
             vm.stopPrank();
         }
@@ -180,7 +186,7 @@ contract TestRepayLoan is StarportTest {
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Settlement, loan)
+            abi.encode(Custodian.Command(Actions.Settlement, loan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
@@ -191,7 +197,7 @@ contract TestRepayLoan is StarportTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, loan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         });
 
         // call directly as Seaport ensure InvalidAction is revert reason
@@ -199,7 +205,10 @@ contract TestRepayLoan is StarportTest {
             vm.startPrank(address(SP.seaport()));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
             custodian.generateOrder(
-                loan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
+                loan.borrower,
+                new SpentItem[](0),
+                new SpentItem[](0),
+                abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
             );
             vm.stopPrank();
         }
@@ -245,7 +254,7 @@ contract TestRepayLoan is StarportTest {
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
-            abi.encode(Actions.Repayment, loan)
+            abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         );
 
         // repaying removes the loanId
@@ -263,7 +272,7 @@ contract TestRepayLoan is StarportTest {
             numerator: 1,
             denominator: 1,
             signature: "0x",
-            extraData: abi.encode(Actions.Repayment, loan)
+            extraData: abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         });
 
         // call directly as Seaport ensure InvalidAction is revert reason
@@ -271,7 +280,10 @@ contract TestRepayLoan is StarportTest {
             vm.startPrank(address(SP.seaport()));
             vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoan.selector));
             custodian.generateOrder(
-                loan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(Actions.Repayment, loan)
+                loan.borrower,
+                new SpentItem[](0),
+                new SpentItem[](0),
+                abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
             );
             vm.stopPrank();
         }
