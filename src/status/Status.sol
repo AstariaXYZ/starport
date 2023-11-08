@@ -23,5 +23,5 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 
 abstract contract Status {
-    function isActive(Starport.Loan calldata loan) external view virtual returns (bool);
+    function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view virtual returns (bool);
 }

@@ -64,6 +64,12 @@ contract Custodian is ERC721, ContractOffererInterface {
         emit SeaportCompatibleContractDeployed();
     }
 
+    struct Command {
+        Actions action;
+        Starport.Loan loan;
+        bytes extraData;
+    }
+
     /**
      * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
      * @param loan            Loan to get the borrower of
@@ -211,14 +217,13 @@ contract Custodian is ERC721, ContractOffererInterface {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
-
+        (Command memory close) = abi.decode(context, (Command));
+        Starport.Loan memory loan = close.loan;
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
-        if (action == Actions.Repayment && Status(loan.terms.status).isActive(loan)) {
-            address borrower = getBorrower(loan);
-            if (fulfiller != borrower && fulfiller != _getApproved(loan.getId())) {
+        if (close.action == Actions.Repayment && Status(loan.terms.status).isActive(loan, close.extraData)) {
+            if (fulfiller != getBorrower(loan) && fulfiller != _getApproved(loan.getId())) {
                 revert InvalidRepayer();
             }
 
@@ -233,7 +238,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
             _settleLoan(loan);
             _postRepaymentExecute(loan, fulfiller);
-        } else if (action == Actions.Settlement && !Status(loan.terms.status).isActive(loan)) {
+        } else if (close.action == Actions.Settlement && !Status(loan.terms.status).isActive(loan, close.extraData)) {
             address authorized;
             //add in originator fee
 
@@ -302,13 +307,13 @@ contract Custodian is ERC721, ContractOffererInterface {
         SpentItem[] calldata maximumSpent,
         bytes calldata context // encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
-        (Actions action, Starport.Loan memory loan) = abi.decode(context, (Actions, Starport.Loan));
-
+        (Command memory close) = abi.decode(context, (Command));
+        Starport.Loan memory loan = close.loan;
         if (loan.start == block.timestamp || SP.inactive(loan.getId())) {
             revert InvalidLoan();
         }
-        bool loanActive = Status(loan.terms.status).isActive(loan);
-        if (action == Actions.Repayment && loanActive) {
+        bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
+        if (close.action == Actions.Repayment && loanActive) {
             address borrower = getBorrower(loan);
             if (fulfiller != borrower && !repayApproval[borrower][fulfiller]) {
                 revert InvalidRepayer();
@@ -318,7 +323,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
             consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
-        } else if (action == Actions.Settlement && !loanActive) {
+        } else if (close.action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlement(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
