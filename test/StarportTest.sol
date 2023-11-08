@@ -38,7 +38,6 @@ import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
 import {FixedTermDutchAuctionSettlement} from "starport-core/settlement/FixedTermDutchAuctionSettlement.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {EnglishAuctionSettlement} from "starport-core/settlement/EnglishAuctionSettlement.sol";
 
 import {Starport} from "starport-core/Starport.sol";
 
@@ -111,11 +110,9 @@ contract StarportTest is BaseOrderTest {
     Status fixedTermStatus;
 
     Settlement dutchAuctionSettlement;
-    Settlement englishAuctionSettlement;
 
     Pricing simpleInterestPricing;
 
-    //    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     ConsiderationInterface public seaport;
 
     Pricing pricing;
@@ -248,11 +245,6 @@ contract StarportTest is BaseOrderTest {
         fixedTermStatus = new FixedTermStatus();
 
         dutchAuctionSettlement = new FixedTermDutchAuctionSettlement(SP);
-        englishAuctionSettlement = new EnglishAuctionSettlement({
-            SP_: SP,
-            consideration_: seaport,
-            EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
-        });
 
         simpleInterestPricing = new SimpleInterestPricing(SP);
     }

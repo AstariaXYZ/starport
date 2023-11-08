@@ -42,8 +42,6 @@ interface ERC20 {
     function transfer(address, uint256) external returns (bool);
 }
 
-// fulfiller
-
 contract BNPLHelper is IFlashLoanRecipient {
     address private constant vault = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
     IWETH9 private immutable WETH;
@@ -69,19 +67,7 @@ contract BNPLHelper is IFlashLoanRecipient {
     error DoNotSendETH();
     error InvalidUserDataProvided();
 
-    function makeFlashLoan(
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        //        uint256[] calldata userProvidedAmounts,
-        bytes calldata userData
-    ) external {
-        //        assembly {
-        //            // Compute the hash of userData
-        //            let dataHash := keccak256(userData.offset, calldatasize())
-        //
-        //            // Store the hash in the activeUserDataHash state variable
-        //            tstore(activeUserDataHash.slot, dataHash)
-        //        }
+    function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
         activeUserDataHash = keccak256(userData);
 
         IVault(vault).flashLoan(this, tokens, amounts, userData);

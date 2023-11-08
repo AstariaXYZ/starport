@@ -13,13 +13,15 @@ contract BorrowerEnforcer is CaveatEnforcer {
     struct Details {
         Starport.Loan loan;
     }
+    /**
+     * @dev Enforces that the loan terms are identical except for the issuer
+     * The issuer is allowed to be any address
+     * No additional transfers are permitted
+     * @param additionalTransfers The additional transfers to be made
+     * @param loan The loan terms
+     * @param caveatData The borrowers encoded details
+     */
 
-    /// @notice Enforces that the loan terms are identical except for the issuer
-    /// @notice The issuer is allowed to be any address
-    /// @notice No additional transfers are permitted
-    /// @param additionalTransfers The additional transfers to be made
-    /// @param loan The loan terms
-    /// @param caveatData The borrowers encoded details
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,

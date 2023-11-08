@@ -86,6 +86,7 @@ contract StrategistOriginator is Ownable, Originator {
     constructor(Starport SP_, address strategist_, uint256 fee_, address owner) {
         _initializeOwner(owner);
         strategist = strategist_;
+        emit StrategistTransferred(strategist_);
         strategistFee = fee_;
         SP = SP_;
         _DOMAIN_SEPARATOR = keccak256(
@@ -98,27 +99,44 @@ contract StrategistOriginator is Ownable, Originator {
         );
     }
 
+    /**
+     * @dev sets the strategist address
+     * @param newStrategist           The new strategist address
+     */
     function setStrategist(address newStrategist) external onlyOwner {
         strategist = newStrategist;
         emit StrategistTransferred(newStrategist);
     }
 
-    // Encode the data with the account's nonce for generating a signature
+    /**
+     * @dev returns data that is encodePacked for signing
+     * @param contextHash           The hash of the data being signed
+     */
     function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory) {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
     }
+    /**
+     * @dev returns the strategist and fee
+     * @return strategist address and fee
+     */
 
     function getStrategistData() public view virtual returns (address, uint256) {
         return (strategist, strategistFee);
     }
 
-    // Get the nonce of an account
+    /**
+     * @dev returns the nonce of the contract
+     * @return _counter
+     */
     function getCounter() public view virtual returns (uint256) {
         return _counter;
     }
 
+    /**
+     * @dev increments the Counter to invalidate any open offers
+     */
     function incrementCounter() external {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
@@ -127,11 +145,19 @@ contract StrategistOriginator is Ownable, Originator {
         emit CounterUpdated(_counter);
     }
 
-    // Function to generate the domain separator for signatures
+    /**
+     * @dev returns the domain separator
+     * @return _DOMAIN_SEPARATOR
+     */
     function domainSeparator() public view virtual returns (bytes32) {
         return _DOMAIN_SEPARATOR;
     }
 
+    /**
+     * @dev Accepts a request with signed data that is decoded by the originator
+     * communicates with Starport to originate a loan
+     * @param params          The request for the origination
+     */
     function originate(Request calldata params) external virtual override {
         Details memory details = abi.decode(params.details, (Details));
         _validateOffer(params, details);

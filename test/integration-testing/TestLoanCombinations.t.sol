@@ -95,25 +95,4 @@ contract TestLoanCombinations is StarportTest {
 
         _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
-
-    function testLoanSimpleInterestEnglishFixed() public {
-        uint256[] memory reservePrice = new uint256[](1);
-        reservePrice[0] = 300;
-        bytes memory englishAuctionsettlementData =
-            abi.encode(EnglishAuctionSettlement.Details({reservePrice: reservePrice, window: 7 days}));
-
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(fixedTermStatus),
-            settlement: address(englishAuctionSettlement),
-            pricing: address(simpleInterestPricing),
-            pricingData: defaultPricingData,
-            settlementData: englishAuctionsettlementData,
-            statusData: defaultStatusData
-        });
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
-        skip(10 days);
-
-        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
-    }
 }

@@ -21,13 +21,10 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
-abstract contract Originator is Ownable {
+abstract contract Originator {
     struct Request {
         address borrower;
         CaveatEnforcer.CaveatWithApproval borrowerCaveat;
@@ -37,5 +34,10 @@ abstract contract Originator is Ownable {
         bytes approval;
     }
 
+    /**
+     * @dev Accepts a request with signed data that is decoded by the originator
+     * communicates with Starport to originate a loan
+     * @param params          The request for the origination
+     */
     function originate(Request calldata params) external virtual;
 }

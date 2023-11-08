@@ -40,7 +40,6 @@ import {Settlement} from "./settlement/Settlement.sol";
 contract Starport is ERC721, PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
-    using {StarportLib.toReceivedItems} for SpentItem[];
     using {StarportLib.getId} for Starport.Loan;
     using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
@@ -163,15 +162,30 @@ contract Starport is ERC721, PausableNonReentrant {
     //        }
     //    }
 
+    /*
+    * @dev set's approval to originate loans without having to check caveats
+    * @param who                The address of who is being approved
+    * @param approvalType       The type of approval (Borrower, Lender) (cant be both)
+    */
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
         emit ApprovalSet(msg.sender, who, approvalType);
     }
 
+    /*
+    * @dev override the transferFrom as Loans are non transferable
+    */
     function transferFrom(address from, address to, uint256 tokenId) public payable override {
         revert CannotTransferLoans();
     }
 
+    /*
+    * @dev loan origination method, new loan data is passed in and validated before being issued
+    * @param additionalTransfers     Additional transfers to be made after the loan is issued
+    * @param borrowerCaveat          The borrower caveat to be validated
+    * @param lenderCaveat            The lender caveat to be validated
+    * @param loan                    The loan to be issued
+    */
     function originate(
         AdditionalTransfer[] calldata additionalTransfers,
         CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
@@ -212,6 +226,14 @@ contract Starport is ERC721, PausableNonReentrant {
         _issueLoan(loan);
     }
 
+    /*
+    * @dev refinances an existing loan with new pricing data
+    * its the only thing that can be changed
+    * @param lender                  The new lender
+    * @param lenderCaveat            The lender caveat to be validated
+    * @param loan                    The loan to be issued
+    * @param newPricingData          The new pricing data
+    */
     function refinance(
         address lender,
         CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,

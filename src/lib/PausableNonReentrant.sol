@@ -14,6 +14,9 @@ abstract contract PausableNonReentrant is Ownable {
     error IsLocked();
     error NotPaused();
 
+    /*
+    * @dev modifier to ensure that the contract is not paused or locked
+    */
     modifier pausableNonReentrant() {
         assembly {
             //If locked or paused, handle revert cases
@@ -35,6 +38,9 @@ abstract contract PausableNonReentrant is Ownable {
         }
     }
 
+    /*
+    * @dev Pause the contract if not paused or locked
+    */
     function pause() external onlyOwner {
         assembly {
             //If locked, prevent owner from overriding state
@@ -48,6 +54,9 @@ abstract contract PausableNonReentrant is Ownable {
         emit Paused();
     }
 
+    /*
+    * @dev unpause the contract if not paused or locked
+    */
     function unpause() external onlyOwner {
         assembly {
             //If not paused, prevent owner from overriding state
@@ -61,6 +70,10 @@ abstract contract PausableNonReentrant is Ownable {
         emit Unpaused();
     }
 
+    /*
+    * @dev helper to determine if the contract is paused
+    * @return bool True if the contract is paused, false otherwise
+    */
     function paused() external view returns (bool) {
         return _state == _PAUSED;
     }

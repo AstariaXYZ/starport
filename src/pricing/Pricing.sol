@@ -33,13 +33,23 @@ abstract contract Pricing {
         SP = SP_;
     }
 
-    function getPaymentConsideration(Starport.Loan memory loan)
+    /**
+     * @dev computes the payment details for a loan
+     * @param loan      The loan to compute the payment details for
+     */
+    function getPaymentConsideration(Starport.Loan calldata loan)
         public
         view
         virtual
         returns (SpentItem[] memory, SpentItem[] memory);
 
-    function getRefinanceConsideration(Starport.Loan memory loan, bytes calldata newPricingData, address fulfiller)
+    /**
+     * @dev computes the refinance details for a loan
+     * @param loan      The loan to compute the payment details for
+     * @param newPricingData        The new pricing data being offered
+     * @param fulfiller             The address of the fulfiller
+     */
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes calldata newPricingData, address fulfiller)
         external
         view
         virtual
