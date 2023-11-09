@@ -104,7 +104,8 @@ contract Starport is ERC721, PausableNonReentrant {
     event Open(uint256 loanId, Starport.Loan loan);
     event CaveatNonceIncremented(uint256 newNonce);
     event CaveatSaltInvalidated(bytes32 invalidatedSalt);
-
+    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
+    event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
     event ApprovalSet(address indexed owner, address indexed spender, ApprovalType approvalType);
 
     error InvalidRefinance();
@@ -347,7 +348,7 @@ contract Starport is ERC721, PausableNonReentrant {
         AdditionalTransfer[] memory additionalTransfers
     ) internal pure {
         uint256 i = 0;
-        for (i; i < additionalTransfers.length;) {
+        for (; i < additionalTransfers.length;) {
             if (additionalTransfers[i].from != lender && additionalTransfers[i].from != fulfiller) {
                 revert UnauthorizedAdditionalTransferIncluded();
             }
@@ -364,7 +365,7 @@ contract Starport is ERC721, PausableNonReentrant {
         AdditionalTransfer[] calldata additionalTransfers
     ) internal pure {
         uint256 i = 0;
-        for (i; i < additionalTransfers.length;) {
+        for (; i < additionalTransfers.length;) {
             if (
                 additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
                     && additionalTransfers[i].from != fulfiller
@@ -376,33 +377,6 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function _validateAndEnforceCaveats(
-        CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
-        address validator,
-        AdditionalTransfer[] memory additionalTransfers,
-        Starport.Loan memory loan
-    ) internal {
-        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
-        invalidHashes.validateSalt(validator, caveatApproval.salt);
-
-        if (
-            !SignatureCheckerLib.isValidSignatureNow(
-                validator, hash, caveatApproval.v, caveatApproval.r, caveatApproval.s
-            )
-        ) {
-            revert InvalidCaveatSigner();
-        }
-
-        for (uint256 i = 0; i < caveatApproval.caveat.length;) {
-            CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
-                additionalTransfers, loan, caveatApproval.caveat[i].data
-            );
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _validateAndEnforceCaveatsRefinance(
         CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
@@ -539,6 +513,7 @@ contract Starport is ERC721, PausableNonReentrant {
     function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
+        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
     }
 
     /**
@@ -547,9 +522,10 @@ contract Starport is ERC721, PausableNonReentrant {
      * @param token  The token to override
      * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
      */
-    function setFeeOverride(address token, uint88 overrideValue) external onlyOwner {
-        feeOverride[token].enabled = true;
+    function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
+        feeOverride[token].enabled = enabled;
         feeOverride[token].amount = overrideValue;
+        emit FeeOverrideUpdated(token, overrideValue, enabled);
     }
 
     /**
@@ -567,11 +543,11 @@ contract Starport is ERC721, PausableNonReentrant {
         paymentToBorrower = new SpentItem[](debt.length);
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
-            Fee memory feeOverride = feeOverride[debt[i].token];
+            Fee memory fee = feeOverride[debt[i].token];
             feeItems[i].identifier = 0; //fees are native or erc20
             if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
                 uint256 amount = debt[i].amount.mulDiv(
-                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount,
+                    !fee.enabled ? defaultFeeRake : fee.amount,
                     (debt[i].itemType == ItemType.NATIVE) ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
                 );
                 paymentToBorrower[i] = SpentItem({

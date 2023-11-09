@@ -160,7 +160,7 @@ library StarportLib {
 
     function transferAdditionalTransfersCalldata(AdditionalTransfer[] calldata transfers) internal {
         uint256 i = 0;
-        for (i; i < transfers.length;) {
+        for (; i < transfers.length;) {
             if (transfers[i].token.code.length == 0) {
                 revert InvalidItemTokenNoCode();
             }
@@ -192,7 +192,7 @@ library StarportLib {
 
     function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
-        for (i; i < transfers.length;) {
+        for (; i < transfers.length;) {
             if (transfers[i].token.code.length == 0) {
                 revert InvalidItemTokenNoCode();
             }
@@ -278,7 +278,7 @@ library StarportLib {
     function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal {
         if (transfers.length > 0) {
             uint256 i = 0;
-            for (i; i < transfers.length;) {
+            for (; i < transfers.length;) {
                 _transferItem(
                     transfers[i].itemType,
                     transfers[i].token,

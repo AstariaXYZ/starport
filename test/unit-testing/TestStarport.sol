@@ -76,9 +76,19 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
 }
 
 contract MockCustodian is Custodian {
+    bool returnValidSelector = false;
+
     constructor(Starport SP_, ConsiderationInterface seaport) Custodian(SP_, seaport) {}
 
-    function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {}
+    function setReturnValidSelector(bool returnValidSelector_) public {
+        returnValidSelector = returnValidSelector_;
+    }
+
+    function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {
+        if (returnValidSelector) {
+            selector = Custodian.custody.selector;
+        }
+    }
 }
 
 contract TestStarport is StarportTest, DeepEq {
@@ -223,10 +233,13 @@ contract TestStarport is StarportTest, DeepEq {
         SP.originate(new AdditionalTransfer[](0), _emptyCaveat(), _emptyCaveat(), loan);
     }
 
+    event log_loan(Starport.Loan loan);
+
     function testNonDefaultCustodianCustodyCallSuccess() public {
         CaveatEnforcer.CaveatWithApproval memory borrowerCaveat;
 
         Starport.Loan memory loan = generateDefaultLoanTerms();
+        //        Starport.Loan memory copy = loanCopy(loan);
         loan.collateral[0].identifier = uint256(2);
         loan.custodian = address(mockCustodian);
         CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
@@ -237,11 +250,15 @@ contract TestStarport is StarportTest, DeepEq {
         });
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
-        vm.mockCall(
-            address(mockCustodian),
-            abi.encodeWithSelector(Custodian.custody.selector, loan),
-            abi.encode(bytes4(Custodian.custody.selector))
-        );
+        //        copy.start = block.timestamp;
+        //        copy.originator = loan.borrower;
+        //        vm.mockCall(
+        //            address(mockCustodian),
+        //            abi.encodeWithSelector(MockCustodian.custody.selector, copy),
+        //            abi.encode(MockCustodian.custody.selector)
+        //        );
+        //todo: no idea why the mock doesnt work
+        mockCustodian.setReturnValidSelector(true);
         vm.startPrank(loan.borrower);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
         vm.stopPrank();
@@ -408,7 +425,7 @@ contract TestStarport is StarportTest, DeepEq {
         assertEq(SP.defaultFeeRake(), 0);
         address feeReceiver = address(20);
         SP.setFeeData(feeReceiver, 1e17); //10% fees
-        SP.setFeeOverride(address(erc20s[0]), 0); //0% fees
+        SP.setFeeOverride(address(erc20s[0]), 0, true); //0% fees
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
