@@ -40,7 +40,6 @@ library StarportLib {
 
     uint256 internal constant ONE_WORD = 0x20;
     uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
-    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
 
     function getCustodian(bytes calldata data) internal pure returns (address custodian) {
         assembly {
@@ -283,7 +282,7 @@ library StarportLib {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure returns (uint256) {
-        return amount.mulWad(uint256(NATURAL_NUMBER_SIGNED_WAD.powWad(int256(rate * delta_t)))) - amount;
+        return amount.mulWad(uint256(int256(rate * delta_t).expWad())) - amount;
     }
 
     function calculateSimpleInterest(
