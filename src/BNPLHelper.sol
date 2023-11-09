@@ -34,22 +34,13 @@ interface IFlashLoanRecipient {
     ) external;
 }
 
-interface IWETH9 {
-    function withdraw(uint256) external;
-}
-
 interface ERC20 {
     function transfer(address, uint256) external returns (bool);
 }
 
 contract BNPLHelper is IFlashLoanRecipient {
     address private constant vault = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
-    IWETH9 private immutable WETH;
     bytes32 private activeUserDataHash;
-
-    constructor(address WETH_) {
-        WETH = IWETH9(WETH_);
-    }
 
     struct Execution {
         address lm;
@@ -113,11 +104,5 @@ contract BNPLHelper is IFlashLoanRecipient {
             }
         }
         Starport(execution.lm).originate(transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan);
-    }
-
-    receive() external payable {
-        if (msg.sender != address(WETH)) {
-            revert DoNotSendETH();
-        }
     }
 }

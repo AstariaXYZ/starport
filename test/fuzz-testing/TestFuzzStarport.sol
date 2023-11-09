@@ -156,8 +156,8 @@ contract TestFuzzStarport is StarportTest, Bound {
         }
     }
 
-    function testFuzzNewOrigination(FuzzLoan memory params) public returns (Starport.Loan memory) {
-        return fuzzNewLoanOrigination(params, LoanBounds(0));
+    function testFuzzNewOrigination(FuzzLoan memory params) public {
+        fuzzNewLoanOrigination(params, LoanBounds(0));
     }
 
     struct LoanBounds {

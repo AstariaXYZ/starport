@@ -212,7 +212,7 @@ contract TestNewLoan is StarportTest {
         loan.debt[0].identifier = 0;
         loan.debt[0].amount = 100;
 
-        BNPLHelper helper = new BNPLHelper(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
+        BNPLHelper helper = new BNPLHelper();
 
         AdvancedOrder[] memory orders = new AdvancedOrder[](2);
         orders[0] = AdvancedOrder({
@@ -307,6 +307,14 @@ contract TestNewLoan is StarportTest {
                 )
             );
         }
+    }
+
+    function testInvalidUserDataHashBNPL() public {
+        BNPLHelper helper = new BNPLHelper();
+
+        vm.prank(address(0xBA12222222228d8Ba445958a75a0704d566BF2C8)); //the vault address for balancer
+        vm.expectRevert(abi.encodeWithSelector(BNPLHelper.InvalidUserDataProvided.selector));
+        helper.receiveFlashLoan(new address[](0), new uint256[](0), new uint256[](0), bytes(""));
     }
 
     function testNewLoanViaOriginatorLenderApproval() public {

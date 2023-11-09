@@ -155,6 +155,7 @@ contract TestStarport is StarportTest, DeepEq {
         vm.expectEmit(address(SP));
         emit Paused();
         SP.pause();
+        assert(SP.paused());
     }
 
     function testUnpause() public {
@@ -162,6 +163,7 @@ contract TestStarport is StarportTest, DeepEq {
         vm.expectEmit(address(SP));
         emit Unpaused();
         SP.unpause();
+        assert(!SP.paused());
     }
 
     function testApplyRefinanceConsiderationToLoanMalformed() public {
@@ -551,5 +553,147 @@ contract TestStarport is StarportTest, DeepEq {
         SP.originate(additionalTransfers, be, le1, loan);
         assert(erc20s[0].balanceOf(address(20)) == 20);
         assert(erc20s[0].balanceOf(address(loan.custodian)) == 20);
+    }
+
+    function testInvalidAdditionalTransfersOriginate() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc20s[0]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
+
+        loan.debt = exoticDebt;
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 0, itemType: ItemType.ERC20});
+        loan.collateral = maxSpent;
+
+        CaveatEnforcer.CaveatWithApproval memory le1 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
+        additionalTransfers[0] = AdditionalTransfer({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(20),
+            to: address(loan.borrower),
+            identifier: 0,
+            amount: 20
+        });
+        vm.expectRevert(abi.encodeWithSelector(Starport.UnauthorizedAdditionalTransferIncluded.selector));
+        vm.prank(loan.borrower);
+        SP.originate(additionalTransfers, _emptyCaveat(), le1, loan);
+    }
+
+    function testAdditionalTransfersOriginate() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc20s[0]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
+
+        loan.debt = exoticDebt;
+        SpentItem[] memory maxSpent = new SpentItem[](1);
+        maxSpent[0] = SpentItem({token: address(erc20s[0]), amount: 20, identifier: 0, itemType: ItemType.ERC20});
+        loan.collateral = maxSpent;
+
+        CaveatEnforcer.CaveatWithApproval memory le1 = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
+        additionalTransfers[0] = AdditionalTransfer({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(loan.borrower),
+            to: address(loan.issuer),
+            identifier: 0,
+            amount: 20
+        });
+        uint256 lenderBalanceBefore = erc20s[0].balanceOf(address(loan.issuer));
+        vm.prank(loan.borrower);
+        SP.originate(additionalTransfers, _emptyCaveat(), le1, loan);
+        assert(erc20s[0].balanceOf(address(loan.issuer)) == lenderBalanceBefore - loan.debt[0].amount + 20);
+    }
+
+    function testAdditionalTransfersRefinance() public {
+        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+
+        BasePricing.Details memory newPricingDetails =
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+        bytes memory newPricingData = abi.encode(newPricingDetails);
+        (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
+            Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);
+        AdditionalTransfer[] memory at = new AdditionalTransfer[](1);
+        at[0] = AdditionalTransfer({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(activeLoan.issuer),
+            to: address(activeLoan.borrower),
+            identifier: 0,
+            amount: 20
+        });
+        vm.mockCall(
+            activeLoan.terms.pricing,
+            abi.encodeWithSelector(Pricing.getRefinanceConsideration.selector, activeLoan, newPricingData, lender.addr),
+            abi.encode(refinanceConsideration, carryConsideration, at)
+        );
+        skip(1);
+        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(address(activeLoan.borrower));
+        vm.startPrank(lender.addr);
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
+        assert(erc20s[0].balanceOf(address(activeLoan.borrower)) == borrowerBalanceBefore + 20);
+    }
+
+    function testRefinancePostRepaymentFails() public {
+        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+
+        BasePricing.Details memory newPricingDetails =
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+        bytes memory newPricingData = abi.encode(newPricingDetails);
+
+        vm.mockCall(
+            activeLoan.terms.settlement,
+            abi.encodeWithSelector(Settlement.postRepayment.selector, activeLoan, lender.addr),
+            abi.encode(bytes4(0))
+        );
+        skip(1);
+        vm.expectRevert(abi.encodeWithSelector(Starport.InvalidPostRepayment.selector));
+        vm.startPrank(lender.addr);
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
+    }
+
+    function testInvalidAdditionalTransfersRefinance() public {
+        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+
+        BasePricing.Details memory newPricingDetails =
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+        bytes memory newPricingData = abi.encode(newPricingDetails);
+        (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
+            Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);
+        AdditionalTransfer[] memory at = new AdditionalTransfer[](1);
+        at[0] = AdditionalTransfer({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[0]),
+            from: address(activeLoan.borrower),
+            to: address(activeLoan.issuer),
+            identifier: 0,
+            amount: 20
+        });
+        vm.mockCall(
+            activeLoan.terms.pricing,
+            abi.encodeWithSelector(Pricing.getRefinanceConsideration.selector, activeLoan, newPricingData, lender.addr),
+            abi.encode(refinanceConsideration, carryConsideration, at)
+        );
+        skip(1);
+        vm.startPrank(lender.addr);
+        vm.expectRevert(abi.encodeWithSelector(Starport.UnauthorizedAdditionalTransferIncluded.selector));
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
     }
 }

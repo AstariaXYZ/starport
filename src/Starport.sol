@@ -88,18 +88,17 @@ contract Starport is ERC721, PausableNonReentrant {
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    //    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-    //        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
-    address public feeTo;
-    uint88 public defaultFeeRake;
+
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => uint256) public caveatNonces;
     //contract to token //fee rake
     mapping(address => Fee) public feeOverride;
+    address public feeTo;
+    uint88 public defaultFeeRake;
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, Starport.Loan loan);
@@ -206,7 +205,6 @@ contract Starport is ERC721, PausableNonReentrant {
 
         StarportLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
 
-        _callCustody(loan);
         if (feeRecipient == address(0)) {
             StarportLib.transferSpentItems(loan.debt, issuer, borrower, false);
         } else {
@@ -218,12 +216,13 @@ contract Starport is ERC721, PausableNonReentrant {
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
-            StarportLib.transferAdditionalTransfers(additionalTransfers);
+            _validateAdditionalTransfersOriginate(borrower, issuer, msg.sender, additionalTransfers);
+            StarportLib.transferAdditionalTransfersCalldata(additionalTransfers);
         }
 
         //sets originator and start time
         _issueLoan(loan);
+        _callCustody(loan);
     }
 
     /*
@@ -267,7 +266,7 @@ contract Starport is ERC721, PausableNonReentrant {
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
+            _validateAdditionalTransfersRefinance(lender, msg.sender, additionalTransfers);
             StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
@@ -342,18 +341,14 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function _validateAdditionalTransfers(
-        address borrower,
+    function _validateAdditionalTransfersRefinance(
         address lender,
         address fulfiller,
         AdditionalTransfer[] memory additionalTransfers
     ) internal pure {
         uint256 i = 0;
         for (i; i < additionalTransfers.length;) {
-            if (
-                additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
-                    && additionalTransfers[i].from != fulfiller
-            ) {
+            if (additionalTransfers[i].from != lender && additionalTransfers[i].from != fulfiller) {
                 revert UnauthorizedAdditionalTransferIncluded();
             }
             unchecked {
@@ -362,7 +357,7 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function _validateAdditionalTransfersCalldata(
+    function _validateAdditionalTransfersOriginate(
         address borrower,
         address lender,
         address fulfiller,
@@ -381,6 +376,33 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function _validateAndEnforceCaveats(
+        CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
+        address validator,
+        AdditionalTransfer[] memory additionalTransfers,
+        Starport.Loan memory loan
+    ) internal {
+        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
+        invalidHashes.validateSalt(validator, caveatApproval.salt);
+
+        if (
+            !SignatureCheckerLib.isValidSignatureNow(
+                validator, hash, caveatApproval.v, caveatApproval.r, caveatApproval.s
+            )
+        ) {
+            revert InvalidCaveatSigner();
+        }
+
+        for (uint256 i = 0; i < caveatApproval.caveat.length;) {
+            CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
+                additionalTransfers, loan, caveatApproval.caveat[i].data
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _validateAndEnforceCaveatsRefinance(
         CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
