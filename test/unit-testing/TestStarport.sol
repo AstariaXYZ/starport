@@ -116,14 +116,6 @@ contract TestStarport is StarportTest, DeepEq {
         loan.toStorage(activeLoan);
     }
 
-    function testName() public {
-        assertEq(SP.name(), "Starport Lending Kernel");
-    }
-
-    function testSymbol() public {
-        assertEq(SP.symbol(), "SLK");
-    }
-
     function testIncrementCaveatNonce() public {
         vm.roll(5);
         uint256 newNonce = SP.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);
@@ -137,13 +129,6 @@ contract TestStarport is StarportTest, DeepEq {
         vm.expectEmit();
         emit CaveatSaltInvalidated(salt);
         SP.invalidateCaveatSalt(salt);
-    }
-
-    function testSupportsInterface() public {
-        assertTrue(SP.supportsInterface(bytes4(0x01ffc9a7)));
-        assertTrue(SP.supportsInterface(bytes4(0x80ac58cd)));
-        assertTrue(SP.supportsInterface(bytes4(0x5b5e139f)));
-        assertTrue(SP.supportsInterface(bytes4(0x01ffc9a7)));
     }
 
     function testCannotSettleUnlessValidCustodian() public {
@@ -188,24 +173,6 @@ contract TestStarport is StarportTest, DeepEq {
 
     function testActive() public {
         assert(SP.active(activeLoan.getId()));
-    }
-
-    function testTokenURI() public {
-        assertEq(SP.tokenURI(uint256(keccak256(abi.encode(activeLoan)))), "");
-    }
-
-    function testTokenURIInvalidLoan() public {
-        vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoan.selector));
-        SP.tokenURI(uint256(0));
-    }
-
-    function testTransferFromFail() public {
-        vm.expectRevert(abi.encodeWithSelector(Starport.CannotTransferLoans.selector));
-        SP.transferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))));
-        vm.expectRevert(abi.encodeWithSelector(Starport.CannotTransferLoans.selector));
-        SP.safeTransferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))));
-        vm.expectRevert(abi.encodeWithSelector(Starport.CannotTransferLoans.selector));
-        SP.safeTransferFrom(address(this), address(this), uint256(keccak256(abi.encode(activeLoan))), "");
     }
 
     function testNonDefaultCustodianCustodyCallFails() public {
@@ -359,8 +326,7 @@ contract TestStarport is StarportTest, DeepEq {
             salt: bytes32(0),
             enforcer: address(lenderEnforcer)
         });
-        //        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
-        //        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+
         vm.startPrank(loan.borrower);
         vm.expectRevert(abi.encodeWithSelector(StarportLib.InvalidItemTokenNoCode.selector));
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
@@ -479,14 +445,6 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testNonPayableFunctions() public {
-        vm.expectRevert();
-        payable(address(SP)).call{value: 1 ether}(abi.encodeWithSelector(Starport.tokenURI.selector, uint256(0)));
-        vm.expectRevert();
-        payable(address(SP)).call{value: 1 ether}(abi.encodeWithSelector(ERC721.supportsInterface.selector, bytes4(0)));
-        vm.expectRevert();
-        payable(address(SP)).call{value: 1 ether}(abi.encodeWithSelector(Starport.name.selector));
-        vm.expectRevert();
-        payable(address(SP)).call{value: 1 ether}(abi.encodeWithSelector(Starport.symbol.selector));
         CaveatEnforcer.CaveatWithApproval memory be;
         vm.expectRevert();
         payable(address(SP)).call{value: 1 ether}(

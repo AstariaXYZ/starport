@@ -20,9 +20,7 @@
  */
 pragma solidity ^0.8.17;
 
-import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
-import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
@@ -37,7 +35,7 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
 import {Settlement} from "./settlement/Settlement.sol";
 
-contract Starport is ERC721, PausableNonReentrant {
+contract Starport is PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
     using {StarportLib.getId} for Starport.Loan;
@@ -91,11 +89,12 @@ contract Starport is ERC721, PausableNonReentrant {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
+    mapping(uint256 => FieldFlags) public loanState;
 
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => uint256) public caveatNonces;
-    mapping(address => Fee) public feeOverride;
+    mapping(address => Fee) public feeOverrides;
     address public feeTo;
     uint88 public defaultFeeRake;
 
@@ -143,13 +142,6 @@ contract Starport is ERC721, PausableNonReentrant {
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
         emit ApprovalSet(msg.sender, who, approvalType);
-    }
-
-    /*
-    * @dev override the transferFrom as Loans are non transferable
-    */
-    function transferFrom(address from, address to, uint256 tokenId) public payable override {
-        revert CannotTransferLoans();
     }
 
     /*
@@ -408,28 +400,12 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     /**
-     * @dev the erc721 name of the contract
-     * @return                   The name of the contract as a string
-     */
-    function name() public pure override returns (string memory) {
-        return "Starport Lending Kernel";
-    }
-
-    /**
-     * @dev the erc721 symbol of the contract
-     * @return                   The symbol of the contract as a string
-     */
-    function symbol() public pure override returns (string memory) {
-        return "SLK";
-    }
-
-    /**
      * @dev  helper to check if a loan is active
      * @param loanId            The id of the loan
      * @return                  True if the loan is active
      */
     function active(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.ACTIVE);
+        return loanState[loanId] == FieldFlags.ACTIVE;
     }
 
     /**
@@ -438,19 +414,7 @@ contract Starport is ERC721, PausableNonReentrant {
      * @return                  True if the loan is inactive
      */
     function inactive(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.INACTIVE);
-    }
-
-    /**
-     * @dev  erc721 tokenURI override
-     * @param loanId            The id of the loan
-     * @return                  the string uri of the loan
-     */
-    function tokenURI(uint256 loanId) public view override returns (string memory) {
-        if (!active(loanId)) {
-            revert InvalidLoan();
-        }
-        return string("");
+        return loanState[loanId] == FieldFlags.INACTIVE;
     }
 
     /**
@@ -466,15 +430,13 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function _settle(Loan memory loan) internal {
-        uint256 tokenId = loan.getId();
-        if (inactive(tokenId)) {
+        uint256 loanId = loan.getId();
+        if (inactive(loanId)) {
             revert InvalidLoan();
         }
-        if (_exists(tokenId)) {
-            _burn(tokenId);
-        }
-        _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
-        emit Close(tokenId);
+
+        loanState[loanId] = FieldFlags.INACTIVE;
+        emit Close(loanId);
     }
 
     /**
@@ -492,12 +454,12 @@ contract Starport is ERC721, PausableNonReentrant {
     /**
      * @dev set's fee override's for specific tokens
      * only owner can call
-     * @param token  The token to override
-     * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
+     * @param token             The token to override
+     * @param overrideValue     The new value in WAD denomination to override(1e17 = 10%)
+     * @param enabled           Whether or not the override is enabled
      */
     function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
-        feeOverride[token].enabled = enabled;
-        feeOverride[token].amount = overrideValue;
+        feeOverrides[token] = Fee({enabled: enabled, amount: overrideValue});
         emit FeeOverrideUpdated(token, overrideValue, enabled);
     }
 
@@ -516,12 +478,11 @@ contract Starport is ERC721, PausableNonReentrant {
         paymentToBorrower = new SpentItem[](debt.length);
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
-            Fee memory fee = feeOverride[debt[i].token];
-            feeItems[i].identifier = 0; //fees are native or erc20
-            if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
+            if (debt[i].itemType == ItemType.ERC20) {
+                Fee memory feeOverride = feeOverrides[debt[i].token];
+                feeItems[i].identifier = 0;
                 uint256 amount = debt[i].amount.mulDiv(
-                    !fee.enabled ? defaultFeeRake : fee.amount,
-                    (debt[i].itemType == ItemType.NATIVE) ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
+                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debt[i].token).decimals()
                 );
                 paymentToBorrower[i] = SpentItem({
                     token: debt[i].token,
@@ -561,10 +522,15 @@ contract Starport is ERC721, PausableNonReentrant {
         if (active(loanId)) {
             revert LoanExists();
         }
-        _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
+
+        loanState[loanId] = FieldFlags.ACTIVE;
         if (loan.issuer.code.length > 0) {
-            _safeMint(loan.issuer, loanId, encodedLoan);
+            loan.issuer.call(abi.encodeWithSelector(LoanOpened.onLoanOpened.selector, loan));
         }
         emit Open(loanId, loan);
     }
+}
+
+interface LoanOpened {
+    function onLoanOpened(Starport.Loan memory loan) external;
 }
