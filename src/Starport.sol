@@ -95,7 +95,6 @@ contract Starport is ERC721, PausableNonReentrant {
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => uint256) public caveatNonces;
-    //contract to token //fee rake
     mapping(address => Fee) public feeOverride;
     address public feeTo;
     uint88 public defaultFeeRake;
@@ -135,32 +134,6 @@ contract Starport is ERC721, PausableNonReentrant {
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
     }
-    //
-    //    function setApproval(address who, bool approved) external {
-    //        assembly {
-    //            // Compute the storage slot of approvals[msg.sender]
-    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
-    //
-    //            // Compute the storage slot of approvals[msg.sender][who]
-    //            slot := keccak256(add(who, slot), 0x20)
-    //
-    //            // Update the value at the computed storage slot
-    //            sstore(slot, approved)
-    //        }
-    //    }
-
-    //    function setApprovalTransient(address who) external {
-    //        assembly {
-    //            // Compute the storage slot of approvals[msg.sender]
-    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
-    //
-    //            // Compute the storage slot of approvals[msg.sender][who]
-    //            slot := keccak256(add(who, slot), 0x20)
-    //
-    //            // Update the value at the computed storage slot
-    //            tstore(slot, 1)
-    //        }
-    //    }
 
     /*
     * @dev set's approval to originate loans without having to check caveats
