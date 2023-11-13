@@ -30,24 +30,11 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
 
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        Starport.Loan memory loan = newLoanWithDefaultTerms();
+        Starport.Loan memory loan = newLoanWithDefaultTerms(false);
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
         skip(1);
-    }
-
-    function testPayableFunctions() public {
-        vm.deal(seaportAddr, 2 ether);
-        vm.prank(seaportAddr);
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.prank(seaportAddr);
-        payable(address(custodian)).call{value: 1 ether}("");
-
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
-        payable(address(custodian)).call{value: 1 ether}("");
     }
 
     function testNonPayableFunctions() public {

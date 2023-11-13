@@ -39,7 +39,8 @@ abstract contract BasePricing is Pricing {
         uint256 decimals;
     }
 
-    function getPaymentConsideration(Starport.Loan memory loan)
+    // @inheritdoc Pricing
+    function getPaymentConsideration(Starport.Loan calldata loan)
         public
         view
         virtual
@@ -89,8 +90,17 @@ abstract contract BasePricing is Pricing {
         return Pricing.validate.selector;
     }
 
+    /**
+     * @dev Computes the interest for a given loan
+     * @param loan The loan to compute the interest for
+     * @param rate The interest rate
+     * @param start The start time frame
+     * @param end The end time frame
+     * @param index The index of the debt to compute the interest for
+     * @param decimals The decimals of the debt asset
+     */
     function getInterest(
-        Starport.Loan memory loan,
+        Starport.Loan calldata loan,
         uint256 rate,
         uint256 start,
         uint256 end,
@@ -101,6 +111,13 @@ abstract contract BasePricing is Pricing {
         return calculateInterest(delta_t, loan.debt[index].amount, rate, decimals);
     }
 
+    /**
+     * @dev Computes the interest
+     * @param delta_t The time delta
+     * @param amount The amount to compute the interest for
+     * @param rate The interest rate
+     * @param decimals The decimals of the base asset
+     */
     function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
         public
         pure

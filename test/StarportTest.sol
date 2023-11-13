@@ -38,7 +38,6 @@ import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
 import {FixedTermDutchAuctionSettlement} from "starport-core/settlement/FixedTermDutchAuctionSettlement.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {EnglishAuctionSettlement} from "starport-core/settlement/EnglishAuctionSettlement.sol";
 
 import {Starport} from "starport-core/Starport.sol";
 
@@ -111,11 +110,9 @@ contract StarportTest is BaseOrderTest {
     Status fixedTermStatus;
 
     Settlement dutchAuctionSettlement;
-    Settlement englishAuctionSettlement;
 
     Pricing simpleInterestPricing;
 
-    //    ConsiderationInterface public constant seaport = ConsiderationInterface(0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     ConsiderationInterface public seaport;
 
     Pricing pricing;
@@ -248,11 +245,6 @@ contract StarportTest is BaseOrderTest {
         fixedTermStatus = new FixedTermStatus();
 
         dutchAuctionSettlement = new FixedTermDutchAuctionSettlement(SP);
-        englishAuctionSettlement = new EnglishAuctionSettlement({
-            SP_: SP,
-            consideration_: seaport,
-            EAZone_: 0x110b2B128A9eD1be5Ef3232D8e4E41640dF5c2Cd
-        });
 
         simpleInterestPricing = new SimpleInterestPricing(SP);
     }
@@ -289,13 +281,13 @@ contract StarportTest is BaseOrderTest {
         vm.stopPrank();
     }
 
-    function _emptyCaveat() internal returns (CaveatEnforcer.CaveatWithApproval memory) {
-        return CaveatEnforcer.CaveatWithApproval({
-            v: 0,
-            r: bytes32(0),
-            s: bytes32(0),
+    function _emptyCaveat() internal returns (CaveatEnforcer.SignedCaveats memory) {
+        return CaveatEnforcer.SignedCaveats({
+            signature: "",
+            invalidate: true,
+            deadline: 0,
             salt: bytes32(0),
-            caveat: new CaveatEnforcer.Caveat[](0)
+            caveats: new CaveatEnforcer.Caveat[](0)
         });
     }
 
@@ -303,24 +295,25 @@ contract StarportTest is BaseOrderTest {
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
+        returns (CaveatEnforcer.SignedCaveats memory)
     {
         loan = loanCopy(loan);
         loan.issuer = address(0);
 
-        return _generateSignedCaveat(loan, signer, address(borrowerEnforcer), salt);
+        return _generateSignedCaveats(loan, signer, address(borrowerEnforcer), salt, true);
     }
 
     // loan.issuer and signer.addr could be mismatched
-    function _generateSignedCaveatLender(Starport.Loan memory loan, Account memory signer, bytes32 salt)
-        public
-        view
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
-    {
+    function _generateSignedCaveatLender(
+        Starport.Loan memory loan,
+        Account memory signer,
+        bytes32 salt,
+        bool invalidate
+    ) public view returns (CaveatEnforcer.SignedCaveats memory) {
         loan = loanCopy(loan);
         loan.borrower = address(0);
 
-        return _generateSignedCaveat(loan, signer, address(lenderEnforcer), salt);
+        return _generateSignedCaveats(loan, signer, address(lenderEnforcer), salt, invalidate);
     }
 
     function loanCopy(Starport.Loan memory loan) public pure returns (Starport.Loan memory) {
@@ -329,35 +322,39 @@ contract StarportTest is BaseOrderTest {
         return abi.decode(copyBytes, (Starport.Loan));
     }
 
-    function _generateSignedCaveat(Starport.Loan memory loan, Account memory signer, address enforcer, bytes32 salt)
-        public
-        view
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
-    {
+    function _generateSignedCaveats(
+        Starport.Loan memory loan,
+        Account memory signer,
+        address enforcer,
+        bytes32 salt,
+        bool invalidate
+    ) public view returns (CaveatEnforcer.SignedCaveats memory) {
         LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: loan});
         return signCaveatForAccount(
-            CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)}),
-            salt,
-            signer
+            CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)}), salt, signer, invalidate
         );
     }
 
-    function signCaveatForAccount(CaveatEnforcer.Caveat memory caveat, bytes32 salt, Account memory signer)
-        public
-        view
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
-    {
-        caveatWithApproval = CaveatEnforcer.CaveatWithApproval({
-            v: 0,
-            r: bytes32(0),
-            s: bytes32(0),
+    function signCaveatForAccount(
+        CaveatEnforcer.Caveat memory caveat,
+        bytes32 salt,
+        Account memory signer,
+        bool invalidate
+    ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        signedCaveats = CaveatEnforcer.SignedCaveats({
+            signature: "",
+            invalidate: invalidate,
+            deadline: block.timestamp + 1 days,
             salt: salt,
-            caveat: new CaveatEnforcer.Caveat[](1)
+            caveats: new CaveatEnforcer.Caveat[](1)
         });
 
-        caveatWithApproval.caveat[0] = caveat;
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatWithApproval.caveat);
-        (caveatWithApproval.v, caveatWithApproval.r, caveatWithApproval.s) = vm.sign(signer.key, hash);
+        signedCaveats.caveats[0] = caveat;
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
+        signedCaveats.signature = abi.encodePacked(r, s, v);
     }
 
     function newLoanOriginationSetup(
@@ -365,19 +362,17 @@ contract StarportTest is BaseOrderTest {
         Account memory borrowerSigner,
         bytes32 borrowerSalt,
         Account memory lenderSigner,
-        bytes32 lenderSalt
+        bytes32 lenderSalt,
+        bool invalidateLenderSalt
     )
         public
-        returns (
-            CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
-            CaveatEnforcer.CaveatWithApproval memory lenderCaveat
-        )
+        returns (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat)
     {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
 
         borrowerCaveat = _generateSignedCaveatBorrower(loan, borrowerSigner, borrowerSalt);
-        lenderCaveat = _generateSignedCaveatLender(loan, lenderSigner, lenderSalt);
+        lenderCaveat = _generateSignedCaveatLender(loan, lenderSigner, lenderSalt, invalidateLenderSalt);
     }
 
     function newLoanWithProvidedSigners(
@@ -388,8 +383,20 @@ contract StarportTest is BaseOrderTest {
         Account memory lenderSigner,
         address fulfiller
     ) internal returns (Starport.Loan memory) {
-        (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat)
-        = newLoanOriginationSetup(loan, borrowerSigner, borrowerSalt, lenderSigner, lenderSalt);
+        (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat) =
+            newLoanOriginationSetup(loan, borrowerSigner, borrowerSalt, lenderSigner, lenderSalt, true);
+        return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
+    }
+
+    function newLoan(
+        Starport.Loan memory loan,
+        bytes32 borrowerSalt,
+        bytes32 lenderSalt,
+        address fulfiller,
+        bool invalidateLender
+    ) internal returns (Starport.Loan memory) {
+        (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat) =
+            newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt, invalidateLender);
         return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
     }
 
@@ -397,15 +404,15 @@ contract StarportTest is BaseOrderTest {
         internal
         returns (Starport.Loan memory)
     {
-        (CaveatEnforcer.CaveatWithApproval memory borrowerCaveat, CaveatEnforcer.CaveatWithApproval memory lenderCaveat)
-        = newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt);
+        (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat) =
+            newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt, true);
         return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
     }
 
     function newLoan(
         Starport.Loan memory loan,
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat,
+        CaveatEnforcer.SignedCaveats memory lenderCaveat,
         address fulfiller
     ) internal returns (Starport.Loan memory originatedLoan) {
         vm.recordLogs();
@@ -429,14 +436,18 @@ contract StarportTest is BaseOrderTest {
         Account memory signer,
         bytes32 salt,
         address enforcer
-    ) public view returns (CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
-        caveatApproval.caveat = new CaveatEnforcer.Caveat[](1);
-        caveatApproval.salt = salt;
-        caveatApproval.caveat[0] =
-            CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
+    ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
+        signedCaveats.salt = salt;
+        signedCaveats.invalidate = true;
+        signedCaveats.deadline = block.timestamp + 1 days;
+        signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+        );
 
-        (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
+        signedCaveats.signature = abi.encodePacked(r, s, v);
     }
 
     function getLenderSignedCaveat(
@@ -444,19 +455,28 @@ contract StarportTest is BaseOrderTest {
         Account memory signer,
         bytes32 salt,
         address enforcer
-    ) public view returns (CaveatEnforcer.CaveatWithApproval memory caveatApproval) {
-        caveatApproval.caveat = new CaveatEnforcer.Caveat[](1);
-        caveatApproval.salt = salt;
-        caveatApproval.caveat[0] =
-            CaveatEnforcer.Caveat({enforcer: enforcer, deadline: block.timestamp + 1 days, data: abi.encode(details)});
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(signer.addr, salt, caveatApproval.caveat);
+    ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
+        signedCaveats.salt = salt;
+        signedCaveats.invalidate = true;
+        signedCaveats.deadline = block.timestamp + 1 days;
+        signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+        );
 
-        (caveatApproval.v, caveatApproval.r, caveatApproval.s) = vm.sign(signer.key, hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
+        signedCaveats.signature = abi.encodePacked(r, s, v);
     }
 
     function newLoanWithDefaultTerms() public returns (Starport.Loan memory) {
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
+        return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr, true);
+    }
+
+    function newLoanWithDefaultTerms(bool invalidateLender) public returns (Starport.Loan memory) {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr, invalidateLender);
     }
 
     function generateDefaultLoanTerms() public view virtual returns (Starport.Loan memory) {
@@ -495,7 +515,7 @@ contract StarportTest is BaseOrderTest {
         Starport.Loan memory loan,
         bytes memory newPricingData,
         address asWho,
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
+        CaveatEnforcer.SignedCaveats memory lenderCaveat,
         address lender
     ) internal returns (Starport.Loan memory newLoan) {
         return refinanceLoan(loan, newPricingData, asWho, lenderCaveat, lender, "");
@@ -514,14 +534,12 @@ contract StarportTest is BaseOrderTest {
         Starport.Loan memory loan,
         bytes memory pricingData,
         address asWho,
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat,
+        CaveatEnforcer.SignedCaveats memory lenderCaveat,
         address lender,
         bytes memory revertMessage
     ) internal returns (Starport.Loan memory newLoan) {
         vm.recordLogs();
         vm.startPrank(asWho);
-
-        console.logBytes32(SP.hashCaveatWithSaltAndNonce(lender, bytes32(uint256(1)), lenderCaveat.caveat));
 
         if (revertMessage.length > 0) {
             vm.expectRevert(revertMessage); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
@@ -839,17 +857,6 @@ contract StarportTest is BaseOrderTest {
             endAmount: 1,
             identifierOrCriteria: 0,
             itemType: ItemType.ERC20,
-            recipient: payable(address(custodian))
-        });
-    }
-
-    function _getNativeConsideration() internal view returns (ConsiderationItem memory) {
-        return ConsiderationItem({
-            token: address(0),
-            startAmount: 100 wei,
-            endAmount: 100 wei,
-            identifierOrCriteria: 0,
-            itemType: ItemType.NATIVE,
             recipient: payable(address(custodian))
         });
     }

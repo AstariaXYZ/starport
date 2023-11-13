@@ -19,7 +19,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,
             salt: bytes32(0),
@@ -36,10 +36,10 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.collateral[0] = _getERC20SpentItem(erc20s[0], 1000);
 
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
-            salt: bytes32(0),
+            salt: bytes32(uint256(1)),
             enforcer: address(borrowerEnforcer)
         });
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
@@ -53,13 +53,33 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
     }
 
+    function testOriginateWCaveatsExpired() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0] = _getERC20SpentItem(erc20s[0], 1000);
+
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
+            details: BorrowerEnforcer.Details({loan: loan}),
+            signer: borrower,
+            salt: bytes32(uint256(1)),
+            enforcer: address(borrowerEnforcer)
+        });
+        skip(borrowerCaveat.deadline + 1);
+        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+
+        _setApprovalsForSpentItems(lender.addr, loan.debt);
+
+        vm.expectRevert(Starport.CaveatDeadlineExpired.selector);
+        vm.startPrank(loan.issuer);
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
+    }
+
     function testOriginateWCaveatsInvalidSaltManual() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
-            salt: bytes32(0),
+            salt: bytes32(uint256(1)),
             enforcer: address(borrowerEnforcer)
         });
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
@@ -67,7 +87,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
         vm.prank(borrower.addr);
-        SP.invalidateCaveatSalt(0);
+        SP.invalidateCaveatSalt(bytes32(uint256(1)));
 
         vm.expectRevert(StarportLib.InvalidSalt.selector);
         vm.prank(lender.addr);
@@ -77,7 +97,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     function testOriginateWCaveatsIncrementedNonce() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
             salt: bytes32(0),
@@ -101,7 +121,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,
             salt: bytes32(0),
@@ -119,7 +139,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     function testOriginateWLenderApproval() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
             salt: bytes32(0),
@@ -137,7 +157,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     function testOriginateUnapprovedFulfiller() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
             salt: bytes32(0),
@@ -145,7 +165,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         });
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,
             salt: bytes32(0),
@@ -169,7 +189,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         details.loan.originator = address(0);
         details.loan.start = 0;
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: details,
             signer: borrower,
             salt: bytes32(msg.sig),
@@ -221,7 +241,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         details.loan.originator = address(0);
         details.loan.start = 0;
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: details,
             signer: lender,
             salt: bytes32(0),
@@ -242,7 +262,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     function testRefinanceCaveatFailure() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,
             salt: bytes32(0),
@@ -261,7 +281,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     function testRefinanceLoanStartAtBlockTimestampInvalidLoan() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
 
-        CaveatEnforcer.CaveatWithApproval memory lenderCaveat = getLenderSignedCaveat({
+        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
             details: LenderEnforcer.Details({loan: loan}),
             signer: lender,
             salt: bytes32(0),

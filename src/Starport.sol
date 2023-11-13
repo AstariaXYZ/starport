@@ -20,9 +20,7 @@
  */
 pragma solidity ^0.8.17;
 
-import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
-import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
@@ -37,10 +35,9 @@ import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
 import {Settlement} from "./settlement/Settlement.sol";
 
-contract Starport is ERC721, PausableNonReentrant {
+contract Starport is PausableNonReentrant {
     using FixedPointMathLib for uint256;
 
-    using {StarportLib.toReceivedItems} for SpentItem[];
     using {StarportLib.getId} for Starport.Loan;
     using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
@@ -89,24 +86,24 @@ contract Starport is ERC721, PausableNonReentrant {
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    //    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-    //        keccak256("Origination(bytes32 hash,address enforcer,bytes32 salt,uint256 nonce,uint256 deadline,bytes data)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
+        keccak256("Origination(uint256 userNonce,bool invalidate,bytes32 salt,uint256 deadline, bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
+
+    mapping(address => mapping(bytes32 => bool)) public invalidSalts;
+    mapping(uint256 => uint256) public loanState;
+    mapping(address => uint256) public caveatNonces;
+    mapping(address => Fee) public feeOverrides;
     address public feeTo;
     uint88 public defaultFeeRake;
-    mapping(address => mapping(bytes32 => bool)) public invalidHashes;
     mapping(address => mapping(address => ApprovalType)) public approvals;
-    mapping(address => uint256) public caveatNonces;
-    //contract to token //fee rake
-    mapping(address => Fee) public feeOverride;
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, Starport.Loan loan);
     event CaveatNonceIncremented(uint256 newNonce);
     event CaveatSaltInvalidated(bytes32 invalidatedSalt);
-
+    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
+    event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
     event ApprovalSet(address indexed owner, address indexed spender, ApprovalType approvalType);
 
     error InvalidRefinance();
@@ -120,6 +117,7 @@ contract Starport is ERC721, PausableNonReentrant {
     error NativeAssetsNotSupported();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
+    error CaveatDeadlineExpired();
     error MalformedRefinance();
     error InvalidPostRepayment();
 
@@ -136,46 +134,28 @@ contract Starport is ERC721, PausableNonReentrant {
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
     }
-    //
-    //    function setApproval(address who, bool approved) external {
-    //        assembly {
-    //            // Compute the storage slot of approvals[msg.sender]
-    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
-    //
-    //            // Compute the storage slot of approvals[msg.sender][who]
-    //            slot := keccak256(add(who, slot), 0x20)
-    //
-    //            // Update the value at the computed storage slot
-    //            sstore(slot, approved)
-    //        }
-    //    }
 
-    //    function setApprovalTransient(address who) external {
-    //        assembly {
-    //            // Compute the storage slot of approvals[msg.sender]
-    //            let slot := keccak256(add(mul(caller(), 0x1000000000000000000000000), mload(approvals.slot)), 0x20)
-    //
-    //            // Compute the storage slot of approvals[msg.sender][who]
-    //            slot := keccak256(add(who, slot), 0x20)
-    //
-    //            // Update the value at the computed storage slot
-    //            tstore(slot, 1)
-    //        }
-    //    }
-
+    /*
+    * @dev set's approval to originate loans without having to check caveats
+    * @param who                The address of who is being approved
+    * @param approvalType       The type of approval (Borrower, Lender) (cant be both)
+    */
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
         emit ApprovalSet(msg.sender, who, approvalType);
     }
 
-    function transferFrom(address from, address to, uint256 tokenId) public payable override {
-        revert CannotTransferLoans();
-    }
-
+    /*
+    * @dev loan origination method, new loan data is passed in and validated before being issued
+    * @param additionalTransfers     Additional transfers to be made after the loan is issued
+    * @param borrowerCaveat          The borrower caveat to be validated
+    * @param lenderCaveat            The lender caveat to be validated
+    * @param loan                    The loan to be issued
+    */
     function originate(
         AdditionalTransfer[] calldata additionalTransfers,
-        CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
-        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        CaveatEnforcer.SignedCaveats calldata borrowerCaveat,
+        CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan
     ) external payable pausableNonReentrant {
         //cache the addresses
@@ -192,7 +172,6 @@ contract Starport is ERC721, PausableNonReentrant {
 
         StarportLib.transferSpentItems(loan.collateral, borrower, loan.custodian, true);
 
-        _callCustody(loan);
         if (feeRecipient == address(0)) {
             StarportLib.transferSpentItems(loan.debt, issuer, borrower, false);
         } else {
@@ -204,17 +183,26 @@ contract Starport is ERC721, PausableNonReentrant {
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfersCalldata(borrower, issuer, msg.sender, additionalTransfers);
-            StarportLib.transferAdditionalTransfers(additionalTransfers);
+            _validateAdditionalTransfersOriginate(borrower, issuer, msg.sender, additionalTransfers);
+            StarportLib.transferAdditionalTransfersCalldata(additionalTransfers);
         }
 
         //sets originator and start time
         _issueLoan(loan);
+        _callCustody(loan);
     }
 
+    /*
+    * @dev refinances an existing loan with new pricing data
+    * its the only thing that can be changed
+    * @param lender                  The new lender
+    * @param lenderCaveat            The lender caveat to be validated
+    * @param loan                    The loan to be issued
+    * @param newPricingData          The new pricing data
+    */
     function refinance(
         address lender,
-        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan,
         bytes calldata pricingData
     ) external pausableNonReentrant {
@@ -245,7 +233,7 @@ contract Starport is ERC721, PausableNonReentrant {
         }
 
         if (additionalTransfers.length > 0) {
-            _validateAdditionalTransfers(loan.borrower, lender, msg.sender, additionalTransfers);
+            _validateAdditionalTransfersRefinance(lender, msg.sender, additionalTransfers);
             StarportLib.transferAdditionalTransfers(additionalTransfers);
         }
 
@@ -320,18 +308,14 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function _validateAdditionalTransfers(
-        address borrower,
+    function _validateAdditionalTransfersRefinance(
         address lender,
         address fulfiller,
         AdditionalTransfer[] memory additionalTransfers
     ) internal pure {
         uint256 i = 0;
-        for (i; i < additionalTransfers.length;) {
-            if (
-                additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
-                    && additionalTransfers[i].from != fulfiller
-            ) {
+        for (; i < additionalTransfers.length;) {
+            if (additionalTransfers[i].from != lender && additionalTransfers[i].from != fulfiller) {
                 revert UnauthorizedAdditionalTransferIncluded();
             }
             unchecked {
@@ -340,14 +324,14 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function _validateAdditionalTransfersCalldata(
+    function _validateAdditionalTransfersOriginate(
         address borrower,
         address lender,
         address fulfiller,
         AdditionalTransfer[] calldata additionalTransfers
     ) internal pure {
         uint256 i = 0;
-        for (i; i < additionalTransfers.length;) {
+        for (; i < additionalTransfers.length;) {
             if (
                 additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
                     && additionalTransfers[i].from != fulfiller
@@ -359,25 +343,28 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function _validateAndEnforceCaveats(
-        CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
+        CaveatEnforcer.SignedCaveats calldata signedCaveats,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
         Starport.Loan memory loan
     ) internal {
-        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
-        invalidHashes.validateSalt(validator, caveatApproval.salt);
+        bytes32 hash = hashCaveatWithSaltAndNonce(
+            validator, signedCaveats.invalidate, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats
+        );
+        if (signedCaveats.invalidate) {
+            invalidSalts.validateSalt(validator, signedCaveats.salt);
+        }
 
-        if (
-            !SignatureCheckerLib.isValidSignatureNow(
-                validator, hash, caveatApproval.v, caveatApproval.r, caveatApproval.s
-            )
-        ) {
+        if (block.timestamp > signedCaveats.deadline) {
+            revert CaveatDeadlineExpired();
+        }
+        if (!SignatureCheckerLib.isValidSignatureNowCalldata(validator, hash, signedCaveats.signature)) {
             revert InvalidCaveatSigner();
         }
 
-        for (uint256 i = 0; i < caveatApproval.caveat.length;) {
-            CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
-                additionalTransfers, loan, caveatApproval.caveat[i].data
+        for (uint256 i = 0; i < signedCaveats.caveats.length;) {
+            CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
+                additionalTransfers, loan, signedCaveats.caveats[i].data
             );
             unchecked {
                 ++i;
@@ -385,12 +372,13 @@ contract Starport is ERC721, PausableNonReentrant {
         }
     }
 
-    function hashCaveatWithSaltAndNonce(address validator, bytes32 salt, CaveatEnforcer.Caveat[] calldata caveat)
-        public
-        view
-        virtual
-        returns (bytes32)
-    {
+    function hashCaveatWithSaltAndNonce(
+        address validator,
+        bool invalidate,
+        bytes32 salt,
+        uint256 deadline,
+        CaveatEnforcer.Caveat[] calldata caveats
+    ) public view virtual returns (bytes32) {
         return keccak256(
             abi.encodePacked(
                 bytes1(0x19),
@@ -398,7 +386,12 @@ contract Starport is ERC721, PausableNonReentrant {
                 _DOMAIN_SEPARATOR,
                 keccak256(
                     abi.encode(
-                        INTENT_ORIGINATION_TYPEHASH, caveatNonces[validator], salt, keccak256(abi.encode(caveat))
+                        INTENT_ORIGINATION_TYPEHASH,
+                        caveatNonces[validator],
+                        invalidate,
+                        salt,
+                        deadline,
+                        keccak256(abi.encode(caveats))
                     )
                 )
             )
@@ -412,24 +405,8 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
-        invalidHashes[msg.sender][salt] = true;
+        invalidSalts[msg.sender][salt] = true;
         emit CaveatSaltInvalidated(salt);
-    }
-
-    /**
-     * @dev the erc721 name of the contract
-     * @return                   The name of the contract as a string
-     */
-    function name() public pure override returns (string memory) {
-        return "Starport Lending Kernel";
-    }
-
-    /**
-     * @dev the erc721 symbol of the contract
-     * @return                   The symbol of the contract as a string
-     */
-    function symbol() public pure override returns (string memory) {
-        return "SLK";
     }
 
     /**
@@ -438,7 +415,7 @@ contract Starport is ERC721, PausableNonReentrant {
      * @return                  True if the loan is active
      */
     function active(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.ACTIVE);
+        return loanState[loanId] == uint256(FieldFlags.ACTIVE);
     }
 
     /**
@@ -447,19 +424,7 @@ contract Starport is ERC721, PausableNonReentrant {
      * @return                  True if the loan is inactive
      */
     function inactive(uint256 loanId) public view returns (bool) {
-        return _getExtraData(loanId) == uint8(FieldFlags.INACTIVE);
-    }
-
-    /**
-     * @dev  erc721 tokenURI override
-     * @param loanId            The id of the loan
-     * @return                  the string uri of the loan
-     */
-    function tokenURI(uint256 loanId) public view override returns (string memory) {
-        if (!active(loanId)) {
-            revert InvalidLoan();
-        }
-        return string("");
+        return loanState[loanId] == uint256(FieldFlags.INACTIVE);
     }
 
     /**
@@ -475,15 +440,14 @@ contract Starport is ERC721, PausableNonReentrant {
     }
 
     function _settle(Loan memory loan) internal {
-        uint256 tokenId = loan.getId();
-        if (inactive(tokenId)) {
+        uint256 loanId = loan.getId();
+        if (inactive(loanId)) {
             revert InvalidLoan();
         }
-        if (_exists(tokenId)) {
-            _burn(tokenId);
-        }
-        _setExtraData(tokenId, uint8(FieldFlags.INACTIVE));
-        emit Close(tokenId);
+
+        loanState[loanId] = uint256(FieldFlags.INACTIVE);
+
+        emit Close(loanId);
     }
 
     /**
@@ -495,17 +459,19 @@ contract Starport is ERC721, PausableNonReentrant {
     function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
         feeTo = feeTo_;
         defaultFeeRake = defaultFeeRake_;
+        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
     }
 
     /**
      * @dev set's fee override's for specific tokens
      * only owner can call
-     * @param token  The token to override
-     * @param overrideValue the new value in WAD denomination to override(1e17 = 10%)
+     * @param token             The token to override
+     * @param overrideValue     The new value in WAD denomination to override(1e17 = 10%)
+     * @param enabled           Whether or not the override is enabled
      */
-    function setFeeOverride(address token, uint88 overrideValue) external onlyOwner {
-        feeOverride[token].enabled = true;
-        feeOverride[token].amount = overrideValue;
+    function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
+        feeOverrides[token] = Fee({enabled: enabled, amount: overrideValue});
+        emit FeeOverrideUpdated(token, overrideValue, enabled);
     }
 
     /**
@@ -523,12 +489,11 @@ contract Starport is ERC721, PausableNonReentrant {
         paymentToBorrower = new SpentItem[](debt.length);
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
-            Fee memory feeOverride = feeOverride[debt[i].token];
-            feeItems[i].identifier = 0; //fees are native or erc20
-            if (debt[i].itemType == ItemType.NATIVE || debt[i].itemType == ItemType.ERC20) {
+            if (debt[i].itemType == ItemType.ERC20) {
+                Fee memory feeOverride = feeOverrides[debt[i].token];
+                feeItems[i].identifier = 0;
                 uint256 amount = debt[i].amount.mulDiv(
-                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount,
-                    (debt[i].itemType == ItemType.NATIVE) ? 1e18 : 10 ** ERC20(debt[i].token).decimals()
+                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debt[i].token).decimals()
                 );
                 paymentToBorrower[i] = SpentItem({
                     token: debt[i].token,
@@ -568,10 +533,8 @@ contract Starport is ERC721, PausableNonReentrant {
         if (active(loanId)) {
             revert LoanExists();
         }
-        _setExtraData(loanId, uint8(FieldFlags.ACTIVE));
-        if (loan.issuer.code.length > 0) {
-            _safeMint(loan.issuer, loanId, encodedLoan);
-        }
+
+        loanState[loanId] = uint256(FieldFlags.ACTIVE);
         emit Open(loanId, loan);
     }
 }

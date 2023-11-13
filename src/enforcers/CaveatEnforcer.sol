@@ -6,18 +6,23 @@ import {Starport} from "starport-core/Starport.sol";
 abstract contract CaveatEnforcer {
     struct Caveat {
         address enforcer;
-        uint256 deadline;
         bytes data;
     }
 
-    struct CaveatWithApproval {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
+    struct SignedCaveats {
+        bool invalidate;
+        uint256 deadline;
         bytes32 salt;
-        Caveat[] caveat;
+        Caveat[] caveats;
+        bytes signature;
     }
 
+    /**
+     * @dev Enforces that the loan terms are identical except for the issuer
+     * @param solution              The additional transfers to be made
+     * @param loan                  The loan terms
+     * @param caveatData            The borrowers encoded details
+     */
     function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
         public
         view

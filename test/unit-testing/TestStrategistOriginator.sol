@@ -86,7 +86,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         skip(200);
@@ -130,7 +130,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidCollateral.selector));
@@ -173,7 +173,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebt.selector));
@@ -216,7 +216,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
@@ -259,7 +259,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
@@ -301,7 +301,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         loan.debt[0].amount = 2e18;
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtAmount.selector));
@@ -345,7 +345,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         SpentItem[] memory newDebt = new SpentItem[](2);
         newDebt[0] = loan.debt[0];
         loan.debt = newDebt;
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidDebtLength.selector));
@@ -389,7 +389,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         SpentItem[] memory newDebt = new SpentItem[](2);
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
         vm.expectRevert(abi.encodeWithSelector(StrategistOriginator.InvalidSigner.selector));
@@ -431,7 +431,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
         uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         SpentItem[] memory newDebt = new SpentItem[](2);
-        CaveatEnforcer.CaveatWithApproval memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
+        CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
 

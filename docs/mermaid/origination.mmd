@@ -1,57 +1,67 @@
 sequenceDiagram
     title Starport Origination Sequence Diagram
-    participant F as Fulfiller
-    participant L as Lender
-    participant B as Borrower
 
 
-    F->>LoanManager: originate
+    Box green Orignation
+        participant Fulfiller
+        participant Starport
+        participant CaveatEnforcer
+    end
 
-    opt F is not Borrower
+    Box blue Assets
+        participant Lender
+        participant Borrower
+        participant Custodian
+        participant FeeRecipient
+        participant AdditionalTransferRecipient
+    end
+
+    Fulfiller->>Starport: originate
+
+    opt Fulfiller is not Borrower
         loop 1->n
-            LoanManager->>CaveatEnforcer: validate
+            Starport->>CaveatEnforcer: validate
         end
     end
-    opt F is not Lender
+    opt Fulfiller is not Lender
         loop 1->n
-            LoanManager->>CaveatEnforcer: validate
+            Starport->>CaveatEnforcer: validate
         end
     end
     loop Transfer 1->n collateral items
-        B->>Custodian: Move Collateral to Custodian
+        Borrower->>Custodian: transfer collateral
     end
     opt Custodian is not default
-        LoanManager->>Custodian: custody (optional)
+        Starport->>Custodian: custody (optional)
     end
 
     alt Fees Disabled
         loop Transfer 1->n debt items
-            L->>B: Move debt to borrower
+            Lender->>Borrower: transfer debt
         end
     else Fees Enabled
-        LoanManager->>LoanManager: compute feeRake
         opt FeeItems length > 0
             loop Transfer 1->n fee items
-                L->>FeeRecipient: Move Fee to FeeRecipient
+                Lender->>FeeRecipient: Move Fee to FeeRecipient
             end
         end
         loop Transfer 1->n debt items
-            L->>B: Move debt to Borrower
+            Lender->>Borrower: Move debt to Borrower - Fee
         end
     end
 
     opt AdditionalTransferItems length > 0
         loop 1->n
             alt From is Borrower
-                B->>AdditionalTransferRecipient: AdditionalTransferItem from Borrower => AdditionalTransferRecipient
+                Borrower->>AdditionalTransferRecipient: AdditionalTransferItem from Borrower => AdditionalTransferRecipient
             else From is Lender
-                L->>AdditionalTransferRecipient: AdditionalTransferItem from Lender => AdditionalTransferRecipient
+                Lender->>AdditionalTransferRecipient: AdditionalTransferItem from Lender => AdditionalTransferRecipient
             else From is F
-                F->>AdditionalTransferRecipient: AdditionalTransferItem from Fulfiller => AdditionalTransferRecipient
+                Fulfiller->>AdditionalTransferRecipient: AdditionalTransferItem from Fulfiller => AdditionalTransferRecipient
             end
         end
     end
 
     opt Lender is contract
-        LoanManager->>L: onERC721Received
+        Starport->>Lender: onLoanOpened
     end

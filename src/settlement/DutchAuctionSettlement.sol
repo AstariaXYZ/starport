@@ -28,6 +28,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         uint256 window;
     }
 
+    // @inheritdoc Settlement
     function postSettlement(Starport.Loan calldata loan, address fulfiller)
         external
         virtual
@@ -37,12 +38,19 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         return Settlement.postSettlement.selector;
     }
 
+    // @inheritdoc Settlement
     function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
         return Settlement.postRepayment.selector;
     }
 
+    /*
+    * @dev get the start of the auction
+    * @param loan      The loan in question
+    * @return uint256  The start of the auction
+    */
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
 
+    // @inheritdoc Settlement
     function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
@@ -98,6 +106,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         });
     }
 
+    // @inheritdoc Settlement
     function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
         return details.startingPrice > details.endingPrice;

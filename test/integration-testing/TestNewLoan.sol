@@ -140,7 +140,7 @@ contract TestNewLoan is StarportTest {
         //     selectedCollateral
         // );
 
-        // CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
+        // CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
         //     v: 0,
         //     r: bytes32(0),
         //     s: bytes32(0),
@@ -212,7 +212,7 @@ contract TestNewLoan is StarportTest {
         loan.debt[0].identifier = 0;
         loan.debt[0].amount = 100;
 
-        BNPLHelper helper = new BNPLHelper(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
+        BNPLHelper helper = new BNPLHelper();
 
         AdvancedOrder[] memory orders = new AdvancedOrder[](2);
         orders[0] = AdvancedOrder({
@@ -278,7 +278,6 @@ contract TestNewLoan is StarportTest {
                         borrowerCaveat: signCaveatForAccount(
                             CaveatEnforcer.Caveat({
                                 enforcer: address(borrowerEnforcerBNPL),
-                                deadline: block.timestamp + 1 days,
                                 data: abi.encode(
                                     BorrowerEnforcerBNPL.Details({
                                         loan: loan2,
@@ -296,9 +295,10 @@ contract TestNewLoan is StarportTest {
                                     )
                             }),
                             bytes32(uint256(1)),
-                            borrower
+                            borrower,
+                            true
                             ),
-                        lenderCaveat: _generateSignedCaveatLender(loan2, lender, bytes32(uint256(1))),
+                        lenderCaveat: _generateSignedCaveatLender(loan2, lender, bytes32(uint256(1)), true),
                         loan: loan2,
                         orders: orders,
                         resolvers: new CriteriaResolver[](0),
@@ -307,6 +307,14 @@ contract TestNewLoan is StarportTest {
                 )
             );
         }
+    }
+
+    function testInvalidUserDataHashBNPL() public {
+        BNPLHelper helper = new BNPLHelper();
+
+        vm.prank(address(0xBA12222222228d8Ba445958a75a0704d566BF2C8)); //the vault address for balancer
+        vm.expectRevert(abi.encodeWithSelector(BNPLHelper.InvalidUserDataProvided.selector));
+        helper.receiveFlashLoan(new address[](0), new uint256[](0), new uint256[](0), bytes(""));
     }
 
     function testNewLoanViaOriginatorLenderApproval() public {

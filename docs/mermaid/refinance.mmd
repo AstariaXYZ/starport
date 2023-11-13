@@ -6,11 +6,11 @@ sequenceDiagram
     participant R as Recaller
 
 
-    F->>LoanManager: refinance
-    LoanManager->>Pricing: getRefinanceConsideration
-    Pricing->>LoanManager: (SpentItem[] ConsiderPayment, SpentItem[] CarryPayment, AdditionalTransfer[] AT)
+    F->>Starport: refinance
+    Starport->>Pricing: getRefinanceConsideration
+    Pricing->>Starport: (SpentItem[] ConsiderPayment, SpentItem[] CarryPayment, AdditionalTransfer[] AT)
 
-    LoanManager->>LoanManager: settle loan
+    Starport->>Starport: settle loan
 
     loop Transfer 1->n ConsiderPayment items
         R->>L: Move ConsiderPayment to Lender
@@ -21,11 +21,11 @@ sequenceDiagram
 
     opt F is not Refinancer and F is not approved
         loop Validate 1->n Caveats
-            LoanManager->>CaveatEnforcer: validate
+            Starport->>CaveatEnforcer: validate
         end
     end
     opt AdditionalTransferItems length > 0
-        LoanManager->>LoanManager: validateAdditionalTransfers
+        Starport->>Starport: validateAdditionalTransfers
         loop 1->n
             alt From is Borrower
                 B->>AdditionalTransferRecipient: AdditionalTransferItem from Borrower -> AdditionalTransferRecipient
@@ -38,5 +38,5 @@ sequenceDiagram
     end
 
     opt Lender is contract
-        LoanManager->>L: onERC721Received
+        Starport->>L: onERC721Received
     end

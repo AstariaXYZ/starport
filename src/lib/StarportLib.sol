@@ -38,97 +38,8 @@ library StarportLib {
 
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
 
-    uint256 internal constant ONE_WORD = 0x20;
-    uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
-
-    function getCustodian(bytes calldata data) internal pure returns (address custodian) {
-        assembly {
-            custodian := calldataload(add(data.offset, CUSTODIAN_WORD_OFFSET))
-        }
-    }
-
     function getId(Starport.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
-    }
-
-    function toReceivedItems(SpentItem[] calldata spentItems, address recipient)
-        internal
-        pure
-        returns (ReceivedItem[] memory result)
-    {
-        assembly {
-            //set `result` pointer to free memory
-            result := mload(0x40)
-
-            let n := spentItems.length
-
-            //store length of `result`
-            mstore(result, n)
-
-            //set `ptr` to start of first struct offset
-            let ptr := add(result, 0x20)
-
-            //`s` = offset of first struct
-            let s := add(ptr, mul(n, 0x20))
-
-            //expand memory
-            mstore(0x40, add(ptr, mul(n, 0xC0)))
-
-            //store struct offsets - first offset starts at end of offsets
-            let o := s
-            let c := spentItems.offset
-            let r := add(s, 0x80) // first recipient offset
-            for {} lt(ptr, s) {
-                ptr := add(ptr, 0x20)
-                c := add(c, 0x80)
-                o := add(o, 0xA0)
-                r := add(r, 0xA0)
-            } {
-                mstore(ptr, o) //store offset
-                calldatacopy(o, c, 0x80)
-                mstore(r, recipient) //set recipient
-            }
-        }
-    }
-
-    function encodeWithRecipient(ReceivedItem[] calldata receivedItems, address recipient)
-        internal
-        pure
-        returns (ReceivedItem[] memory result)
-    {
-        assembly {
-            //set `result` pointer to free memory
-            result := mload(0x40)
-
-            let n := receivedItems.length
-
-            //store length of `result`
-            mstore(result, n)
-
-            //set `ptr` to start of first struct offset
-            let ptr := add(result, 0x20)
-
-            //`s` = offset of first struct
-            let s := add(ptr, mul(n, 0x20))
-
-            //expand memory
-            mstore(0x40, add(ptr, mul(n, 0xC0)))
-
-            //copy struct data
-            calldatacopy(s, receivedItems.offset, mul(n, 0xA0))
-
-            //store struct offsets - first offset starts at end of offsets
-            let o := s
-            let r := add(s, 0x80) // first recipient offset
-            for {} lt(ptr, s) {
-                ptr := add(ptr, 0x20)
-                o := add(o, 0xA0)
-                r := add(r, 0xA0)
-            } {
-                mstore(ptr, o) //store offset
-                mstore(r, recipient) //set recipient
-            }
-        }
     }
 
     function validateSalt(
@@ -245,9 +156,41 @@ library StarportLib {
         }
     }
 
+    function transferAdditionalTransfersCalldata(AdditionalTransfer[] calldata transfers) internal {
+        uint256 i = 0;
+        for (; i < transfers.length;) {
+            if (transfers[i].token.code.length == 0) {
+                revert InvalidItemTokenNoCode();
+            }
+            if (transfers[i].itemType == ItemType.ERC20) {
+                // erc20 transfer
+                if (transfers[i].amount > 0) {
+                    SafeTransferLib.safeTransferFrom(
+                        transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount
+                    );
+                }
+            } else if (transfers[i].itemType == ItemType.ERC721) {
+                // erc721 transfer
+                ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
+            } else if (transfers[i].itemType == ItemType.ERC1155) {
+                // erc1155 transfer
+                if (transfers[i].amount > 0) {
+                    ERC1155(transfers[i].token).safeTransferFrom(
+                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                    );
+                }
+            } else {
+                revert NativeAssetsNotSupported();
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
-        for (i; i < transfers.length;) {
+        for (; i < transfers.length;) {
             if (transfers[i].token.code.length == 0) {
                 revert InvalidItemTokenNoCode();
             }
@@ -326,7 +269,7 @@ library StarportLib {
     function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal {
         if (transfers.length > 0) {
             uint256 i = 0;
-            for (i; i < transfers.length;) {
+            for (; i < transfers.length;) {
                 _transferItem(
                     transfers[i].itemType,
                     transfers[i].token,

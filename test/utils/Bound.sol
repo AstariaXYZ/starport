@@ -26,31 +26,42 @@ abstract contract Bound is StdUtils {
     function _boundTokenByItemType(ItemType itemType) internal view virtual returns (address);
 
     function _boundSpentItem(Fuzz.SpentItem memory input) internal returns (SpentItem memory ret) {
-        return _boundSpentItem(input, true);
-    }
-
-    function _boundSpentItem(Fuzz.SpentItem memory input, bool assume) internal returns (SpentItem memory ret) {
         ItemType itemType = _boundItemType(input.itemType);
         address token = _boundTokenByItemType(itemType);
         if (itemType == ItemType.ERC721) {
             input.identifier = _boundMin(4, type(uint256).max);
-            if (assume) {
-                vm.assume(!used[input.identifier]);
+            if (used[input.identifier]) {
+                bool goUp = true;
+                if (input.identifier == type(uint256).max) {
+                    goUp = false;
+                }
+                while (true) {
+                    if (goUp) {
+                        input.identifier++;
+                        if (input.identifier == type(uint256).max) {
+                            goUp = false;
+                        }
+                    } else {
+                        input.identifier--;
+                    }
+                    if (!used[input.identifier]) {
+                        break;
+                    }
+                }
             }
             input.amount = 1;
             used[input.identifier] = true;
         } else if (itemType == ItemType.ERC20) {
             input.identifier = 0;
-            input.amount = _boundMin(1, type(uint216).max);
+            input.amount = _boundMin(1, 1_000_000 ether);
         } else if (itemType == ItemType.ERC1155) {
-            input.amount = _boundMin(1, type(uint128).max);
+            input.amount = _boundMin(1, 1_000_000 ether);
         }
 
         ret = SpentItem({itemType: itemType, token: token, identifier: input.identifier, amount: input.amount});
     }
 
     function _boundSpentItems(Fuzz.SpentItem[] memory input) internal returns (SpentItem[] memory ret) {
-        vm.assume(input.length <= 4);
         ret = new SpentItem[](input.length);
         for (uint256 i = 0; i < input.length; i++) {
             ret[i] = _boundSpentItem(input[i]);
