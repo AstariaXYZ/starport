@@ -39,7 +39,7 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
                 settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: abi.encode(
-                    BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
+                    BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150), decimals: 18})
                     ),
                 settlementData: abi.encode(
                     DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
@@ -93,31 +93,31 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
         uint256 time = 15 days;
         uint256 expectedInterest = 6;
 
-        assertEq(simplePricing.calculateInterest(time, amount, rate), expectedInterest);
+        assertEq(simplePricing.calculateInterest(time, amount, rate, 18), expectedInterest);
 
         // TODO: should this be fuzz tested?
-        assertEq(simplePricing.calculateInterest(time, amount, rate * 2), expectedInterest * 2);
-        assertEq(simplePricing.calculateInterest(time, amount * 2, rate), expectedInterest * 2);
-        assertEq(simplePricing.calculateInterest(time * 2, amount, rate), expectedInterest * 2);
+        assertEq(simplePricing.calculateInterest(time, amount, rate * 2, 18), expectedInterest * 2);
+        assertEq(simplePricing.calculateInterest(time, amount * 2, rate, 18), expectedInterest * 2);
+        assertEq(simplePricing.calculateInterest(time * 2, amount, rate, 18), expectedInterest * 2);
 
         vm.expectRevert(stdError.arithmeticError);
-        simplePricing.calculateInterest(time - (time * 2), amount, rate);
+        simplePricing.calculateInterest(time - (time * 2), amount, rate, 18);
 
         vm.expectRevert();
-        simplePricing.calculateInterest(time, amount - (amount * 2), rate);
+        simplePricing.calculateInterest(time, amount - (amount * 2), rate, 18);
 
         vm.expectRevert();
-        simplePricing.calculateInterest(time, amount, rate - (rate * 2));
+        simplePricing.calculateInterest(time, amount, rate - (rate * 2), 18);
     }
 
     function test_getRefinanceConsideration() public {
         SimpleInterestPricing simplePricing = new SimpleInterestPricing(SP);
 
-        uint256 baseRate = (uint256(1e16) * 150) / (365 * 1 days);
+        uint256 baseRate = (uint256(1e16) * 150);
 
         simplePricing.getRefinanceConsideration(
             targetLoan,
-            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2})),
+            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2, decimals: 18})),
             address(0)
         );
 
@@ -125,7 +125,7 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
 
         simplePricing.getRefinanceConsideration(
             targetLoan,
-            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2})),
+            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2, decimals: 18})),
             address(0)
         );
     }
