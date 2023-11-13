@@ -601,7 +601,7 @@ contract TestStarport is StarportTest, DeepEq {
         BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
 
         BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
         bytes memory newPricingData = abi.encode(newPricingDetails);
         (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
             Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);
@@ -630,7 +630,7 @@ contract TestStarport is StarportTest, DeepEq {
         BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
 
         BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
         bytes memory newPricingData = abi.encode(newPricingDetails);
 
         vm.mockCall(
@@ -648,7 +648,7 @@ contract TestStarport is StarportTest, DeepEq {
         BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
 
         BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate});
+            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
         bytes memory newPricingData = abi.encode(newPricingDetails);
         (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
             Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);

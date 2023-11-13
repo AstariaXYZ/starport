@@ -27,8 +27,9 @@ contract TestRepayLoan is StarportTest {
         vm.startPrank(borrower.addr);
         skip(10 days);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+            10 days, loan.debt[0].amount, details.rate, details.decimals
+        );
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 
@@ -51,8 +52,9 @@ contract TestRepayLoan is StarportTest {
         {
             skip(10 days);
             BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest =
-                SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+            uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+                10 days, loan.debt[0].amount, details.rate, details.decimals
+            );
             erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
 
             uint256 balance = erc20s[0].balanceOf(address(this));
@@ -122,8 +124,9 @@ contract TestRepayLoan is StarportTest {
         vm.startPrank(borrower.addr);
         skip(10 days);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+            10 days, loan.debt[0].amount, details.rate, details.decimals
+        );
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         custodian.mintWithApprovalSet(loan, address(this));
         vm.stopPrank();
@@ -175,8 +178,9 @@ contract TestRepayLoan is StarportTest {
         vm.startPrank(borrower.addr);
         skip(14 days);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+            10 days, loan.debt[0].amount, details.rate, details.decimals
+        );
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 
@@ -243,8 +247,9 @@ contract TestRepayLoan is StarportTest {
         vm.startPrank(borrower.addr);
         skip(10 days);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+            10 days, loan.debt[0].amount, details.rate, details.decimals
+        );
         erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
         vm.stopPrank();
 

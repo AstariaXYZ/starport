@@ -54,4 +54,6 @@ abstract contract Pricing {
         view
         virtual
         returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory);
+
+    function validate(Starport.Loan calldata loan) external pure virtual returns (bytes4);
 }

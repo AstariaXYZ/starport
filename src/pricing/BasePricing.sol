@@ -36,6 +36,7 @@ abstract contract BasePricing is Pricing {
     struct Details {
         uint256 rate;
         uint256 carryRate;
+        uint256 decimals;
     }
 
     // @inheritdoc Pricing
@@ -47,7 +48,7 @@ abstract contract BasePricing is Pricing {
         returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
     {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        if (details.carryRate > 0) {
+        if (details.carryRate > 0 && loan.issuer != loan.originator) {
             carryConsideration = new SpentItem[](loan.debt.length);
         } else {
             carryConsideration = new SpentItem[](0);
@@ -56,13 +57,13 @@ abstract contract BasePricing is Pricing {
 
         uint256 i = 0;
         for (; i < loan.debt.length;) {
-            uint256 interest = getInterest(loan, details.rate, loan.start, block.timestamp, i);
+            uint256 interest = getInterest(loan, details.rate, loan.start, block.timestamp, i, details.decimals);
 
-            if (details.carryRate > 0) {
+            if (carryConsideration.length > 0) {
                 carryConsideration[i] = SpentItem({
                     itemType: loan.debt[i].itemType,
                     identifier: loan.debt[i].identifier,
-                    amount: interest.mulWad(details.carryRate),
+                    amount: (interest * details.carryRate) / 10 ** details.decimals,
                     token: loan.debt[i].token
                 });
                 repayConsideration[i] = SpentItem({
@@ -85,6 +86,10 @@ abstract contract BasePricing is Pricing {
         }
     }
 
+    function validate(Starport.Loan calldata loan) external pure virtual override returns (bytes4) {
+        return Pricing.validate.selector;
+    }
+
     /**
      * @dev Computes the interest for a given loan
      * @param loan The loan to compute the interest for
@@ -92,14 +97,18 @@ abstract contract BasePricing is Pricing {
      * @param start The start time frame
      * @param end The end time frame
      * @param index The index of the debt to compute the interest for
+     * @param decimals The decimals of the debt asset
      */
-    function getInterest(Starport.Loan calldata loan, uint256 rate, uint256 start, uint256 end, uint256 index)
-        public
-        pure
-        returns (uint256)
-    {
+    function getInterest(
+        Starport.Loan calldata loan,
+        uint256 rate,
+        uint256 start,
+        uint256 end,
+        uint256 index,
+        uint256 decimals
+    ) public pure returns (uint256) {
         uint256 delta_t = end - start;
-        return calculateInterest(delta_t, loan.debt[index].amount, rate);
+        return calculateInterest(delta_t, loan.debt[index].amount, rate, decimals);
     }
 
     /**
@@ -107,10 +116,11 @@ abstract contract BasePricing is Pricing {
      * @param delta_t The time delta
      * @param amount The amount to compute the interest for
      * @param rate The interest rate
+     * @param decimals The decimals of the base asset
      */
-    function calculateInterest(
-        uint256 delta_t,
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) public pure virtual returns (uint256);
+    function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        virtual
+        returns (uint256);
 }

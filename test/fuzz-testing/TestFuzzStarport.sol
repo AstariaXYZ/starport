@@ -46,8 +46,9 @@ contract TestFuzzStarport is StarportTest, Bound {
 
     function boundPricingData(uint256 min) internal view returns (bytes memory pricingData) {
         BasePricing.Details memory details = BasePricing.Details({
-            rate: _boundMax(min, (uint256(1e16) * 150) / (365 * 1 days)),
-            carryRate: _boundMax(min, uint256((1e16 * 100)))
+            rate: _boundMax(min, (uint256(1e16) * 150)),
+            carryRate: _boundMax(0, uint256((1e16 * 100))),
+            decimals: 18
         });
         pricingData = abi.encode(details);
     }
@@ -395,7 +396,7 @@ contract TestFuzzStarport is StarportTest, Bound {
 
         uint256 newRate = _boundMax(oldRate - 1, (uint256(1e16) * 1000) / (365 * 1 days));
         BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: newRate, carryRate: _boundMax(0, uint256((1e16 * 100)))});
+            BasePricing.Details({rate: newRate, carryRate: _boundMax(0, uint256((1e16 * 100))), decimals: 18});
         Account memory account = makeAndAllocateAccount(params.refiKey);
 
         address refiFulfiller;

@@ -123,7 +123,7 @@ contract StarportTest is BaseOrderTest {
 
     // 1% interest rate per second
     bytes defaultPricingData =
-        abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)}));
+        abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 150, decimals: 18}));
 
     bytes defaultSettlementData = abi.encode(
         DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
@@ -651,8 +651,9 @@ contract StarportTest is BaseOrderTest {
         uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
 
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            SimpleInterestPricing(loan.terms.pricing).calculateInterest(10 days, loan.debt[0].amount, details.rate);
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
+            10 days, loan.debt[0].amount, details.rate, details.decimals
+        );
         uint256 carry = interest.mulWad(1e17);
 
         _executeRepayLoan(loan, fulfiller);
