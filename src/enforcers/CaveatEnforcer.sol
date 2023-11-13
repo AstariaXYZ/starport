@@ -6,16 +6,14 @@ import {Starport} from "starport-core/Starport.sol";
 abstract contract CaveatEnforcer {
     struct Caveat {
         address enforcer;
-        uint256 deadline;
         bytes data;
     }
 
-    struct CaveatWithApproval {
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
+    struct SignedCaveats {
+        uint256 deadline;
         bytes32 salt;
-        Caveat[] caveat;
+        Caveat[] caveats;
+        bytes signature;
     }
 
     /**

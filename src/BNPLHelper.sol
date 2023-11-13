@@ -46,8 +46,8 @@ contract BNPLHelper is IFlashLoanRecipient {
         address lm;
         address seaport;
         address borrower;
-        CaveatEnforcer.CaveatWithApproval borrowerCaveat;
-        CaveatEnforcer.CaveatWithApproval lenderCaveat;
+        CaveatEnforcer.SignedCaveats borrowerCaveat;
+        CaveatEnforcer.SignedCaveats lenderCaveat;
         Starport.Loan loan;
         AdvancedOrder[] orders;
         CriteriaResolver[] resolvers;

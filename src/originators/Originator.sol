@@ -27,7 +27,7 @@ import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 abstract contract Originator {
     struct Request {
         address borrower;
-        CaveatEnforcer.CaveatWithApproval borrowerCaveat;
+        CaveatEnforcer.SignedCaveats borrowerCaveat;
         SpentItem[] collateral;
         SpentItem[] debt;
         bytes details;

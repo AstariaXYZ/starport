@@ -140,7 +140,7 @@ contract TestNewLoan is StarportTest {
         //     selectedCollateral
         // );
 
-        // CaveatEnforcer.CaveatWithApproval memory lenderCaveat = CaveatEnforcer.CaveatWithApproval({
+        // CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
         //     v: 0,
         //     r: bytes32(0),
         //     s: bytes32(0),
@@ -278,7 +278,6 @@ contract TestNewLoan is StarportTest {
                         borrowerCaveat: signCaveatForAccount(
                             CaveatEnforcer.Caveat({
                                 enforcer: address(borrowerEnforcerBNPL),
-                                deadline: block.timestamp + 1 days,
                                 data: abi.encode(
                                     BorrowerEnforcerBNPL.Details({
                                         loan: loan2,

@@ -87,10 +87,10 @@ contract Starport is PausableNonReentrant {
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
+        keccak256("Origination(bytes32 hash,bytes32 salt,uint256 deadline, bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
 
-    mapping(address => mapping(bytes32 => bool)) public invalidHashes;
+    mapping(address => mapping(bytes32 => bool)) public invalidSalts;
     mapping(uint256 => uint256) public loanState;
     mapping(address => uint256) public caveatNonces;
     mapping(address => Fee) public feeOverrides;
@@ -117,6 +117,7 @@ contract Starport is PausableNonReentrant {
     error NativeAssetsNotSupported();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
+    error CaveatDeadlineExpired();
     error MalformedRefinance();
     error InvalidPostRepayment();
 
@@ -153,8 +154,8 @@ contract Starport is PausableNonReentrant {
     */
     function originate(
         AdditionalTransfer[] calldata additionalTransfers,
-        CaveatEnforcer.CaveatWithApproval calldata borrowerCaveat,
-        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        CaveatEnforcer.SignedCaveats calldata borrowerCaveat,
+        CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan
     ) external payable pausableNonReentrant {
         //cache the addresses
@@ -201,7 +202,7 @@ contract Starport is PausableNonReentrant {
     */
     function refinance(
         address lender,
-        CaveatEnforcer.CaveatWithApproval calldata lenderCaveat,
+        CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan,
         bytes calldata pricingData
     ) external pausableNonReentrant {
@@ -342,25 +343,25 @@ contract Starport is PausableNonReentrant {
     }
 
     function _validateAndEnforceCaveats(
-        CaveatEnforcer.CaveatWithApproval calldata caveatApproval,
+        CaveatEnforcer.SignedCaveats calldata signedCaveats,
         address validator,
         AdditionalTransfer[] memory additionalTransfers,
         Starport.Loan memory loan
     ) internal {
-        bytes32 hash = hashCaveatWithSaltAndNonce(validator, caveatApproval.salt, caveatApproval.caveat);
-        invalidHashes.validateSalt(validator, caveatApproval.salt);
+        bytes32 hash =
+            hashCaveatWithSaltAndNonce(validator, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats);
+        invalidSalts.validateSalt(validator, signedCaveats.salt);
 
-        if (
-            !SignatureCheckerLib.isValidSignatureNow(
-                validator, hash, caveatApproval.v, caveatApproval.r, caveatApproval.s
-            )
-        ) {
+        if (block.timestamp > signedCaveats.deadline) {
+            revert CaveatDeadlineExpired();
+        }
+        if (!SignatureCheckerLib.isValidSignatureNowCalldata(validator, hash, signedCaveats.signature)) {
             revert InvalidCaveatSigner();
         }
 
-        for (uint256 i = 0; i < caveatApproval.caveat.length;) {
-            CaveatEnforcer(caveatApproval.caveat[i].enforcer).validate(
-                additionalTransfers, loan, caveatApproval.caveat[i].data
+        for (uint256 i = 0; i < signedCaveats.caveats.length;) {
+            CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
+                additionalTransfers, loan, signedCaveats.caveats[i].data
             );
             unchecked {
                 ++i;
@@ -368,12 +369,12 @@ contract Starport is PausableNonReentrant {
         }
     }
 
-    function hashCaveatWithSaltAndNonce(address validator, bytes32 salt, CaveatEnforcer.Caveat[] calldata caveat)
-        public
-        view
-        virtual
-        returns (bytes32)
-    {
+    function hashCaveatWithSaltAndNonce(
+        address validator,
+        bytes32 salt,
+        uint256 deadline,
+        CaveatEnforcer.Caveat[] calldata caveats
+    ) public view virtual returns (bytes32) {
         return keccak256(
             abi.encodePacked(
                 bytes1(0x19),
@@ -381,7 +382,11 @@ contract Starport is PausableNonReentrant {
                 _DOMAIN_SEPARATOR,
                 keccak256(
                     abi.encode(
-                        INTENT_ORIGINATION_TYPEHASH, caveatNonces[validator], salt, keccak256(abi.encode(caveat))
+                        INTENT_ORIGINATION_TYPEHASH,
+                        caveatNonces[validator],
+                        salt,
+                        deadline,
+                        keccak256(abi.encode(caveats))
                     )
                 )
             )
@@ -395,7 +400,7 @@ contract Starport is PausableNonReentrant {
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
-        invalidHashes[msg.sender][salt] = true;
+        invalidSalts[msg.sender][salt] = true;
         emit CaveatSaltInvalidated(salt);
     }
 
