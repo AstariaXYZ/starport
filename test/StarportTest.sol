@@ -448,7 +448,12 @@ contract StarportTest is BaseOrderTest {
 
     function newLoanWithDefaultTerms() public returns (Starport.Loan memory) {
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        return newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
+        return newLoan(loan, bytes32(msg.sig), bytes32(0), borrower.addr);
+    }
+
+    function newLoanWithDefaultTerms(bytes32 lenderSalt) public returns (Starport.Loan memory) {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        return newLoan(loan, bytes32(msg.sig), lenderSalt, borrower.addr);
     }
 
     function generateDefaultLoanTerms() public view virtual returns (Starport.Loan memory) {
@@ -830,17 +835,6 @@ contract StarportTest is BaseOrderTest {
             endAmount: 1,
             identifierOrCriteria: 0,
             itemType: ItemType.ERC20,
-            recipient: payable(address(custodian))
-        });
-    }
-
-    function _getNativeConsideration() internal view returns (ConsiderationItem memory) {
-        return ConsiderationItem({
-            token: address(0),
-            startAmount: 100 wei,
-            endAmount: 100 wei,
-            identifierOrCriteria: 0,
-            itemType: ItemType.NATIVE,
             recipient: payable(address(custodian))
         });
     }

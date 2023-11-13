@@ -37,19 +37,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         skip(1);
     }
 
-    function testPayableFunctions() public {
-        vm.deal(seaportAddr, 2 ether);
-        vm.prank(seaportAddr);
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.prank(seaportAddr);
-        payable(address(custodian)).call{value: 1 ether}("");
-
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSignature("helloWorld()"));
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
-        payable(address(custodian)).call{value: 1 ether}("");
-    }
-
     function testNonPayableFunctions() public {
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(

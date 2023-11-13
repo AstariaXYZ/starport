@@ -89,14 +89,14 @@ contract Starport is PausableNonReentrant {
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
         keccak256("Origination(bytes32 hash,bytes32 salt,bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
-    mapping(uint256 => FieldFlags) public loanState;
 
     mapping(address => mapping(bytes32 => bool)) public invalidHashes;
-    mapping(address => mapping(address => ApprovalType)) public approvals;
+    mapping(uint256 => uint256) public loanState;
     mapping(address => uint256) public caveatNonces;
     mapping(address => Fee) public feeOverrides;
     address public feeTo;
     uint88 public defaultFeeRake;
+    mapping(address => mapping(address => ApprovalType)) public approvals;
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, Starport.Loan loan);
@@ -405,7 +405,7 @@ contract Starport is PausableNonReentrant {
      * @return                  True if the loan is active
      */
     function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == FieldFlags.ACTIVE;
+        return loanState[loanId] == uint256(FieldFlags.ACTIVE);
     }
 
     /**
@@ -414,7 +414,7 @@ contract Starport is PausableNonReentrant {
      * @return                  True if the loan is inactive
      */
     function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == FieldFlags.INACTIVE;
+        return loanState[loanId] == uint256(FieldFlags.INACTIVE);
     }
 
     /**
@@ -435,7 +435,8 @@ contract Starport is PausableNonReentrant {
             revert InvalidLoan();
         }
 
-        loanState[loanId] = FieldFlags.INACTIVE;
+        loanState[loanId] = uint256(FieldFlags.INACTIVE);
+
         emit Close(loanId);
     }
 
@@ -523,7 +524,8 @@ contract Starport is PausableNonReentrant {
             revert LoanExists();
         }
 
-        loanState[loanId] = FieldFlags.ACTIVE;
+        loanState[loanId] = uint256(FieldFlags.ACTIVE);
+
         if (loan.issuer.code.length > 0) {
             loan.issuer.call(abi.encodeWithSelector(LoanOpened.onLoanOpened.selector, loan));
         }

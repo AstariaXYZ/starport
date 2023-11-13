@@ -39,7 +39,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
-            salt: bytes32(0),
+            salt: bytes32(uint256(1)),
             enforcer: address(borrowerEnforcer)
         });
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
@@ -59,7 +59,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         CaveatEnforcer.CaveatWithApproval memory borrowerCaveat = getBorrowerSignedCaveat({
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
-            salt: bytes32(0),
+            salt: bytes32(uint256(1)),
             enforcer: address(borrowerEnforcer)
         });
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
@@ -67,7 +67,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
         vm.prank(borrower.addr);
-        SP.invalidateCaveatSalt(0);
+        SP.invalidateCaveatSalt(bytes32(uint256(1)));
 
         vm.expectRevert(StarportLib.InvalidSalt.selector);
         vm.prank(lender.addr);
@@ -159,7 +159,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     }
 
     function testRefinanceWCaveatsInvalidSalt() public {
-        Starport.Loan memory loan = newLoanWithDefaultTerms();
+        Starport.Loan memory loan = newLoanWithDefaultTerms(bytes32(msg.sig));
 
         LenderEnforcer.Details memory details = LenderEnforcer.Details({
             loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)

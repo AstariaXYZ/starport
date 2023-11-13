@@ -11,7 +11,7 @@ sequenceDiagram
         Custodian->>Custodian: _setOfferApprovalsWithSeaport
         Custodian->>Pricing: getPaymentConsideration
         Pricing->>Custodian: (SpentItem[] payment, SpentItem[] carry)
-        Custodian->>LoanManager: settle loan
+        Custodian->>Starport: settle loan
     else Action Settlement and Custodian->>Status: isActive is false
         Custodian->>Custodian: _beforeGetSettlement
         Custodian->>SettlementHandler: getSettlement
@@ -28,8 +28,8 @@ sequenceDiagram
                 Custodian->>Custodian: _afterSettlementHandlerHook
             end
         end
-        Custodian->>LoanManager: settle loan
+        Custodian->>Starport: settle loan
         opt Lender is contract
-            LoanManager->>Lender: onLoanSettledHook
+            Starport->>Lender: onLoanSettledHook
         end
     end
