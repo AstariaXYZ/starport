@@ -295,9 +295,10 @@ contract TestNewLoan is StarportTest {
                                     )
                             }),
                             bytes32(uint256(1)),
-                            borrower
+                            borrower,
+                            true
                             ),
-                        lenderCaveat: _generateSignedCaveatLender(loan2, lender, bytes32(uint256(1))),
+                        lenderCaveat: _generateSignedCaveatLender(loan2, lender, bytes32(uint256(1)), true),
                         loan: loan2,
                         orders: orders,
                         resolvers: new CriteriaResolver[](0),

@@ -87,7 +87,7 @@ contract Starport is PausableNonReentrant {
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(bytes32 hash,bytes32 salt,uint256 deadline, bytes32 caveatHash");
+        keccak256("Origination(uint256 userNonce,bool invalidate,bytes32 salt,uint256 deadline, bytes32 caveatHash");
     bytes32 public constant VERSION = keccak256("0");
 
     mapping(address => mapping(bytes32 => bool)) public invalidSalts;
@@ -348,9 +348,12 @@ contract Starport is PausableNonReentrant {
         AdditionalTransfer[] memory additionalTransfers,
         Starport.Loan memory loan
     ) internal {
-        bytes32 hash =
-            hashCaveatWithSaltAndNonce(validator, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats);
-        invalidSalts.validateSalt(validator, signedCaveats.salt);
+        bytes32 hash = hashCaveatWithSaltAndNonce(
+            validator, signedCaveats.invalidate, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats
+        );
+        if (signedCaveats.invalidate) {
+            invalidSalts.validateSalt(validator, signedCaveats.salt);
+        }
 
         if (block.timestamp > signedCaveats.deadline) {
             revert CaveatDeadlineExpired();
@@ -371,6 +374,7 @@ contract Starport is PausableNonReentrant {
 
     function hashCaveatWithSaltAndNonce(
         address validator,
+        bool invalidate,
         bytes32 salt,
         uint256 deadline,
         CaveatEnforcer.Caveat[] calldata caveats
@@ -384,6 +388,7 @@ contract Starport is PausableNonReentrant {
                     abi.encode(
                         INTENT_ORIGINATION_TYPEHASH,
                         caveatNonces[validator],
+                        invalidate,
                         salt,
                         deadline,
                         keccak256(abi.encode(caveats))

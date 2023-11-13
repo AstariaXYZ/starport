@@ -20,11 +20,9 @@ library RefStarportLib {
         address borrower,
         bytes32 salt
     ) internal {
-        if (salt != bytes32(0)) {
-            if (usedSalts[borrower][salt]) {
-                revert InvalidSalt();
-            }
-            usedSalts[borrower][salt] = true;
+        if (usedSalts[borrower][salt]) {
+            revert InvalidSalt();
         }
+        usedSalts[borrower][salt] = true;
     }
 }

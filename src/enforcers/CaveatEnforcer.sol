@@ -10,6 +10,7 @@ abstract contract CaveatEnforcer {
     }
 
     struct SignedCaveats {
+        bool invalidate;
         uint256 deadline;
         bytes32 salt;
         Caveat[] caveats;

@@ -30,7 +30,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
 
         erc20s[0].approve(address(lenderConduit), 100000);
 
-        Starport.Loan memory loan = newLoanWithDefaultTerms();
+        Starport.Loan memory loan = newLoanWithDefaultTerms(false);
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);

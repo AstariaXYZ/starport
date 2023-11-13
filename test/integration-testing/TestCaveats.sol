@@ -179,7 +179,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     }
 
     function testRefinanceWCaveatsInvalidSalt() public {
-        Starport.Loan memory loan = newLoanWithDefaultTerms(bytes32(msg.sig));
+        Starport.Loan memory loan = newLoanWithDefaultTerms();
 
         LenderEnforcer.Details memory details = LenderEnforcer.Details({
             loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)

@@ -48,27 +48,25 @@ library StarportLib {
         bytes32 salt
     ) internal {
         assembly {
-            if iszero(iszero(salt)) {
-                mstore(0x0, borrower)
-                mstore(0x20, usedSalts.slot)
+            mstore(0x0, borrower)
+            mstore(0x20, usedSalts.slot)
 
-                //usedSalts[borrower]
+            //usedSalts[borrower]
 
-                mstore(0x20, keccak256(0x0, 0x40))
-                mstore(0x0, salt)
+            mstore(0x20, keccak256(0x0, 0x40))
+            mstore(0x0, salt)
 
-                //usedSalts[borrower][salt]
-                let loc := keccak256(0x0, 0x40)
+            //usedSalts[borrower][salt]
+            let loc := keccak256(0x0, 0x40)
 
-                //if (usedSalts[borrower][salt] == true)
-                if iszero(iszero(sload(loc))) {
-                    //revert InvalidSalt()
-                    mstore(0x0, _INVALID_SALT)
-                    revert(0x0, 0x04)
-                }
-
-                sstore(loc, 1)
+            //if (usedSalts[borrower][salt] == true)
+            if iszero(iszero(sload(loc))) {
+                //revert InvalidSalt()
+                mstore(0x0, _INVALID_SALT)
+                revert(0x0, 0x04)
             }
+
+            sstore(loc, 1)
         }
     }
 
