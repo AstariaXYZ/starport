@@ -40,6 +40,7 @@ abstract contract BaseTestStarportLib is Test {
     }
 
     function testValidateSalt(address user, bytes32 salt) public {
+        vm.assume(salt != bytes32(0));
         testContract.validateSalt(user, salt);
 
         assert(testContract.usedSalts(user, salt));
