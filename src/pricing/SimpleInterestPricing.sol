@@ -33,12 +33,13 @@ contract SimpleInterestPricing is BasePricing {
 
     constructor(Starport SP_) Pricing(SP_) {}
 
-    function calculateInterest(
-        uint256 delta_t,
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) public pure override returns (uint256) {
-        return StarportLib.calculateSimpleInterest(delta_t, amount, rate);
+    function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        override
+        returns (uint256)
+    {
+        return StarportLib.calculateSimpleInterest(delta_t, amount, rate, decimals);
     }
 
     function getRefinanceConsideration(Starport.Loan memory loan, bytes memory newPricingData, address fulfiller)

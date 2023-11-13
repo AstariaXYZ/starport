@@ -68,8 +68,9 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         });
 
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
+        uint256 interest = BasePricing(loan.terms.pricing).getInterest(
+            loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
+        );
 
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
 

@@ -277,20 +277,13 @@ library StarportLib {
         }
     }
 
-    function calculateCompoundInterest(
-        uint256 delta_t,
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) public pure returns (uint256) {
-        return amount.mulWad(uint256(int256(rate * delta_t).expWad())) - amount;
-    }
-
-    function calculateSimpleInterest(
-        uint256 delta_t,
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) public pure returns (uint256) {
-        return (delta_t * rate).mulWad(amount);
+    function calculateSimpleInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        rate /= 365 days;
+        return ((delta_t * rate) * amount) / 10 ** decimals;
     }
 
     function _transferItem(
