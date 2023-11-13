@@ -535,14 +535,6 @@ contract Starport is PausableNonReentrant {
         }
 
         loanState[loanId] = uint256(FieldFlags.ACTIVE);
-
-        if (loan.issuer.code.length > 0) {
-            loan.issuer.call(abi.encodeWithSelector(LoanOpened.onLoanOpened.selector, loan));
-        }
         emit Open(loanId, loan);
     }
-}
-
-interface LoanOpened {
-    function onLoanOpened(Starport.Loan memory loan) external;
 }
