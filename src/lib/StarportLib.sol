@@ -38,8 +38,6 @@ library StarportLib {
 
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
 
-    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
-
     function getId(Starport.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
     }
@@ -229,7 +227,7 @@ library StarportLib {
         uint256 amount,
         uint256 rate // expressed as SPR seconds per rate
     ) public pure returns (uint256) {
-        return amount.mulWad(uint256(NATURAL_NUMBER_SIGNED_WAD.powWad(int256(rate * delta_t)))) - amount;
+        return amount.mulWad(uint256(int256(rate * delta_t).expWad())) - amount;
     }
 
     function calculateSimpleInterest(

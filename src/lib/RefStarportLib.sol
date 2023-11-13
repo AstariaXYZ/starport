@@ -15,9 +15,6 @@ enum Actions {
 library RefStarportLib {
     error InvalidSalt();
 
-    uint256 internal constant ONE_WORD = 0x20;
-    uint256 internal constant CUSTODIAN_WORD_OFFSET = 0x40;
-
     function validateSalt(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
         address borrower,
