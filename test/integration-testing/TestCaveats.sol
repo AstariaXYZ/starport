@@ -53,6 +53,26 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
     }
 
+    function testOriginateWCaveatsExpired() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.collateral[0] = _getERC20SpentItem(erc20s[0], 1000);
+
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
+            details: BorrowerEnforcer.Details({loan: loan}),
+            signer: borrower,
+            salt: bytes32(uint256(1)),
+            enforcer: address(borrowerEnforcer)
+        });
+        skip(borrowerCaveat.deadline + 1);
+        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+
+        _setApprovalsForSpentItems(lender.addr, loan.debt);
+
+        vm.expectRevert(Starport.CaveatDeadlineExpired.selector);
+        vm.startPrank(loan.issuer);
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
+    }
+
     function testOriginateWCaveatsInvalidSaltManual() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
