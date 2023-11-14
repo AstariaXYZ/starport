@@ -27,8 +27,8 @@ jobs:
       - name: Lint
         run: forge fmt --check
 
-      - name: Test
-        run: forge test -vvv
-
       - name: Snapshot
         run: forge snapshot --check --no-match-path '*fuzz*'
+
+      - name: Test
+        run: forge test -vvv
