@@ -295,6 +295,7 @@ contract StarportTest is BaseOrderTest {
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
+        virtual
         returns (CaveatEnforcer.SignedCaveats memory)
     {
         loan = loanCopy(loan);
@@ -309,7 +310,7 @@ contract StarportTest is BaseOrderTest {
         Account memory signer,
         bytes32 salt,
         bool invalidate
-    ) public view returns (CaveatEnforcer.SignedCaveats memory) {
+    ) public view virtual returns (CaveatEnforcer.SignedCaveats memory) {
         loan = loanCopy(loan);
         loan.borrower = address(0);
 
@@ -366,6 +367,7 @@ contract StarportTest is BaseOrderTest {
         bool invalidateLenderSalt
     )
         public
+        virtual
         returns (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat)
     {
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
