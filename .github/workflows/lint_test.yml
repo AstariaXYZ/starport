@@ -27,9 +27,6 @@ jobs:
       - name: Lint
         run: forge fmt --check
 
-      - name: Build
-        run: forge build --sizes
-
       - name: Test
         run: forge test -vvv
 
