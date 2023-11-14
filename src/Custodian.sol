@@ -98,7 +98,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ContractOffererInterface)
+        override (ERC721, ContractOffererInterface)
         returns (bool)
     {
         return interfaceId == type(ERC721).interfaceId || interfaceId == type(ContractOffererInterface).interfaceId
