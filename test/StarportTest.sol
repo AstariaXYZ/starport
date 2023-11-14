@@ -189,7 +189,7 @@ contract StarportTest is BaseOrderTest {
         refinancer = makeAndAllocateAccount("refinancer");
         fulfiller = makeAndAllocateAccount("fulfiller");
 
-        SP = new Starport(consideration);
+        SP = new Starport(address(consideration));
         custodian = Custodian(payable(SP.defaultCustodian()));
         SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(SP);
@@ -620,7 +620,9 @@ contract StarportTest is BaseOrderTest {
     function _settleLoan(Starport.Loan memory activeLoan, address fulfiller) internal {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
             payable(activeLoan.custodian)
-        ).previewOrder(address(SP.seaport()), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan));
+        ).previewOrder(
+            address(consideration), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan)
+        );
 
         OrderParameters memory op = _buildContractOrder(
             address(activeLoan.custodian), _SpentItemsToOfferItems(offer), _toConsiderationItems(paymentConsideration)
@@ -674,14 +676,14 @@ contract StarportTest is BaseOrderTest {
     }
 
     function getOrderHash(address contractOfferer) public returns (bytes32) {
-        uint256 counter = SP.seaport().getContractOffererNonce(contractOfferer);
+        uint256 counter = consideration.getContractOffererNonce(contractOfferer);
         return bytes32(counter ^ (uint256(uint160(contractOfferer)) << 96));
     }
 
     function _executeRepayLoan(Starport.Loan memory loan, address fulfiller) internal {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),

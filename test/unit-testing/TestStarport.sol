@@ -78,7 +78,7 @@ contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
 contract MockCustodian is Custodian {
     bool returnValidSelector = false;
 
-    constructor(Starport SP_, ConsiderationInterface seaport) Custodian(SP_, seaport) {}
+    constructor(Starport SP_, address seaport) Custodian(SP_, seaport) {}
 
     function setReturnValidSelector(bool returnValidSelector_) public {
         returnValidSelector = returnValidSelector_;
@@ -102,14 +102,14 @@ contract TestStarport is StarportTest, DeepEq {
     uint256 public borrowAmount = 100;
     MockCustodian public mockCustodian;
 
-    event CaveatNonceIncremented(uint256 newNonce);
-    event CaveatSaltInvalidated(bytes32 invalidatedSalt);
+    event CaveatNonceIncremented(address owner, uint256 newNonce);
+    event CaveatSaltInvalidated(address owner, bytes32 salt);
 
     event Open(uint256 LoanId, Starport.Loan loan);
 
     function setUp() public virtual override {
         super.setUp();
-        mockCustodian = new MockCustodian(SP, seaport);
+        mockCustodian = new MockCustodian(SP, address(seaport));
         Starport.Loan memory loan = newLoanWithDefaultTerms();
         Custodian(custodian).mint(loan);
 
@@ -120,14 +120,14 @@ contract TestStarport is StarportTest, DeepEq {
         vm.roll(5);
         uint256 newNonce = SP.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);
         vm.expectEmit();
-        emit CaveatNonceIncremented(newNonce);
+        emit CaveatNonceIncremented(address(this), newNonce);
         SP.incrementCaveatNonce();
     }
 
     function testInvalidateCaveatSalt() public {
         bytes32 salt = bytes32(uint256(2));
         vm.expectEmit();
-        emit CaveatSaltInvalidated(salt);
+        emit CaveatSaltInvalidated(address(this), salt);
         SP.invalidateCaveatSalt(salt);
     }
 
@@ -164,6 +164,16 @@ contract TestStarport is StarportTest, DeepEq {
     function testApplyRefinanceConsiderationToLoanMalformed() public {
         vm.expectRevert(Starport.MalformedRefinance.selector);
         SP.applyRefinanceConsiderationToLoan(activeLoan, new SpentItem[](0), new SpentItem[](0), "");
+
+        SpentItem[] memory dummy = new SpentItem[](1);
+        dummy[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
+        SpentItem[] memory dummyCarry = new SpentItem[](2);
+        dummyCarry[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
+        dummyCarry[1] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(activeLoan, dummy, dummyCarry, "");
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(activeLoan, dummyCarry, new SpentItem[](0), "");
     }
 
     function testInitializedFlagSetProperly() public {
@@ -412,7 +422,7 @@ contract TestStarport is StarportTest, DeepEq {
         );
 
         newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
-        assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
+        assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver paid improperly");
     }
 
     // needs modification to work with the new origination flow (unsure if it needs to be elimianted all together)

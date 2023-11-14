@@ -16,7 +16,7 @@
 //        address EAZone = address(0x004C00500000aD104D7DBd00e3ae0A5C00560C00);
 //        SettlementHandler SH = new EnglishAuctionHandler(
 //      SP,
-//      ConsiderationInterface(SP.seaport()),
+//      ConsiderationInterface(consideration),
 //      EAZone
 //    );
 //        FixedTermStatus HK = new FixedTermStatus();
