@@ -284,7 +284,7 @@ contract StarportTest is BaseOrderTest {
     function _emptyCaveat() internal returns (CaveatEnforcer.SignedCaveats memory) {
         return CaveatEnforcer.SignedCaveats({
             signature: "",
-            invalidate: true,
+            singleUse: true,
             deadline: 0,
             salt: bytes32(0),
             caveats: new CaveatEnforcer.Caveat[](0)
@@ -343,7 +343,7 @@ contract StarportTest is BaseOrderTest {
     ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
         signedCaveats = CaveatEnforcer.SignedCaveats({
             signature: "",
-            invalidate: invalidate,
+            singleUse: invalidate,
             deadline: block.timestamp + 1 days,
             salt: salt,
             caveats: new CaveatEnforcer.Caveat[](1)
@@ -351,7 +351,7 @@ contract StarportTest is BaseOrderTest {
 
         signedCaveats.caveats[0] = caveat;
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
-            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+            signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
         signedCaveats.signature = abi.encodePacked(r, s, v);
@@ -439,11 +439,11 @@ contract StarportTest is BaseOrderTest {
     ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
-        signedCaveats.invalidate = true;
+        signedCaveats.singleUse = true;
         signedCaveats.deadline = block.timestamp + 1 days;
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
-            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+            signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
@@ -458,11 +458,11 @@ contract StarportTest is BaseOrderTest {
     ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
-        signedCaveats.invalidate = true;
+        signedCaveats.singleUse = true;
         signedCaveats.deadline = block.timestamp + 1 days;
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
-            signer.addr, signedCaveats.invalidate, salt, signedCaveats.deadline, signedCaveats.caveats
+            signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
         );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
