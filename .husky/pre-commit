@@ -2,4 +2,4 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 forge fmt --check
-forge snapshot --check
+forge snapshot --check --no-match-path '*fuzz*'

@@ -12,7 +12,8 @@
     "node": ">=18.12.2"
   },
   "scripts": {
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "snapshot": "forge snapshot --no-match-path '*fuzz*'"
   },
   "devDependencies": {
     "husky": "^8.0.0",
