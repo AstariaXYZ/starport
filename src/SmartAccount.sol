@@ -24,6 +24,7 @@ import {Ownable} from "solady/src/auth/Ownable.sol";
 import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import {Starport} from "./Starport.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {ERC1271} from "solady/src/accounts/ERC1271.sol";
 
 //User Flow
 //Create account(one time only)
@@ -96,9 +97,12 @@ contract SmartAccount is Ownable {
             revert InvalidSigner();
         }
     }
+    //TODO: add on receive that auto-approves assets to starport?
 
     //TODO: support 721 signing
 
-    //TODO: add isValidSignature for 1271, add flag to CaveatWithApproval for isEOA and revert accordingly
-    //TODO: add on receive that auto-approves assets to starport?
+    //TODO: add flag to CaveatWithApproval for isEOA and revert accordingly
+    function _erc1271Signer() internal view override returns (address) {
+        return owner();
+    }
 }
