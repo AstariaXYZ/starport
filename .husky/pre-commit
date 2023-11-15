@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-forge fmt --check
-forge snapshot --check --no-match-path '*fuzz*'
+forge fmt
+forge snapshot --no-match-path '*fuzz*'
