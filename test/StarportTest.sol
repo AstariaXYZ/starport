@@ -419,7 +419,12 @@ contract StarportTest is BaseOrderTest {
     ) internal returns (Starport.Loan memory originatedLoan) {
         vm.recordLogs();
         vm.startPrank(fulfiller);
-        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
+        SP.originate(
+            new AdditionalTransfer[](0),
+            fulfiller != borrower.addr ? borrowerCaveat : _emptyCaveat(),
+            fulfiller != lender.addr ? lenderCaveat : _emptyCaveat(),
+            loan
+        );
         vm.stopPrank();
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
