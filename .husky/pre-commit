@@ -3,3 +3,5 @@
 
 forge fmt
 forge snapshot --no-match-path '*fuzz*'
+
+git add .gas-snapshot
