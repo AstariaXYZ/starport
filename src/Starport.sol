@@ -82,7 +82,7 @@ contract Starport is PausableNonReentrant {
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     string public constant VERSION = "0";
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
-        "Origination(address owner,uint256 signerNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
     );
 
     address public feeTo;
