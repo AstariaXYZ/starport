@@ -28,7 +28,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     function setUp() public virtual override {
         super.setUp();
 
-        erc20s[0].approve(address(lenderConduit), 100000);
+        erc20s[0].approve(address(lenderConduit), 100_000);
 
         Starport.Loan memory loan = newLoanWithDefaultTerms(false);
         Custodian(custodian).mint(loan);

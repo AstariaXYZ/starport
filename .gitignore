@@ -1,11 +1,13 @@
+# IDE
+.idea
+.vscode
+
 # Compiler files
 cache/
 out/
 artifacts/
 cache_hardhat/
 typechain-types/
-
-.idea/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -17,9 +19,8 @@ typechain-types/
 
 # Node
 node_modules/
+yarn-error.log
 
-# Ignore Docs gitignore
-/docs/.gitignore
 
 
 

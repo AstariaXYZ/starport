@@ -207,7 +207,7 @@ contract StarportTest is BaseOrderTest {
             erc721s[0].mint(borrower.addr, 1);
             erc721s[0].mint(borrower.addr, 2);
             erc721s[0].mint(borrower.addr, 3);
-            erc20s[1].mint(borrower.addr, 10000);
+            erc20s[1].mint(borrower.addr, 10_000);
             erc1155s[0].mint(borrower.addr, 1, 1);
             erc1155s[1].mint(lender.addr, 1, 10);
             erc1155s[1].mint(lender.addr, 2, 10);
@@ -227,17 +227,17 @@ contract StarportTest is BaseOrderTest {
         lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
 
         conduitController.updateChannel(lenderConduit, address(SO), true);
-        erc20s[0].approve(address(lenderConduit), 100000);
+        erc20s[0].approve(address(lenderConduit), 100_000);
         erc1155s[1].setApprovalForAll(lenderConduit, true);
         erc721s[2].setApprovalForAll(lenderConduit, true);
         vm.stopPrank();
         vm.prank(address(issuer));
-        erc20s[0].approve(address(lenderConduit), 100000);
+        erc20s[0].approve(address(lenderConduit), 100_000);
         vm.startPrank(refinancer.addr);
         refinancerConduit = conduitController.createConduit(conduitKeyRefinancer, refinancer.addr);
         // console.log("Refinancer", refinancer.addr);
         conduitController.updateChannel(refinancerConduit, address(SP), true);
-        erc20s[0].approve(address(refinancerConduit), 100000);
+        erc20s[0].approve(address(refinancerConduit), 100_000);
         vm.stopPrank();
 
         /////////
