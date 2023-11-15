@@ -405,7 +405,7 @@ contract Starport is PausableNonReentrant {
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
-        invalidSalts[msg.sender][salt] = true;
+        invalidSalts.validateSalt(msg.sender, salt);
         emit CaveatSaltInvalidated(salt);
     }
 
