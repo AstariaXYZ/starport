@@ -54,7 +54,7 @@ contract BNPLHelper is IFlashLoanRecipient {
         Fulfillment[] fulfillments;
     }
 
-    error SenderNotSelf();
+    error SenderNotVault();
     error DoNotSendETH();
     error InvalidUserDataProvided();
 
@@ -70,7 +70,9 @@ contract BNPLHelper is IFlashLoanRecipient {
         uint256[] calldata feeAmounts,
         bytes calldata userData
     ) external override {
-        require(msg.sender == vault);
+        if (msg.sender != vault) {
+            revert SenderNotVault();
+        }
 
         if (activeUserDataHash != keccak256(userData)) {
             revert InvalidUserDataProvided();

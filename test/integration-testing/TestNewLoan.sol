@@ -317,6 +317,12 @@ contract TestNewLoan is StarportTest {
         helper.receiveFlashLoan(new address[](0), new uint256[](0), new uint256[](0), bytes(""));
     }
 
+    function testInvalidSenderBNPL() public {
+        BNPLHelper helper = new BNPLHelper();
+        vm.expectRevert(abi.encodeWithSelector(BNPLHelper.SenderNotVault.selector));
+        helper.receiveFlashLoan(new address[](0), new uint256[](0), new uint256[](0), bytes(""));
+    }
+
     function testNewLoanViaOriginatorLenderApproval() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
