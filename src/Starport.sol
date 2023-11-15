@@ -80,9 +80,10 @@ contract Starport is PausableNonReentrant {
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(uint256 caveatNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash");
     string public constant VERSION = "0";
+    bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
+        "Origination(address owner,uint256 signerNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+    );
 
     address public feeTo;
     uint88 public defaultFeeRake;
@@ -369,7 +370,7 @@ contract Starport is PausableNonReentrant {
     }
 
     function hashCaveatWithSaltAndNonce(
-        address validator,
+        address account,
         bool singleUse,
         bytes32 salt,
         uint256 deadline,
@@ -383,7 +384,8 @@ contract Starport is PausableNonReentrant {
                 keccak256(
                     abi.encode(
                         INTENT_ORIGINATION_TYPEHASH,
-                        caveatNonces[validator],
+                        account,
+                        caveatNonces[account],
                         singleUse,
                         salt,
                         deadline,

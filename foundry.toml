@@ -1,5 +1,4 @@
 [profile.default]
-#cancun = true
 src = "src"
 out = "out"
 libs = ["lib"]
@@ -7,13 +6,13 @@ ignored_error_codes = [2018, 9302, 5574]
 
 [profile.default.fuzz]
 include_storage = false
-#solc = "./bin/solc"
-# See more config options https://github.com/foundry-rs/foundry/tree/master/config
-#
-#
-#[profile.default.model_checker]
-#contracts = {'src/Starport.sol' = ['Starport'],'src/Custodian.sol' = ['Custodian']}
-#engine = 'chc'
-#timeout = 10000
-#ignored_error_codes = [2018, 9302, 5574, 7737]
-#targets = ['assert', 'constantCondition', 'overflow', 'underflow', 'outOfBounds', 'divByZero']
+
+[fmt]
+line_length = 120
+tab_width = 4
+int_types = "long"
+multiline_func_header = "attributes_first"
+quote_style = "double"
+number_underscore = "thousands"
+override_spacing = true
+wrap_comments = false

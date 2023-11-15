@@ -1,13 +1,13 @@
+name: Format, Snapshot
+
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  CI:
-    name: Format, Snapshot
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,17 +24,14 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
 
       - name: Format
-        run: forge fmt 
-  
+        run: forge fmt
+
       - name: Snapshot
-        run: forge snapshot
+        run: forge snapshot --no-match-path '*fuzz*'
 
       - name: Test
         run: forge test -vvv
 
-      - uses: stefanzweifel/git-auto-commit-action@v4 
-        with: 
-            commit_message: "format & snapshot"
-
-
-
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: 'chore(bot): format & snapshot'

@@ -1,4 +1,4 @@
-name: "lint, test"
+name: Lint, Test
 
 on:
   workflow_dispatch:
@@ -8,8 +8,7 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  CI:
-    name: Lint, Test
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,16 +26,9 @@ jobs:
 
       - name: Lint
         run: forge fmt --check
-  
-      - name: Test
-        run: forge test -vvv
 
       - name: Snapshot
         run: forge snapshot --check --no-match-path '*fuzz*'
 
-
-
-
-
-
-
+      - name: Test
+        run: forge test -vvv
