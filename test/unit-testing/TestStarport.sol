@@ -387,6 +387,20 @@ contract TestStarport is StarportTest, DeepEq {
         assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
     }
 
+    function testDefaultFeeRakeExoticDebt() public {
+        assertEq(SP.defaultFeeRake(), 0);
+        address feeReceiver = address(20);
+        SP.setFeeData(feeReceiver, 1e17); //10% fees
+
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0], uint256(2)), _getERC1155SpentItem(erc1155s[1]), lender.addr
+        );
+
+        Starport.Loan memory loan =
+            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
+        assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
+    }
+
     function testOverrideFeeRake() public {
         assertEq(SP.defaultFeeRake(), 0);
         address feeReceiver = address(20);

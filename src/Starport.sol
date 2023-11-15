@@ -489,18 +489,14 @@ contract Starport is PausableNonReentrant {
         paymentToBorrower = new SpentItem[](debt.length);
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
+            uint256 amount;
             if (debt[i].itemType == ItemType.ERC20) {
                 Fee memory feeOverride = feeOverrides[debt[i].token];
                 feeItems[i].identifier = 0;
-                uint256 amount = debt[i].amount.mulDiv(
+                amount = debt[i].amount.mulDiv(
                     !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debt[i].token).decimals()
                 );
-                paymentToBorrower[i] = SpentItem({
-                    token: debt[i].token,
-                    itemType: debt[i].itemType,
-                    identifier: debt[i].identifier,
-                    amount: debt[i].amount - amount
-                });
+
                 if (amount > 0) {
                     feeItems[i].amount = amount;
                     feeItems[i].token = debt[i].token;
@@ -509,10 +505,17 @@ contract Starport is PausableNonReentrant {
                     ++totalFeeItems;
                 }
             }
+            paymentToBorrower[i] = SpentItem({
+                token: debt[i].token,
+                itemType: debt[i].itemType,
+                identifier: debt[i].identifier,
+                amount: debt[i].amount - amount
+            });
             unchecked {
                 ++i;
             }
         }
+
         assembly {
             mstore(feeItems, totalFeeItems)
         }
