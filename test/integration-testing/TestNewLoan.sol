@@ -67,99 +67,27 @@ contract TestNewLoan is StarportTest {
         return _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
     }
 
-    function testNewLoanERC721CollateralLessDebtThanOffered() public returns (Starport.Loan memory) {
-        // Custodian custody = Custodian(SP.defaultCustodian());
+    function testNewLoanRefinance() public {
+        Starport.Loan memory loan = testNewLoanERC721CollateralDefaultTerms2();
+        bytes memory newPricingData =
+            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 100, decimals: 18}));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({
+            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), newPricingData)
+        });
 
-        // Starport.Terms memory terms = Starport.Terms({
-        //     status: address(hook),
-        //     settlement: address(settlement),
-        //     pricing: address(pricing),
-        //     pricingData: defaultPricingData,
-        //     settlementData: defaultSettlementData,
-        //     statusData: defaultStatusData
-        // });
+        details.loan.issuer = refinancer.addr;
+        details.loan.originator = address(0);
+        details.loan.start = 0;
+        CaveatEnforcer.SignedCaveats memory refiCaveat = getLenderSignedCaveat({
+            details: details,
+            signer: refinancer,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(refinancer.addr, loan.debt);
 
-        // selectedCollateral.push(
-        //     ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custody))
-        //     })
-        // );
-
-        // debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        // StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-        //     conduit: address(lenderConduit),
-        //     custodian: address(custody),
-        //     issuer: lender.addr,
-        //     deadline: block.timestamp + 100,
-        //     offer: StrategistOriginator.Offer({
-        //         salt: bytes32(0),
-        //         terms: terms,
-        //         collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-        //         debt: debt
-        //     })
-        // });
-        // debt[0].amount = 50;
-
-        // TermEnforcer TE = new TermEnforcer();
-
-        // TermEnforcer.Details memory TEDetails =
-        //     TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(settlement)});
-
-        // Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
-        // caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
-
-        // return newLoan(
-        //     NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-    }
-
-    function testNewLoanRefinanceNew() public {
-        // StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-        //     ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custodian))
-        //     }),
-        //     SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
-        //     lender.addr
-        // );
-
-        // Starport.Loan memory loan = newLoan(
-        //     NewLoanData(address(loanDetails.custodian), new Starport.Caveat[](0), abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-
-        // CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
-        //     v: 0,
-        //     r: bytes32(0),
-        //     s: bytes32(0),
-        //     caveat: CaveatEnforcer.Caveat({
-        //         enforcer: address(0),
-        //         salt: bytes32(uint256(1)),
-        //         deadline: block.timestamp + 1 days,
-        //         data: abi.encode(uint256(0))
-        //     })
-        // });
-
-        // // getLenderSignedCaveat();
-        // refinanceLoan(
-        //     loan,
-        //     abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-        //     refinancer.addr,
-        //     lenderCaveat,
-        //     refinancer.addr
-        // );
+        skip(1);
+        refinanceLoan(loan, newPricingData, refinancer.addr, refiCaveat, refinancer.addr);
     }
 
     function testBuyNowPayLater() public {
