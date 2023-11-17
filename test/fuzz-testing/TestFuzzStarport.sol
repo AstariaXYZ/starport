@@ -2,9 +2,12 @@
 import "starport-test/StarportTest.sol";
 import "starport-test/utils/Bound.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {DeepEq} from "../utils/DeepEq.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
-contract TestFuzzStarport is StarportTest, Bound {
+contract TestFuzzStarport is StarportTest, Bound, DeepEq {
     using FixedPointMathLib for uint256;
+    using {StarportLib.getId} for Starport.Loan;
 
     function setUp() public override {
         super.setUp();
@@ -242,6 +245,75 @@ contract TestFuzzStarport is StarportTest, Bound {
         return loan;
     }
 
+    struct FuzzCustodian {
+        FuzzLoan origination;
+        Fuzz.SpentItem[10] repayCollateral;
+        Fuzz.SpentItem[10] repayDebt;
+        address[3] badAddresses;
+        bool willRepay;
+        bool wrongCommand;
+    }
+
+    function testFuzzCustodianGeneratePreviewOrder(FuzzCustodian memory params) public {
+        //        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
+
+        //        badLoan.collateral = goodLoan.collateral;
+        //        badLoan.debt = goodLoan.debt;
+        //        badLoan.custodian = goodLoan.custodian;
+
+        Custodian.Command memory cmd;
+
+        uint256 loanDuration = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration;
+        if (params.willRepay) {
+            skip(loanDuration - 1);
+            if (!params.wrongCommand) {
+                cmd = Custodian.Command(Actions.Repayment, goodLoan, "");
+            } else {
+                cmd = Custodian.Command(Actions.Settlement, goodLoan, "");
+            }
+        } else {
+            skip(loanDuration + 1);
+            if (!params.wrongCommand) {
+                cmd = Custodian.Command(Actions.Settlement, goodLoan, "");
+            } else {
+                cmd = Custodian.Command(Actions.Repayment, goodLoan, "");
+            }
+        }
+
+        if (params.wrongCommand) {
+            vm.expectRevert(Custodian.InvalidAction.selector);
+        }
+        (SpentItem[] memory pOffer, ReceivedItem[] memory pConsideration) = Custodian(goodLoan.custodian).previewOrder(
+            address(consideration), goodLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(cmd)
+        );
+        if (params.wrongCommand) {
+            vm.expectRevert(Custodian.InvalidAction.selector);
+        }
+        vm.prank(address(consideration));
+        (SpentItem[] memory gOffer, ReceivedItem[] memory gConsideration) = Custodian(goodLoan.custodian).generateOrder(
+            goodLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(cmd)
+        );
+        if (!params.wrongCommand) {
+            _deepEq(pOffer, gOffer);
+            _deepEq(pConsideration, gConsideration);
+        }
+    }
+
+    function testFuzzLoanState(FuzzRepaymentLoan memory params) public {
+        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
+
+        badLoan.start = goodLoan.start;
+        badLoan.originator = goodLoan.originator;
+
+        assert(goodLoan.originator != address(0));
+        assert(SP.active(goodLoan.getId()));
+        assert(!SP.inactive(goodLoan.getId()));
+        assert(SP.inactive(badLoan.getId()));
+        assert(!SP.active(badLoan.getId()));
+    }
+
     function testFuzzRepaymentFails(FuzzRepaymentLoan memory params) public {
         Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
@@ -372,6 +444,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
 
         address filler = _toAddress(_boundMin(_toUint(params.origination.fulfiller), 100));
+        vm.assume(filler.code.length == 0);
         FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
 
         skip(

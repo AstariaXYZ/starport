@@ -6,6 +6,7 @@ ignored_error_codes = [2018, 9302, 5574]
 
 [profile.default.fuzz]
 include_storage = false
+runs = 10000
 
 [fmt]
 line_length = 120
