@@ -526,7 +526,7 @@ contract Starport is PausableNonReentrant {
      */
     function _issueLoan(Loan memory loan) internal {
         loan.start = block.timestamp;
-        loan.originator = msg.sender;
+        loan.originator = loan.originator != address(0) ? loan.originator : msg.sender;
 
         bytes memory encodedLoan = abi.encode(loan);
 
