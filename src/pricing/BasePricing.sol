@@ -28,6 +28,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 abstract contract BasePricing is Pricing {
     using FixedPointMathLib for uint256;
@@ -86,8 +87,10 @@ abstract contract BasePricing is Pricing {
         }
     }
 
-    function validate(Starport.Loan calldata loan) external pure virtual override returns (bytes4) {
-        return Pricing.validate.selector;
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
+        Details memory details = abi.decode(loan.terms.pricingData, (Details));
+        return Validation.validate.selector;
     }
 
     /**

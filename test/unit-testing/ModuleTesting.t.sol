@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 import "starport-test/StarportTest.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
-
+import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
 import "../utils/DeepEq.sol";
 
@@ -49,7 +49,9 @@ contract ModuleTesting is StarportTest, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
 
-        assertEq(FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan), false, "Loan is valid");
+        assertEq(
+            FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan), bytes4(0xFFFFFFFF), "Loan is valid"
+        );
     }
 
     function testFixedTermDutchAuctionSettlementValid() public {
@@ -65,7 +67,11 @@ contract ModuleTesting is StarportTest, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
 
-        assertEq(FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan), true, "Loan is invalid");
+        assertEq(
+            FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan),
+            Validation.validate.selector,
+            "Loan is invalid"
+        );
     }
 
     function testFixedTermDutchAuctionSettlementGetSettlementAuctionExpired() public {

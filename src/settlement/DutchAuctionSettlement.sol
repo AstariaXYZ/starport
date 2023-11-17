@@ -14,6 +14,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     constructor(Starport SP_) Settlement(SP_) {}
@@ -106,9 +107,9 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         });
     }
 
-    // @inheritdoc Settlement
-    function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
-        return details.startingPrice > details.endingPrice;
+        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 }

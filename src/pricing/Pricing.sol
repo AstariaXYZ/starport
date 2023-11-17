@@ -23,8 +23,9 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
-abstract contract Pricing {
+abstract contract Pricing is Validation {
     Starport public immutable SP;
 
     error InvalidRefinance();
@@ -54,6 +55,4 @@ abstract contract Pricing {
         view
         virtual
         returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory);
-
-    function validate(Starport.Loan calldata loan) external pure virtual returns (bytes4);
 }
