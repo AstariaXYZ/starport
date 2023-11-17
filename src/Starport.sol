@@ -20,24 +20,20 @@
  */
 pragma solidity ^0.8.17;
 
-import {ERC20} from "solady/src/tokens/ERC20.sol";
-import {ItemType, OfferItem, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-
-import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Pricing} from "./pricing/Pricing.sol";
-import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
-import {Custodian} from "./Custodian.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {Custodian} from "./Custodian.sol";
+import {ERC20} from "solady/src/tokens/ERC20.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
+import {Pricing} from "./pricing/Pricing.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {Settlement} from "./settlement/Settlement.sol";
+import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {SpentItem, ItemType} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
 
 contract Starport is PausableNonReentrant {
     using FixedPointMathLib for uint256;
-
     using {StarportLib.getId} for Starport.Loan;
     using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
@@ -78,33 +74,33 @@ contract Starport is PausableNonReentrant {
 
     bytes32 internal immutable _DOMAIN_SEPARATOR;
 
-    ConsiderationInterface public immutable seaport;
-
-    address payable public immutable defaultCustodian;
+    address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
 
     // Define the EIP712 domain and typehash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant INTENT_ORIGINATION_TYPEHASH =
-        keccak256("Origination(uint256 userNonce,bool singleUse,bytes32 salt,uint256 deadline, bytes32 caveatHash");
-    bytes32 public constant VERSION = keccak256("0");
+    string public constant VERSION = "0";
+    bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
+        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+    );
 
+    address public feeTo;
+    uint88 public defaultFeeRake;
+    mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => mapping(bytes32 => bool)) public invalidSalts;
     mapping(uint256 => uint256) public loanState;
     mapping(address => uint256) public caveatNonces;
     mapping(address => Fee) public feeOverrides;
-    address public feeTo;
-    uint88 public defaultFeeRake;
-    mapping(address => mapping(address => ApprovalType)) public approvals;
 
     event Close(uint256 loanId);
     event Open(uint256 loanId, Starport.Loan loan);
-    event CaveatNonceIncremented(uint256 newNonce);
-    event CaveatSaltInvalidated(bytes32 invalidatedSalt);
+    event CaveatNonceIncremented(address owner, uint256 newNonce);
+    event CaveatSaltInvalidated(address owner, bytes32 salt);
+    event CaveatFilled(address owner, bytes32 hash, bytes32 salt);
     event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
     event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
-    event ApprovalSet(address indexed owner, address indexed spender, ApprovalType approvalType);
+    event ApprovalSet(address indexed owner, address indexed spender, uint8 approvalType);
 
     error InvalidRefinance();
     error InvalidCustodian();
@@ -113,17 +109,14 @@ contract Starport is PausableNonReentrant {
     error AdditionalTransferError();
     error LoanExists();
     error NotLoanCustodian();
-    error NotSeaport();
-    error NativeAssetsNotSupported();
     error UnauthorizedAdditionalTransferIncluded();
     error InvalidCaveatSigner();
     error CaveatDeadlineExpired();
     error MalformedRefinance();
     error InvalidPostRepayment();
 
-    constructor(ConsiderationInterface seaport_) {
+    constructor(address seaport_) {
         address custodian = address(new Custodian(this, seaport_));
-        seaport = seaport_;
 
         bytes32 defaultCustodianCodeHash;
         assembly {
@@ -142,7 +135,7 @@ contract Starport is PausableNonReentrant {
     */
     function setOriginateApproval(address who, ApprovalType approvalType) external {
         approvals[msg.sender][who] = approvalType;
-        emit ApprovalSet(msg.sender, who, approvalType);
+        emit ApprovalSet(msg.sender, who, uint8(approvalType));
     }
 
     /*
@@ -245,7 +238,7 @@ contract Starport is PausableNonReentrant {
      * @dev settle the loan with the LoanManager
      *
      * @param loan              The the loan that is settled
-     * @param fulfiller      The address executing seaport
+     * @param fulfiller         The address executing the settle
      */
     function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
@@ -335,7 +328,9 @@ contract Starport is PausableNonReentrant {
             if (
                 additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
                     && additionalTransfers[i].from != fulfiller
-            ) revert UnauthorizedAdditionalTransferIncluded();
+            ) {
+                revert UnauthorizedAdditionalTransferIncluded();
+            }
             unchecked {
                 ++i;
             }
@@ -351,8 +346,10 @@ contract Starport is PausableNonReentrant {
         bytes32 hash = hashCaveatWithSaltAndNonce(
             validator, signedCaveats.singleUse, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats
         );
+
         if (signedCaveats.singleUse) {
             invalidSalts.validateSalt(validator, signedCaveats.salt);
+            emit CaveatFilled(validator, hash, signedCaveats.salt);
         }
 
         if (block.timestamp > signedCaveats.deadline) {
@@ -373,7 +370,7 @@ contract Starport is PausableNonReentrant {
     }
 
     function hashCaveatWithSaltAndNonce(
-        address validator,
+        address account,
         bool singleUse,
         bytes32 salt,
         uint256 deadline,
@@ -387,7 +384,8 @@ contract Starport is PausableNonReentrant {
                 keccak256(
                     abi.encode(
                         INTENT_ORIGINATION_TYPEHASH,
-                        caveatNonces[validator],
+                        account,
+                        caveatNonces[account],
                         singleUse,
                         salt,
                         deadline,
@@ -401,12 +399,12 @@ contract Starport is PausableNonReentrant {
     function incrementCaveatNonce() external {
         uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
         caveatNonces[msg.sender] = newNonce;
-        emit CaveatNonceIncremented(newNonce);
+        emit CaveatNonceIncremented(msg.sender, newNonce);
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
         invalidSalts[msg.sender][salt] = true;
-        emit CaveatSaltInvalidated(salt);
+        emit CaveatSaltInvalidated(msg.sender, salt);
     }
 
     /**
@@ -528,7 +526,7 @@ contract Starport is PausableNonReentrant {
      */
     function _issueLoan(Loan memory loan) internal {
         loan.start = block.timestamp;
-        loan.originator = msg.sender;
+        loan.originator = loan.originator != address(0) ? loan.originator : msg.sender;
 
         bytes memory encodedLoan = abi.encode(loan);
 

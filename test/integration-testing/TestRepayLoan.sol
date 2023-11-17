@@ -30,7 +30,7 @@ contract TestRepayLoan is StarportTest {
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
-        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         _repayLoan(loan, loan.borrower);
@@ -55,7 +55,7 @@ contract TestRepayLoan is StarportTest {
             uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
                 10 days, loan.debt[0].amount, details.rate, details.decimals
             );
-            erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+            erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
 
             uint256 balance = erc20s[0].balanceOf(address(this));
             // ensure the InvalidRepayer has enough to repay
@@ -66,7 +66,7 @@ contract TestRepayLoan is StarportTest {
 
         // test a direct call to the generateOrder method as Seaport because fulfillAdvanceOrder swallows the revert reason
         {
-            vm.startPrank(address(SP.seaport()));
+            vm.startPrank(address(consideration));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
             custodian.generateOrder(
                 address(this),
@@ -78,7 +78,7 @@ contract TestRepayLoan is StarportTest {
         }
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -127,7 +127,7 @@ contract TestRepayLoan is StarportTest {
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
-        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
         custodian.mintWithApprovalSet(loan, address(this));
         vm.stopPrank();
 
@@ -181,12 +181,12 @@ contract TestRepayLoan is StarportTest {
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
-        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -206,7 +206,7 @@ contract TestRepayLoan is StarportTest {
 
         // call directly as Seaport ensure InvalidAction is revert reason
         {
-            vm.startPrank(address(SP.seaport()));
+            vm.startPrank(address(consideration));
             vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
             custodian.generateOrder(
                 loan.borrower,
@@ -250,12 +250,12 @@ contract TestRepayLoan is StarportTest {
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
-        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
         vm.stopPrank();
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(loan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             loan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -282,7 +282,7 @@ contract TestRepayLoan is StarportTest {
 
         // call directly as Seaport ensure InvalidAction is revert reason
         {
-            vm.startPrank(address(SP.seaport()));
+            vm.startPrank(address(consideration));
             vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoan.selector));
             custodian.generateOrder(
                 loan.borrower,
@@ -294,7 +294,7 @@ contract TestRepayLoan is StarportTest {
         }
 
         vm.startPrank(loan.borrower);
-        erc20s[0].approve(address(SP.seaport()), loan.debt[0].amount + interest);
+        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
         bytes32 orderHash = getOrderHash(address(custodian));
         vm.expectRevert(abi.encodeWithSelector(ZoneInteractionErrors.InvalidContractOrder.selector, orderHash));
         consideration.fulfillAdvancedOrder({

@@ -4,6 +4,7 @@ import "starport-test/StarportTest.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
+import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 contract FlashLoan {
     function flashLoan(
@@ -51,10 +52,44 @@ contract FlashLoan {
     }
 }
 
+contract ERC1271Proxy {
+    address public immutable owner;
+
+    constructor(address owner_) {
+        owner = owner_;
+    }
+
+    struct Action {
+        address to;
+        bytes data;
+    }
+
+    function execute(bytes[] calldata encodedAction, bytes calldata signature) public payable {
+        if (msg.sender != owner) {
+            require(
+                SignatureCheckerLib.isValidSignatureNowCalldata(owner, keccak256(abi.encode(encodedAction)), signature),
+                "invalid signature"
+            );
+        }
+        for (uint256 i = 0; i < encodedAction.length; i++) {
+            Action memory action = abi.decode(encodedAction[i], (Action));
+            (bool success, bytes memory returnData) = action.to.call(action.data);
+            require(success, string(returnData));
+        }
+    }
+
+    function isValidSignature(bytes32 _messageHash, bytes calldata _signature)
+        public
+        view
+        returns (bytes4 magicValue)
+    {
+        require(SignatureCheckerLib.isValidSignatureNowCalldata(owner, _messageHash, _signature), "invalid signature");
+        return this.isValidSignature.selector;
+    }
+}
+
 contract TestNewLoan is StarportTest {
     function testNewLoanERC721CollateralDefaultTerms2() public returns (Starport.Loan memory) {
-        Custodian custody = Custodian(SP.defaultCustodian());
-
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -67,99 +102,27 @@ contract TestNewLoan is StarportTest {
         return _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
     }
 
-    function testNewLoanERC721CollateralLessDebtThanOffered() public returns (Starport.Loan memory) {
-        // Custodian custody = Custodian(SP.defaultCustodian());
+    function testNewLoanRefinance() public {
+        Starport.Loan memory loan = testNewLoanERC721CollateralDefaultTerms2();
+        bytes memory newPricingData =
+            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 100, decimals: 18}));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({
+            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), newPricingData)
+        });
 
-        // Starport.Terms memory terms = Starport.Terms({
-        //     status: address(hook),
-        //     settlement: address(settlement),
-        //     pricing: address(pricing),
-        //     pricingData: defaultPricingData,
-        //     settlementData: defaultSettlementData,
-        //     statusData: defaultStatusData
-        // });
+        details.loan.issuer = refinancer.addr;
+        details.loan.originator = address(0);
+        details.loan.start = 0;
+        CaveatEnforcer.SignedCaveats memory refiCaveat = getLenderSignedCaveat({
+            details: details,
+            signer: refinancer,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(refinancer.addr, loan.debt);
 
-        // selectedCollateral.push(
-        //     ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custody))
-        //     })
-        // );
-
-        // debt.push(SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}));
-        // StrategistOriginator.Details memory loanDetails = StrategistOriginator.Details({
-        //     conduit: address(lenderConduit),
-        //     custodian: address(custody),
-        //     issuer: lender.addr,
-        //     deadline: block.timestamp + 100,
-        //     offer: StrategistOriginator.Offer({
-        //         salt: bytes32(0),
-        //         terms: terms,
-        //         collateral: ConsiderationItemLib.toSpentItemArray(selectedCollateral),
-        //         debt: debt
-        //     })
-        // });
-        // debt[0].amount = 50;
-
-        // TermEnforcer TE = new TermEnforcer();
-
-        // TermEnforcer.Details memory TEDetails =
-        //     TermEnforcer.Details({pricing: address(pricing), status: address(hook), settlement: address(settlement)});
-
-        // Starport.Caveat[] memory caveats = new Starport.Caveat[](1);
-        // caveats[0] = Starport.Caveat({enforcer: address(TE), terms: abi.encode(TEDetails)});
-
-        // return newLoan(
-        //     NewLoanData(address(custody), caveats, abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-    }
-
-    function testNewLoanRefinanceNew() public {
-        // StrategistOriginator.Details memory loanDetails = _generateOriginationDetails(
-        //     ConsiderationItem({
-        //         token: address(erc721s[0]),
-        //         startAmount: 1,
-        //         endAmount: 1,
-        //         identifierOrCriteria: 1,
-        //         itemType: ItemType.ERC721,
-        //         recipient: payable(address(custodian))
-        //     }),
-        //     SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 100, identifier: 0}),
-        //     lender.addr
-        // );
-
-        // Starport.Loan memory loan = newLoan(
-        //     NewLoanData(address(loanDetails.custodian), new Starport.Caveat[](0), abi.encode(loanDetails)),
-        //     StrategistOriginator(SO),
-        //     selectedCollateral
-        // );
-
-        // CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
-        //     v: 0,
-        //     r: bytes32(0),
-        //     s: bytes32(0),
-        //     caveat: CaveatEnforcer.Caveat({
-        //         enforcer: address(0),
-        //         salt: bytes32(uint256(1)),
-        //         deadline: block.timestamp + 1 days,
-        //         data: abi.encode(uint256(0))
-        //     })
-        // });
-
-        // // getLenderSignedCaveat();
-        // refinanceLoan(
-        //     loan,
-        //     abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
-        //     refinancer.addr,
-        //     lenderCaveat,
-        //     refinancer.addr
-        // );
+        skip(1);
+        refinanceLoan(loan, newPricingData, refinancer.addr, refiCaveat, refinancer.addr);
     }
 
     function testBuyNowPayLater() public {
@@ -469,5 +432,145 @@ contract TestNewLoan is StarportTest {
             fulfillerConduitKey: bytes32(0),
             recipient: address(0)
         });
+    }
+
+    function testNewLoanAs1271ProxyAccountSender() public {
+        ERC1271Proxy proxy = new ERC1271Proxy(borrower.addr);
+
+        uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
+        assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
+        uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0]), _getERC20SpentItem(erc20s[0], 100), lender.addr
+        );
+        originationDetails.borrower = address(proxy);
+        _setApprovalsForSpentItems(originationDetails.issuer, originationDetails.debt);
+
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = _generateSignedCaveatsBorrowerProxy(
+            originationDetails, address(proxy), borrower, address(borrowerEnforcer), bytes32(msg.sig), true
+        );
+        CaveatEnforcer.SignedCaveats memory lenderCaveat =
+            _generateSignedCaveatLender(originationDetails, lender, bytes32(msg.sig), true);
+
+        vm.prank(borrower.addr);
+        erc721s[0].approve(address(proxy), 1);
+        vm.prank(lender.addr);
+        erc20s[0].transfer(address(proxy), 1);
+        bytes[] memory actions = new bytes[](4);
+        actions[0] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(erc721s[0]),
+                data: abi.encodeWithSelector(ERC721.transferFrom.selector, borrower.addr, address(proxy), 1)
+            })
+        );
+        actions[1] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(erc721s[0]),
+                data: abi.encodeWithSelector(ERC721.approve.selector, address(SP), 1)
+            })
+        );
+        actions[2] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(SP),
+                data: abi.encodeWithSelector(
+                    Starport.originate.selector,
+                    new AdditionalTransfer[](0),
+                    _emptyCaveat(),
+                    lenderCaveat,
+                    originationDetails
+                    )
+            })
+        );
+        actions[3] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(erc20s[0]),
+                data: abi.encodeWithSelector(ERC20.transfer.selector, borrower.addr, originationDetails.debt[0].amount)
+            })
+        );
+
+        bytes32 hash = keccak256(abi.encode(actions));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(borrower.key, hash);
+        vm.startPrank(fulfiller.addr);
+        proxy.execute(actions, abi.encodePacked(r, s, v));
+    }
+
+    function testNewLoanAs1271ProxyAccountThirdPartyFiller() public {
+        ERC1271Proxy proxy = new ERC1271Proxy(borrower.addr);
+
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
+            _getERC721SpentItem(erc721s[0]), _getERC20SpentItem(erc20s[0], 100), lender.addr
+        );
+        originationDetails.borrower = address(proxy);
+        _setApprovalsForSpentItems(originationDetails.issuer, originationDetails.debt);
+
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = _generateSignedCaveatsBorrowerProxy(
+            originationDetails, address(proxy), borrower, address(borrowerEnforcer), bytes32(msg.sig), true
+        );
+        CaveatEnforcer.SignedCaveats memory lenderCaveat =
+            _generateSignedCaveatLender(originationDetails, lender, bytes32(msg.sig), true);
+
+        vm.prank(borrower.addr);
+        erc721s[0].approve(address(proxy), 1);
+        vm.prank(lender.addr);
+        erc20s[0].transfer(address(proxy), 1);
+        bytes[] memory actions = new bytes[](2);
+        actions[0] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(erc721s[0]),
+                data: abi.encodeWithSelector(ERC721.transferFrom.selector, borrower.addr, address(proxy), 1)
+            })
+        );
+        actions[1] = abi.encode(
+            ERC1271Proxy.Action({
+                to: address(erc721s[0]),
+                data: abi.encodeWithSelector(ERC721.approve.selector, address(SP), 1)
+            })
+        );
+
+        bytes32 hash = keccak256(abi.encode(actions));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(borrower.key, hash);
+        vm.startPrank(fulfiller.addr);
+        proxy.execute(actions, abi.encodePacked(r, s, v));
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, originationDetails);
+    }
+
+    function signCaveatForProxyAccount(
+        CaveatEnforcer.Caveat memory caveat,
+        bytes32 salt,
+        address account,
+        Account memory signer,
+        bool invalidate
+    ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        signedCaveats = CaveatEnforcer.SignedCaveats({
+            signature: "",
+            singleUse: invalidate,
+            deadline: block.timestamp + 1 days,
+            salt: salt,
+            caveats: new CaveatEnforcer.Caveat[](1)
+        });
+
+        signedCaveats.caveats[0] = caveat;
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            account, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer.key, hash);
+        signedCaveats.signature = abi.encodePacked(r, s, v);
+    }
+
+    function _generateSignedCaveatsBorrowerProxy(
+        Starport.Loan memory loan,
+        address account,
+        Account memory signer,
+        address enforcer,
+        bytes32 salt,
+        bool invalidate
+    ) public view returns (CaveatEnforcer.SignedCaveats memory) {
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: loan});
+        return signCaveatForProxyAccount(
+            CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)}), salt, account, signer, invalidate
+        );
     }
 }

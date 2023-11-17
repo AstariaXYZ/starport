@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: MIT
 import "starport-test/StarportTest.sol";
 import "starport-test/utils/Bound.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {DeepEq} from "../utils/DeepEq.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
-contract TestFuzzStarport is StarportTest, Bound {
+contract TestFuzzStarport is StarportTest, Bound, DeepEq {
+    using FixedPointMathLib for uint256;
+    using {StarportLib.getId} for Starport.Loan;
+
     function setUp() public override {
         super.setUp();
 
@@ -78,6 +84,7 @@ contract TestFuzzStarport is StarportTest, Bound {
     }
 
     struct FuzzLoan {
+        bool feesOn;
         address fulfiller;
         uint256 debtAmount;
         uint256 rate;
@@ -129,8 +136,8 @@ contract TestFuzzStarport is StarportTest, Bound {
         debt[0] = SpentItem({
             itemType: ItemType.ERC20,
             identifier: 0,
-            amount: _boundMin(params.debtAmount, type(uint128).max),
-            token: address(erc20s[0])
+            amount: _boundMax(params.debtAmount, type(uint128).max),
+            token: address(erc20s[1])
         });
         loan.debt = debt;
         loan.borrower = borrower.addr;
@@ -165,18 +172,29 @@ contract TestFuzzStarport is StarportTest, Bound {
         uint256 minPricing;
     }
 
+    struct Balances {
+        uint256[] collateral;
+        uint256[] debt;
+        uint256[] borrowerReceivedDebt;
+    }
+
     function fuzzNewLoanOrigination(FuzzLoan memory params, LoanBounds memory loanBounds)
         internal
-        returns (Starport.Loan memory)
+        returns (Starport.Loan memory goodLoan)
     {
         vm.assume(params.collateral.length > 1);
         Starport.Loan memory loan = boundFuzzLoan(params, loanBounds);
         vm.assume(!willArithmeticOverflow(loan));
 
+        uint88 feeRake = uint88(_boundMax(0, 1e17));
+        address feeReceiver = address(20);
+        if (params.feesOn) {
+            SP.setFeeData(feeReceiver, feeRake);
+        }
         _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
         _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
-        bytes32 borrowerSalt = _boundMinBytes32(0, type(uint256).max);
-        bytes32 lenderSalt = _boundMinBytes32(0, type(uint256).max);
+        bytes32 borrowerSalt = _boundMinBytes32(0, 0);
+        bytes32 lenderSalt = _boundMinBytes32(0, 0);
         address fulfiller;
         if (params.fulfillerType % 2 == 0) {
             fulfiller = loan.borrower;
@@ -185,7 +203,18 @@ contract TestFuzzStarport is StarportTest, Bound {
         } else {
             fulfiller = _toAddress(_boundMin(_toUint(params.fulfiller), 100));
         }
-        return newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+        uint256 borrowerDebtBalanceBefore = erc20s[1].balanceOf(loan.borrower);
+
+        goodLoan = newLoan(loan, borrowerSalt, lenderSalt, fulfiller);
+
+        if (params.feesOn) {
+            assert(
+                erc20s[1].balanceOf(loan.borrower)
+                    == (borrowerDebtBalanceBefore + (loan.debt[0].amount - loan.debt[0].amount.mulWad(feeRake)))
+            );
+        } else {
+            assert(erc20s[1].balanceOf(loan.borrower) == (borrowerDebtBalanceBefore + loan.debt[0].amount));
+        }
     }
 
     function boundBadLoan(
@@ -216,6 +245,75 @@ contract TestFuzzStarport is StarportTest, Bound {
         return loan;
     }
 
+    struct FuzzCustodian {
+        FuzzLoan origination;
+        Fuzz.SpentItem[10] repayCollateral;
+        Fuzz.SpentItem[10] repayDebt;
+        address[3] badAddresses;
+        bool willRepay;
+        bool wrongCommand;
+    }
+
+    function testFuzzCustodianGeneratePreviewOrder(FuzzCustodian memory params) public {
+        //        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
+
+        //        badLoan.collateral = goodLoan.collateral;
+        //        badLoan.debt = goodLoan.debt;
+        //        badLoan.custodian = goodLoan.custodian;
+
+        Custodian.Command memory cmd;
+
+        uint256 loanDuration = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration;
+        if (params.willRepay) {
+            skip(loanDuration - 1);
+            if (!params.wrongCommand) {
+                cmd = Custodian.Command(Actions.Repayment, goodLoan, "");
+            } else {
+                cmd = Custodian.Command(Actions.Settlement, goodLoan, "");
+            }
+        } else {
+            skip(loanDuration + 1);
+            if (!params.wrongCommand) {
+                cmd = Custodian.Command(Actions.Settlement, goodLoan, "");
+            } else {
+                cmd = Custodian.Command(Actions.Repayment, goodLoan, "");
+            }
+        }
+
+        if (params.wrongCommand) {
+            vm.expectRevert(Custodian.InvalidAction.selector);
+        }
+        (SpentItem[] memory pOffer, ReceivedItem[] memory pConsideration) = Custodian(goodLoan.custodian).previewOrder(
+            address(consideration), goodLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(cmd)
+        );
+        if (params.wrongCommand) {
+            vm.expectRevert(Custodian.InvalidAction.selector);
+        }
+        vm.prank(address(consideration));
+        (SpentItem[] memory gOffer, ReceivedItem[] memory gConsideration) = Custodian(goodLoan.custodian).generateOrder(
+            goodLoan.borrower, new SpentItem[](0), new SpentItem[](0), abi.encode(cmd)
+        );
+        if (!params.wrongCommand) {
+            _deepEq(pOffer, gOffer);
+            _deepEq(pConsideration, gConsideration);
+        }
+    }
+
+    function testFuzzLoanState(FuzzRepaymentLoan memory params) public {
+        Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
+        Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
+
+        badLoan.start = goodLoan.start;
+        badLoan.originator = goodLoan.originator;
+
+        assert(goodLoan.originator != address(0));
+        assert(SP.active(goodLoan.getId()));
+        assert(!SP.inactive(goodLoan.getId()));
+        assert(SP.inactive(badLoan.getId()));
+        assert(!SP.active(badLoan.getId()));
+    }
+
     function testFuzzRepaymentFails(FuzzRepaymentLoan memory params) public {
         Starport.Loan memory badLoan = boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses);
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
@@ -226,7 +324,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         skip(1);
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -262,7 +360,7 @@ contract TestFuzzStarport is StarportTest, Bound {
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -284,7 +382,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         });
 
         vm.startPrank(goodLoan.borrower);
-        erc20s[0].approve(address(SP.seaport()), type(uint256).max);
+        erc20s[0].approve(address(consideration), type(uint256).max);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),
@@ -312,7 +410,7 @@ contract TestFuzzStarport is StarportTest, Bound {
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
@@ -346,6 +444,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, LoanBounds(0));
 
         address filler = _toAddress(_boundMin(_toUint(params.origination.fulfiller), 100));
+        vm.assume(filler.code.length == 0);
         FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
 
         skip(
@@ -357,14 +456,14 @@ contract TestFuzzStarport is StarportTest, Bound {
         );
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
             .previewOrder(
-            address(SP.seaport()),
+            address(consideration),
             goodLoan.borrower,
             new SpentItem[](0),
             new SpentItem[](0),
             abi.encode(Custodian.Command(Actions.Settlement, goodLoan, ""))
         );
         for (uint256 i = 0; i < paymentConsideration.length; i++) {
-            erc20s[0].mint(filler, paymentConsideration[i].amount);
+            erc20s[1].mint(filler, paymentConsideration[i].amount);
         }
 
         OrderParameters memory op = _buildContractOrder(
@@ -379,7 +478,7 @@ contract TestFuzzStarport is StarportTest, Bound {
         });
 
         vm.startPrank(filler);
-        erc20s[0].approve(address(SP.seaport()), type(uint256).max);
+        erc20s[1].approve(address(consideration), type(uint256).max);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),

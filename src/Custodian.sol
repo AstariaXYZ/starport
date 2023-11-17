@@ -25,7 +25,6 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 
 import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -39,7 +38,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
 
     Starport public immutable SP;
-    ConsiderationInterface public immutable seaport;
+    address public immutable seaport;
 
     event SeaportCompatibleContractDeployed();
 
@@ -55,7 +54,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     error NotEnteredViaSeaport();
     error NotStarport();
 
-    constructor(Starport SP_, ConsiderationInterface seaport_) {
+    constructor(Starport SP_, address seaport_) {
         seaport = seaport_;
         SP = SP_;
         emit SeaportCompatibleContractDeployed();
@@ -225,9 +224,7 @@ contract Custodian is ERC721, ContractOffererInterface {
             }
 
             offer = loan.collateral;
-            _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-            _setOfferApprovalsWithSeaport(offer);
-
+            _setOfferApprovalsWithSeaport(loan);
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
@@ -237,16 +234,13 @@ contract Custodian is ERC721, ContractOffererInterface {
             _postRepaymentExecute(loan, fulfiller);
         } else if (close.action == Actions.Settlement && !Status(loan.terms.status).isActive(loan, close.extraData)) {
             address authorized;
-            //add in originator fee
-
             _beforeGetSettlementConsideration(loan);
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);
             consideration = StarportLib.removeZeroAmountItems(consideration);
             _afterGetSettlementConsideration(loan);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;
-                _beforeApprovalsSetHook(fulfiller, maximumSpent, context);
-                _setOfferApprovalsWithSeaport(offer);
+                _setOfferApprovalsWithSeaport(loan);
             } else if (authorized == loan.terms.settlement || authorized == loan.issuer) {
                 _moveCollateralToAuthorized(loan.collateral, authorized);
             } else {
@@ -354,22 +348,23 @@ contract Custodian is ERC721, ContractOffererInterface {
     function _enableAssetWithSeaport(SpentItem memory offer) internal {
         //approve consideration based on item type
         if (offer.itemType == ItemType.ERC721) {
-            ERC721(offer.token).approve(address(seaport), offer.identifier);
+            ERC721(offer.token).approve(seaport, offer.identifier);
         } else if (offer.itemType == ItemType.ERC1155) {
-            ERC1155(offer.token).setApprovalForAll(address(seaport), true);
+            ERC1155(offer.token).setApprovalForAll(seaport, true);
         } else if (offer.itemType == ItemType.ERC20) {
-            ERC20(offer.token).approve(address(seaport), type(uint256).max);
+            ERC20(offer.token).approve(seaport, type(uint256).max);
         }
     }
 
     /**
      * @dev set's approvals for the collateral deposited to be spent via seaport
      *
-     * @param offer The item to make available to seaport
+     * @param loan The loan being settled
      */
-    function _setOfferApprovalsWithSeaport(SpentItem[] memory offer) internal {
-        for (uint256 i = 0; i < offer.length; i++) {
-            _enableAssetWithSeaport(offer[i]);
+    function _setOfferApprovalsWithSeaport(Starport.Loan memory loan) internal {
+        _beforeApprovalsSetHook(loan);
+        for (uint256 i = 0; i < loan.collateral.length; i++) {
+            _enableAssetWithSeaport(loan.collateral[i]);
         }
     }
 
@@ -450,14 +445,9 @@ contract Custodian is ERC721, ContractOffererInterface {
     /**
      * @dev hook to call before the approvals are set
      *
-     * @param fulfiller         The address executing seaport
-     * @param maximumSpent      The maximumSpent asses we've received with the order
-     * @param context           The abi encoded context we've received with the order
+     * @param loan              The loan being settled
      */
-    function _beforeApprovalsSetHook(address fulfiller, SpentItem[] calldata maximumSpent, bytes calldata context)
-        internal
-        virtual
-    {}
+    function _beforeApprovalsSetHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call before the loan get settlement call

@@ -7,7 +7,7 @@ import "forge-std/Test.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
 contract MockCustodian is Custodian {
-    constructor(Starport SP_, ConsiderationInterface seaport_) Custodian(SP_, seaport_) {}
+    constructor(Starport SP_, address seaport_) Custodian(SP_, seaport_) {}
 
     function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {
         selector = Custodian.custody.selector;
@@ -198,7 +198,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     }
 
     function testCustodySelector() public {
-        MockCustodian custodianMock = new MockCustodian(SP, seaport);
+        MockCustodian custodianMock = new MockCustodian(SP, address(seaport));
         vm.prank(address(custodianMock.SP()));
         assert(custodianMock.custody(activeLoan) == Custodian.custody.selector);
     }
@@ -589,10 +589,29 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         );
     }
 
+    function testInvalidEncodedData() public {
+        vm.prank(seaportAddr);
+
+        vm.expectRevert();
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(""));
+
+        vm.expectRevert();
+        custodian.previewOrder(seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(""));
+    }
+
     function testInvalidAction() public {
         vm.prank(seaportAddr);
 
         mockStatusCall(activeLoan.terms.status, true);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
+        custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan));
+
+        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
+        custodian.previewOrder(
+            seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan)
+        );
+        vm.prank(seaportAddr);
+        mockStatusCall(activeLoan.terms.status, false);
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidAction.selector));
         custodian.generateOrder(alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan));
 
