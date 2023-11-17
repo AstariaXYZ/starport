@@ -47,7 +47,7 @@ contract SimpleInterestPricing is BasePricing {
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external view override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
-        return Validation.validate.selector;
+        return (details.decimals > 0) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 
     // @inheritdoc Pricing
