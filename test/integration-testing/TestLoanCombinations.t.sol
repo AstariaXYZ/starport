@@ -10,7 +10,6 @@ import "forge-std/console.sol";
 
 contract TestLoanCombinations is StarportTest {
     using {StarportLib.getId} for Starport.Loan;
-    // TODO test liquidations
 
     function testLoan721for20SimpleInterestDutchFixedRepay() public {
         Starport.Terms memory terms = Starport.Terms({
@@ -73,11 +72,7 @@ contract TestLoanCombinations is StarportTest {
         Starport.Loan memory loan = _createLoan20Collateral721Debt({lender: lender.addr, terms: terms});
         skip(10 days);
 
-        _repayLoan({ // TODO different repay
-            borrower: borrower.addr,
-            amount: 375,
-            loan: loan
-        });
+        _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});
     }
 
     function testLoanAstariaSettlementRepay() public {

@@ -75,7 +75,7 @@ library StarportLib {
         address paymentRecipient,
         SpentItem[] memory carry,
         address carryRecipient
-    ) public pure returns (ReceivedItem[] memory consideration) {
+    ) internal pure returns (ReceivedItem[] memory consideration) {
         consideration = new ReceivedItem[](payment.length + carry.length);
 
         uint256 i = 0;
@@ -128,7 +128,7 @@ library StarportLib {
 
     function removeZeroAmountItems(ReceivedItem[] memory consideration)
         internal
-        view
+        pure
         returns (ReceivedItem[] memory newConsideration)
     {
         uint256 j = 0;
@@ -144,7 +144,7 @@ library StarportLib {
                 });
 
                 unchecked {
-                    j++;
+                    ++j;
                 }
             }
             unchecked {

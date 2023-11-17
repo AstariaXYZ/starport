@@ -23,8 +23,9 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
-abstract contract Settlement {
+abstract contract Settlement is Validation {
     Starport public immutable SP;
 
     constructor(Starport SP_) {
@@ -44,13 +45,6 @@ abstract contract Settlement {
     * @param fulfiller The address of the fulfiller
     */
     function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
-
-    /*
-    * @dev helper to validate the details of a loan are valid for this settlement
-    * @param loan      The loan in question
-    * @return bool     Whether the loan is valid for this settlement
-    */
-    function validate(Starport.Loan calldata loan) external view virtual returns (bool);
 
     /*
     * @dev helper to get the consideration for a loan

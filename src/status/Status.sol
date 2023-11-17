@@ -21,8 +21,9 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
-abstract contract Status {
+abstract contract Status is Validation {
     /*
     * @dev Returns true if the loan is still active, false otherwise.
     * @param loan The loan to check.
