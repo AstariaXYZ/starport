@@ -137,9 +137,6 @@ contract StarportTest is BaseOrderTest {
     Account refinancer;
     Account fulfiller;
 
-    bytes32 conduitKey;
-    address lenderConduit;
-    address refinancerConduit;
     address seaportAddr;
     Starport SP;
     Custodian custodian;
@@ -149,8 +146,6 @@ contract StarportTest is BaseOrderTest {
     BorrowerEnforcerBNPL borrowerEnforcerBNPL;
 
     LenderEnforcer lenderEnforcer;
-
-    bytes32 conduitKeyRefinancer;
 
     function _deployAndConfigureConsideration() public {
         conduitController = new ConduitController();
@@ -219,28 +214,6 @@ contract StarportTest is BaseOrderTest {
         vm.label(address(borrowerEnforcer), "BorrowerEnforcer");
         vm.label(address(borrowerEnforcerBNPL), "BorrowerEnforcerBNPL");
         vm.label(address(lenderEnforcer), "LenderEnforcer");
-
-        conduitKeyOne = bytes32(uint256(uint160(address(lender.addr))) << 96);
-        conduitKeyRefinancer = bytes32(uint256(uint160(address(refinancer.addr))) << 96);
-
-        vm.startPrank(lender.addr);
-        lenderConduit = conduitController.createConduit(conduitKeyOne, lender.addr);
-
-        conduitController.updateChannel(lenderConduit, address(SO), true);
-        erc20s[0].approve(address(lenderConduit), 100_000);
-        erc1155s[1].setApprovalForAll(lenderConduit, true);
-        erc721s[2].setApprovalForAll(lenderConduit, true);
-        vm.stopPrank();
-        vm.prank(address(issuer));
-        erc20s[0].approve(address(lenderConduit), 100_000);
-        vm.startPrank(refinancer.addr);
-        refinancerConduit = conduitController.createConduit(conduitKeyRefinancer, refinancer.addr);
-        // console.log("Refinancer", refinancer.addr);
-        conduitController.updateChannel(refinancerConduit, address(SP), true);
-        erc20s[0].approve(address(refinancerConduit), 100_000);
-        vm.stopPrank();
-
-        /////////
 
         fixedTermStatus = new FixedTermStatus();
 
@@ -745,7 +718,6 @@ contract StarportTest is BaseOrderTest {
         assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
     }
 
-    // TODO update or overload to take interest rate
     function _createLoan20Collateral20Debt(
         address lender,
         uint256 collateralAmount,
@@ -769,7 +741,6 @@ contract StarportTest is BaseOrderTest {
         assertEq(initial20Balance0 + borrowAmount, erc20s[0].balanceOf(borrower.addr), "Borrower did not receive ERC20");
     }
 
-    // TODO fix
     function _createLoan20Collateral721Debt(address lender, Starport.Terms memory terms)
         internal
         returns (Starport.Loan memory loan)
@@ -820,53 +791,5 @@ contract StarportTest is BaseOrderTest {
 
     function _getERC1155SpentItem(TestERC1155 token) internal pure returns (SpentItem memory) {
         return SpentItem({itemType: ItemType.ERC1155, token: address(token), amount: 1, identifier: 1});
-    }
-
-    function _getERC721Consideration(TestERC721 token) internal view returns (ConsiderationItem memory) {
-        return ConsiderationItem({
-            token: address(token),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 1,
-            itemType: ItemType.ERC721,
-            recipient: payable(address(custodian))
-        });
-    }
-
-    function _getERC721Consideration(TestERC721 token, uint256 tokenId)
-        internal
-        view
-        returns (ConsiderationItem memory)
-    {
-        return ConsiderationItem({
-            token: address(token),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: tokenId,
-            itemType: ItemType.ERC721,
-            recipient: payable(address(custodian))
-        });
-    }
-
-    function _getERC1155Consideration(TestERC1155 token) internal view returns (ConsiderationItem memory) {
-        return ConsiderationItem({
-            token: address(token),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 1,
-            itemType: ItemType.ERC1155,
-            recipient: payable(address(custodian))
-        });
-    }
-
-    function _getERC20Consideration(TestERC20 token) internal view returns (ConsiderationItem memory) {
-        return ConsiderationItem({
-            token: address(token),
-            startAmount: 1,
-            endAmount: 1,
-            identifierOrCriteria: 0,
-            itemType: ItemType.ERC20,
-            recipient: payable(address(custodian))
-        });
     }
 }

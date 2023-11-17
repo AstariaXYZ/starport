@@ -28,8 +28,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     function setUp() public virtual override {
         super.setUp();
 
-        erc20s[0].approve(address(lenderConduit), 100_000);
-
         Starport.Loan memory loan = newLoanWithDefaultTerms(false);
         Custodian(custodian).mint(loan);
 
@@ -177,16 +175,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
         custodian.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
     }
-
-    // no longer applicable since we do not enter through Seaport
-    // function testSafeTransfer1155Receive() public {
-    //     erc1155s[0].mint(address(this), 1, 2);
-
-    //     vm.expectRevert(abi.encodeWithSelector(Custodian.NotEnteredViaSeaport.selector));
-    //     erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
-    //     vm.store(address(seaport), bytes32(uint256(0)), bytes32(uint256(2)));
-    //     erc1155s[0].safeTransferFrom(address(this), address(custodian), 1, 1, new bytes(0));
-    // }
 
     //TODO: make this test meaningful
     function testSeaportMetadata() public view {

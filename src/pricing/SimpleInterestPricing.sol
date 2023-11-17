@@ -56,7 +56,6 @@ contract SimpleInterestPricing is BasePricing {
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
         Details memory newDetails = abi.decode(newPricingData, (Details));
 
-        //todo: figure out the proper flow for here
         if ((newDetails.rate < oldDetails.rate)) {
             (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
             additionalConsideration = new AdditionalTransfer[](0);
