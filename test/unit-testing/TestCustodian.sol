@@ -116,9 +116,10 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     function testMintWithApprovalSetAsBorrower() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.collateral[0].identifier = uint256(3);
+
+        newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
         loan.start = block.timestamp;
         loan.originator = borrower.addr;
-        newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
         //        vm.expectEmit();
         //        emit Transfer(address(0), borrower.addr, loan.getId());
         //        vm.expectEmit(address(custodian));

@@ -36,7 +36,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
         Details memory details
     ) internal pure {
         details.loan.issuer = loan.issuer;
-
+        details.loan.originator = address(0);
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) revert InvalidLoanTerms();
 
         //Should additional transfers from the accounts other than the borrower be allowed?
