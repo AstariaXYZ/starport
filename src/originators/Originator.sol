@@ -4,8 +4,8 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol"
-;
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 abstract contract Originator {

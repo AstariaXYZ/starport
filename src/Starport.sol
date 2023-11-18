@@ -123,7 +123,7 @@ contract Starport is PausableNonReentrant {
         emit ApprovalSet(msg.sender, who, uint8(approvalType));
     }
 
-    /** 
+    /**
      * @dev The loan origination method, new loan data is passed in and validated before being issued
      * @param additionalTransfers Additional transfers to be made after the loan is issued
      * @param borrowerCaveat The borrower caveat to be validated

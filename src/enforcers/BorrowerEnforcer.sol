@@ -17,7 +17,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
     struct Details {
         Starport.Loan loan;
     }
-    
+
     /**
      * @dev Enforces that the loan terms are identical except for the issuer
      * The issuer is allowed to be any address
