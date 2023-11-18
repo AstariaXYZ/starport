@@ -1,33 +1,16 @@
 // SPDX-License-Identifier: BUSL-1.1
-/**
- *                                                                                                                           ,--,
- *                                                                                                                        ,---.'|
- *      ,----..    ,---,                                                                            ,-.                   |   | :
- *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
- *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
- *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
- *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
- *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
- *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
- *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
- *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
- *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
- *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
- *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
- *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
- *
- * Chainworks Labs
- */
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Starport} from "starport-core/Starport.sol";
+import {ReceivedItem, BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
+import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+
+import {SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract SimpleInterestPricing is BasePricing {
     using FixedPointMathLib for uint256;

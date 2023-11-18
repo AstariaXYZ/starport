@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {
@@ -46,8 +49,8 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
 
     /*
     * @dev get the start of the auction
-    * @param loan      The loan in question
-    * @return uint256  The start of the auction
+    * @param loan The loan in question
+    * @return uint256 The start of the auction
     */
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
 

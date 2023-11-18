@@ -1,38 +1,20 @@
 // SPDX-License-Identifier: BUSL-1.1
-/**
- *                                                                                                                           ,--,
- *                                                                                                                        ,---.'|
- *      ,----..    ,---,                                                                            ,-.                   |   | :
- *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
- *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
- *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
- *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
- *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
- *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
- *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
- *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
- *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
- *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
- *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
- *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
- *
- * Chainworks Labs
- */
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {ERC721} from "solady/src/tokens/ERC721.sol";
-import {ERC20} from "solady/src/tokens/ERC20.sol";
-import {ERC1155} from "solady/src/tokens/ERC1155.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {Status} from "starport-core/status/Status.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
-import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-
+import {ItemType, Schema, SpentItem, ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ERC20} from "solady/src/tokens/ERC20.sol";
+import {ERC721} from "solady/src/tokens/ERC721.sol";
+import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Status} from "./status/Status.sol";
-import {Settlement} from "./settlement/Settlement.sol";
-import {Pricing} from "./pricing/Pricing.sol";
-import {Starport} from "./Starport.sol";
-import {StarportLib, Actions} from "./lib/StarportLib.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
@@ -45,13 +27,13 @@ contract Custodian is ERC721, ContractOffererInterface {
     error ImplementInChild();
     error InvalidAction();
     error InvalidFulfiller();
-    error InvalidPostSettlement();
-    error InvalidPostRepayment();
     error InvalidLoan();
+    error InvalidPostRepayment();
+    error InvalidPostSettlement();
     error InvalidRepayer();
     error NotAuthorized();
-    error NotSeaport();
     error NotEnteredViaSeaport();
+    error NotSeaport();
     error NotStarport();
 
     constructor(Starport SP_, address seaport_) {
@@ -68,8 +50,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
-     * @param loan            Loan to get the borrower of
-     * @return address        The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
+     * @param loan Loan to get the borrower of
+     * @return address The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
      */
     function getBorrower(Starport.Loan memory loan) public view returns (address) {
         uint256 loanId = loan.getId();
@@ -78,8 +60,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev  erc721 tokenURI override
-     * @param loanId            The id of the custody token/loan
-     * @return                  the string uri of the custody token/loan
+     * @param loanId The id of the custody token/loan
+     * @return string URI of the custody token/loan
      */
     function tokenURI(uint256 loanId) public view override returns (string memory) {
         if (!_exists(loanId)) {
@@ -90,9 +72,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev Helper to determine if an interface is supported by this contract
-     *
-     * @param interfaceId       The interface to check
-     * @return bool return true if the interface is supported
+     * @param interfaceId The interface to check
+     * @return bool Returns true if the interface is supported
      */
     function supportsInterface(bytes4 interfaceId)
         public
@@ -106,8 +87,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev The name of the ERC721 contract
-     *
-     * @return string           The name of the contract
+     * @return string The name of the contract
      */
     function name() public pure override returns (string memory) {
         return "Starport Custodian";
@@ -115,14 +95,14 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev The symbol of the ERC721 contract
-     *
-     * @return string           The symbol of the contract
+     * @return string The symbol of the contract
      */
     function symbol() public pure override returns (string memory) {
         return "SC";
     }
 
-    //MODIFIERS
+    // MODIFIERS
+
     /**
      * @dev only allows Starport to execute the function
      */
@@ -143,11 +123,11 @@ contract Custodian is ERC721, ContractOffererInterface {
         _;
     }
 
-    //EXTERNAL FUNCTIONS
+    // EXTERNAL FUNCTIONS
+
     /**
      * @dev Mints a custody token for a loan.
-     *
-     * @param loan             The loan to mint a custody token for
+     * @param loan The loan to mint a custody token for
      */
     function mint(Starport.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
@@ -158,13 +138,12 @@ contract Custodian is ERC721, ContractOffererInterface {
 
         _safeMint(loan.borrower, loanId, encodedLoan);
     }
+
     /**
      * @dev Mints a custody token for a loan.
-     *
-     * @param loan             The loan to mint a custody token for
-     * @param approvedTo       The address with pre approvals set
+     * @param loan The loan to mint a custody token for
+     * @param approvedTo The address with pre approvals set
      */
-
     function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
@@ -179,14 +158,13 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev Generates the order for this contract offerer.
-     *
-     * @param offer            The address of the contract fulfiller.
-     * @param consideration    The maximum amount of items to be spent by the order.
-     * @param context          The context of the order.
-     * @param orderHashes      The context of the order.
-     * @param contractNonce    The context of the order.
-     * @return ratifyOrderMagicValue The magic value returned by the ratify.
+     * @dev Generates the order for this contract offerer
+     * @param offer The address of the contract fulfiller
+     * @param consideration The maximum amount of items to be spent by the order
+     * @param context The context of the order
+     * @param orderHashes The context of the order
+     * @param contractNonce The context of the order
+     * @return ratifyOrderMagicValue The magic value returned by the ratify
      */
     function ratifyOrder(
         SpentItem[] calldata offer,
@@ -199,13 +177,12 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev Generates the order for this contract offerer.
-     *
-     * @param fulfiller        The address of the contract fulfiller.
-     * @param maximumSpent     The maximum amount of items to be spent by the order.
-     * @param context          The context of the order.
-     * @return offer           The items spent by the order.
-     * @return consideration   The items received by the order.
+     * @dev Generates the order for this contract offerer
+     * @param fulfiller The address of the contract fulfiller
+     * @param maximumSpent The maximum amount of items to be spent by the order
+     * @param context The context of the order
+     * @return offer The items spent by the order
+     * @return consideration The items received by the order
      */
     function generateOrder(
         address fulfiller,
@@ -255,24 +232,22 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev If any additional state updates are needed when taking custody of a loan
-     *
-     * @param loan             The loan that was just placed into custody
-     * @return selector        The function selector of the custody method
+     * @param loan The loan that was just placed into custody
+     * @return selector The function selector of the custody method
      */
     function custody(Starport.Loan memory loan) external virtual onlyStarport returns (bytes4 selector) {
         revert ImplementInChild();
     }
 
     /**
-     * @dev returns metadata on how to interact with the offerer contract
-     *
-     * @return string  the name of the contract
-     * @return schemas  an array of supported schemas
+     * @dev Returns metadata on how to interact with the offerer contract
+     * @return string The name of the contract
+     * @return schemas An array of supported schemas
      */
     function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas) {
-        //adhere to sip data, how to encode the context and what it is
-        //TODO: add in the context for the loan
-        //you need to parse SP Open events for the loan and abi encode it
+        // Adhere to SIP data, how to encode the context and what it is
+        // TODO: add in the context for the loan
+        // you need to parse SP Open events for the loan and ABI encode it
         schemas = new Schema[](1);
         schemas[0] = Schema(8, "");
         return ("Loans", schemas);
@@ -282,14 +257,13 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev previews the order for this contract offerer.
-     *
-     * @param caller        The address of the contract fulfiller.
-     * @param fulfiller        The address of the contract fulfiller.
-     * @param minimumReceived  The minimum the fulfiller must receive.
-     * @param maximumSpent     The most a fulfiller will spend
-     * @param context          The context of the order.
-     * @return offer     The items spent by the order.
-     * @return consideration  The items received by the order.
+     * @param caller The address of the contract fulfiller.
+     * @param fulfiller The address of the contract fulfiller.
+     * @param minimumReceived The minimum the fulfiller must receive.
+     * @param maximumSpent The most a fulfiller will spend
+     * @param context The context of the order.
+     * @return offer The items spent by the order.
+     * @return consideration The items received by the order.
      */
     function previewOrder(
         address caller,
@@ -330,7 +304,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev onERC1155Received handler
-     * if we are able to increment the counter in seaport that means we have not entered into seaport
+     * If we are able to increment the counter in seaport that means we have not entered into seaport
      * we dont add for 721 as they are able to ignore the on handler call as apart of the spec
      * revert with NotEnteredViaSeaport()
      */
@@ -338,11 +312,10 @@ contract Custodian is ERC721, ContractOffererInterface {
         return this.onERC1155Received.selector;
     }
 
-    //INTERNAL FUNCTIONS
+    // INTERNAL FUNCTIONS
 
     /**
-     * @dev enables the collateral deposited to be spent via seaport
-     *
+     * @dev Enables the collateral deposited to be spent via seaport
      * @param offer The item to make available to seaport
      */
     function _enableAssetWithSeaport(SpentItem memory offer) internal {
@@ -357,8 +330,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev set's approvals for the collateral deposited to be spent via seaport
-     *
+     * @dev Setsapprovals for the collateral deposited to be spent via seaport
      * @param loan The loan being settled
      */
     function _setOfferApprovalsWithSeaport(Starport.Loan memory loan) internal {
@@ -370,13 +342,12 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev transfers out the collateral to the handler address
-     *
-     * @param offer             The item to send out of the Custodian
-     * @param authorized           The address handling the asset further
+     * @param offer The item to send out of the Custodian
+     * @param authorized The address handling the asset further
      */
 
     function _transferCollateralAuthorized(SpentItem memory offer, address authorized) internal {
-        //approve consideration based on item type
+        // Approve consideration based on item type
         if (offer.itemType == ItemType.ERC721) {
             ERC721(offer.token).transferFrom(address(this), authorized, offer.identifier);
         } else if (offer.itemType == ItemType.ERC1155) {
@@ -388,9 +359,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev transfers out the collateral of SpentItem to the handler address
-     *
-     * @param offer             The SpentItem array to send out of the Custodian
-     * @param authorized           The address handling the asset further
+     * @param offer The SpentItem array to send out of the Custodian
+     * @param authorized The address handling the asset further
      */
     function _moveCollateralToAuthorized(SpentItem[] memory offer, address authorized) internal {
         for (uint256 i = 0; i < offer.length; i++) {
@@ -400,9 +370,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev settle the loan with the LoanManager
-     *
-     * @param loan              The the loan that is settled
-     * @param fulfiller      The address executing seaport
+     * @param loan The the loan that is settled
+     * @param fulfiller The address executing seaport
      */
     function _postSettlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         _beforeSettlementHandlerHook(loan);
@@ -414,9 +383,8 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev settle the loan with the LoanManager
-     *
-     * @param loan              The the loan that is settled
-     * @param fulfiller      The address executing seaport
+     * @param loan The the loan that is settled
+     * @param fulfiller The address executing seaport
      */
 
     function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
@@ -429,8 +397,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev settle the loan with the LoanManager
-     *
-     * @param loan              The the loan to settle
+     * @param loan The the loan to settle
      */
     function _settleLoan(Starport.Loan memory loan) internal virtual {
         _beforeSettleLoanHook(loan);
@@ -444,51 +411,43 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev hook to call before the approvals are set
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _beforeApprovalsSetHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call before the loan get settlement call
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _beforeGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the loan get settlement call
-     *
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _afterGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
     /**
      * @dev  hook to call before the the loan settlement handler execute call
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _beforeSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the the loan settlement handler execute call
      *
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call before the loan is settled with the LM
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 
     /**
      * @dev  hook to call after the loan is settled with the LM
-     *
-     * @param loan              The loan being settled
+     * @param loan The loan being settled
      */
     function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 }

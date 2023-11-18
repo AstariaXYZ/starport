@@ -1,37 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
-/**
- *                                                                                                                           ,--,
- *                                                                                                                        ,---.'|
- *      ,----..    ,---,                                                                            ,-.                   |   | :
- *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
- *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
- *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
- *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
- *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
- *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
- *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
- *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
- *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
- *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
- *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
- *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
- *
- * Chainworks Labs
- */
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-
-import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
-
+import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 contract StrategistOriginator is Ownable, Originator {
@@ -47,7 +29,7 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     struct Offer {
-        bytes32 salt; //can be bytes32(0) if so do not invalidate the hash
+        bytes32 salt; // If bytes32(0) do not invalidate the hash
         Starport.Terms terms;
         SpentItem[] collateral;
         SpentItem[] debt;
@@ -100,8 +82,8 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     /**
-     * @dev sets the strategist address
-     * @param newStrategist           The new strategist address
+     * @dev Sets the strategist address
+     * @param newStrategist The new strategist address
      */
     function setStrategist(address newStrategist) external onlyOwner {
         strategist = newStrategist;
@@ -109,8 +91,8 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     /**
-     * @dev returns data that is encodePacked for signing
-     * @param contextHash           The hash of the data being signed
+     * @dev Returns data that is encodePacked for signing
+     * @param contextHash The hash of the data being signed
      */
     function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory) {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
@@ -118,7 +100,7 @@ contract StrategistOriginator is Ownable, Originator {
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
     }
     /**
-     * @dev returns the strategist and fee
+     * @dev Returns the strategist and fee
      * @return strategist address and fee
      */
 
@@ -127,7 +109,7 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     /**
-     * @dev returns the nonce of the contract
+     * @dev Returns the nonce of the contract
      * @return _counter
      */
     function getCounter() public view virtual returns (uint256) {
@@ -146,7 +128,7 @@ contract StrategistOriginator is Ownable, Originator {
     }
 
     /**
-     * @dev returns the domain separator
+     * @dev Returns the domain separator
      * @return _DOMAIN_SEPARATOR
      */
     function domainSeparator() public view virtual returns (bytes32) {
@@ -156,7 +138,7 @@ contract StrategistOriginator is Ownable, Originator {
     /**
      * @dev Accepts a request with signed data that is decoded by the originator
      * communicates with Starport to originate a loan
-     * @param params          The request for the origination
+     * @param params The request for the origination
      */
     function originate(Request calldata params) external virtual override {
         Details memory details = abi.decode(params.details, (Details));
@@ -182,8 +164,7 @@ contract StrategistOriginator is Ownable, Originator {
             revert InvalidCollateral();
         }
 
-        //loop through collateral and check if the collateral is the same
-
+        // Loop through collateral and check if the collateral is the same
         for (uint256 i = 0; i < request.debt.length;) {
             if (
                 request.debt[i].itemType != details.offer.debt[i].itemType
@@ -212,7 +193,6 @@ contract StrategistOriginator is Ownable, Originator {
             revert InvalidDebtLength();
         }
         _validateAsk(request, details);
-
         if (details.offer.salt != bytes32(0)) {
             if (!usedHashes[contextHash]) {
                 usedHashes[contextHash] = true;

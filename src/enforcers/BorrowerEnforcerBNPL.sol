@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
+import {Starport} from "starport-core/Starport.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Starport} from "starport-core/Starport.sol";
+
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
 contract BorrowerEnforcerBNPL is CaveatEnforcer {

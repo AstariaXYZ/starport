@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 import {Ownable} from "solady/src/auth/Ownable.sol";
 
 abstract contract PausableNonReentrant is Ownable {

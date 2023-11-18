@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
+import {Starport} from "starport-core/Starport.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Starport} from "starport-core/Starport.sol";
+
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
 contract BorrowerEnforcer is CaveatEnforcer {
@@ -13,6 +17,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
     struct Details {
         Starport.Loan loan;
     }
+    
     /**
      * @dev Enforces that the loan terms are identical except for the issuer
      * The issuer is allowed to be any address
@@ -21,7 +26,6 @@ contract BorrowerEnforcer is CaveatEnforcer {
      * @param loan The loan terms
      * @param caveatData The borrowers encoded details
      */
-
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
@@ -39,7 +43,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
 
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) revert InvalidLoanTerms();
 
-        //Should additional transfers from the accounts other than the borrower be allowed?
+        // Should additional transfers from the accounts other than the borrower be allowed?
         if (additionalTransfers.length > 0) revert InvalidAdditionalTransfer();
     }
 }

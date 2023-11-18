@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";

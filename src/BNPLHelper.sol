@@ -1,20 +1,23 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {
-    OfferItem,
-    SpentItem,
-    ConsiderationItem,
-    AdvancedOrder,
-    OrderParameters,
-    CriteriaResolver,
-    ItemType,
-    Fulfillment
-} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {Seaport} from "seaport/contracts/Seaport.sol";
-import {Starport} from "./Starport.sol";
-import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
+import {
+    AdvancedOrder,
+    ConsiderationItem,
+    CriteriaResolver,
+    Fulfillment,
+    ItemType,
+    OfferItem,
+    OrderParameters,
+    SpentItem
+} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 interface IVault {
     function flashLoan(
@@ -54,9 +57,9 @@ contract BNPLHelper is IFlashLoanRecipient {
         Fulfillment[] fulfillments;
     }
 
-    error SenderNotVault();
     error DoNotSendETH();
     error InvalidUserDataProvided();
+    error SenderNotVault();
 
     function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
         activeUserDataHash = keccak256(userData);
