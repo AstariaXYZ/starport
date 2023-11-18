@@ -5,13 +5,13 @@ import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 import "forge-std/console.sol";
 
 contract TestBorrowerEnforcer is StarportTest {
-    function testBERevertAdditionalTransfers() external {
+    function testBERevertAdditionalTransfersFromBorrower() external {
         AdditionalTransfer[] memory additionalTransfers = new AdditionalTransfer[](1);
         additionalTransfers[0] = AdditionalTransfer({
             token: address(0),
             amount: 0,
             to: address(0),
-            from: address(0),
+            from: borrower.addr,
             identifier: 0,
             itemType: ItemType.ERC20
         });
