@@ -382,7 +382,7 @@ contract TestNewLoan is StarportTest {
             SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 600 ether, identifier: 0})
         );
 
-        (ReceivedItem[] memory settlementConsideration, address restricted) =
+        (ReceivedItem[] memory settlementConsideration, address authorized) =
             Settlement(activeLoan.terms.settlement).getSettlementConsideration(activeLoan);
         settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](

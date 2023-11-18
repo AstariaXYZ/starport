@@ -74,29 +74,25 @@ interface IWETH9 {
 }
 
 contract MockIssuer is TokenReceiverInterface {
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-        external
-        override
-        returns (bytes4)
-    {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
-    function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data)
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
         external
+        pure
         override
         returns (bytes4)
     {
         return this.onERC1155Received.selector;
     }
 
-    function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external override returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        override
+        returns (bytes4)
+    {
         return this.onERC1155BatchReceived.selector;
     }
 }
@@ -222,17 +218,10 @@ contract StarportTest is BaseOrderTest {
         simpleInterestPricing = new SimpleInterestPricing(SP);
     }
 
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-        public
-        pure
-        override
-        returns (bytes4)
-    {
+    function onERC721Received(address, address, uint256, bytes calldata) public pure override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 
-    // ConsiderationItem[] selectedCollateral;
-    // ConsiderationItem[] collateral20;
     SpentItem[] activeDebt;
 
     function _setApprovalsForSpentItems(address approver, SpentItem[] memory items) internal {
@@ -254,7 +243,7 @@ contract StarportTest is BaseOrderTest {
         vm.stopPrank();
     }
 
-    function _emptyCaveat() internal returns (CaveatEnforcer.SignedCaveats memory) {
+    function _emptyCaveat() internal pure returns (CaveatEnforcer.SignedCaveats memory) {
         return CaveatEnforcer.SignedCaveats({
             signature: "",
             singleUse: true,
@@ -483,14 +472,6 @@ contract StarportTest is BaseOrderTest {
         });
     }
 
-    // function newLoan(
-    //     Starport.Loan memory loan,
-    //     bytes32 borrowerSalt,
-    //     bytes32 lenderSalt
-    // ) internal returns (Starport.Loan memory originatedLoan) {
-    //     newLoanSpecifySigner(loan, borrowerSalt, borrower, lenderSalt, lender);
-    // }
-
     function refinanceLoan(
         Starport.Loan memory loan,
         bytes memory newPricingData,
@@ -503,6 +484,7 @@ contract StarportTest is BaseOrderTest {
 
     function getRefinanceCaveat(Starport.Loan memory loan, bytes memory pricingData, address fulfiller)
         public
+        view
         returns (Starport.Loan memory)
     {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
@@ -616,15 +598,13 @@ contract StarportTest is BaseOrderTest {
             extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
         });
 
-        //        vm.recordLogs();
-        vm.startPrank(borrower.addr);
+        vm.startPrank(fulfiller);
         consideration.fulfillAdvancedOrder({
             advancedOrder: x,
             criteriaResolvers: new CriteriaResolver[](0),
             fulfillerConduitKey: bytes32(0),
-            recipient: address(this)
+            recipient: address(fulfiller)
         });
-        //    Vm.Log[] memory logs = vm.getRecordedLogs();
     }
 
     function _repayLoan(Starport.Loan memory loan, address fulfiller) internal {
@@ -655,7 +635,7 @@ contract StarportTest is BaseOrderTest {
         assertEq(originatorBefore + carry, originatorAfter, "carry: Borrower repayment was not correct");
     }
 
-    function getOrderHash(address contractOfferer) public returns (bytes32) {
+    function getOrderHash(address contractOfferer) public view returns (bytes32) {
         uint256 counter = consideration.getContractOffererNonce(contractOfferer);
         return bytes32(counter ^ (uint256(uint160(contractOfferer)) << 96));
     }

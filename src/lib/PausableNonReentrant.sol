@@ -18,7 +18,7 @@ abstract contract PausableNonReentrant is Ownable {
     * @dev modifier to ensure that the contract is not paused or locked
     */
     modifier pausableNonReentrant() {
-        assembly {
+        assembly ("memory-safe") {
             //If locked or paused, handle revert cases
             if gt(sload(_state.slot), _UNLOCKED) {
                 if gt(sload(_state.slot), _LOCKED) {
@@ -33,7 +33,7 @@ abstract contract PausableNonReentrant is Ownable {
             sstore(_state.slot, _LOCKED)
         }
         _;
-        assembly {
+        assembly ("memory-safe") {
             sstore(_state.slot, _UNLOCKED)
         }
     }
@@ -42,7 +42,7 @@ abstract contract PausableNonReentrant is Ownable {
     * @dev Pause the contract if not paused or locked
     */
     function pause() external onlyOwner {
-        assembly {
+        assembly ("memory-safe") {
             //If locked, prevent owner from overriding state
             if eq(sload(_state.slot), _LOCKED) {
                 //Revert IsLocked
@@ -58,7 +58,7 @@ abstract contract PausableNonReentrant is Ownable {
     * @dev unpause the contract if not paused or locked
     */
     function unpause() external onlyOwner {
-        assembly {
+        assembly ("memory-safe") {
             //If not paused, prevent owner from overriding state
             if lt(sload(_state.slot), _PAUSED) {
                 //Revert NotPaused
