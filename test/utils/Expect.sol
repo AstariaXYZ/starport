@@ -7,7 +7,7 @@ abstract contract Expect is Test {
     function _expectRevert(SpentItem[] calldata items) internal {
         bool expectRevert;
         ItemType max = type(ItemType).max;
-        assembly {
+        assembly ("memory-safe") {
             let e := add(items.offset, mul(items.length, 0x80))
 
             for { let i := items.offset } lt(i, e) { i := add(i, 0x80) } {

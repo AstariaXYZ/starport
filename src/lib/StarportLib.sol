@@ -51,7 +51,7 @@ library StarportLib {
         address borrower,
         bytes32 salt
     ) internal {
-        assembly {
+        assembly ("memory-safe") {
             mstore(0x0, borrower)
             mstore(0x20, usedSalts.slot)
 
@@ -86,11 +86,12 @@ library StarportLib {
         uint256 j = 0;
         for (; i < payment.length;) {
             if (payment[i].amount > 0) {
+                SpentItem memory paymentItem = payment[i];
                 consideration[j] = ReceivedItem({
-                    itemType: payment[i].itemType,
-                    identifier: payment[i].identifier,
-                    amount: payment[i].amount,
-                    token: payment[i].token,
+                    itemType: paymentItem.itemType,
+                    identifier: paymentItem.identifier,
+                    amount: paymentItem.amount,
+                    token: paymentItem.token,
                     recipient: payable(paymentRecipient)
                 });
 
@@ -107,11 +108,12 @@ library StarportLib {
             i = 0;
             for (; i < carry.length;) {
                 if (carry[i].amount > 0) {
+                    SpentItem memory carryItem = carry[i];
                     consideration[j] = ReceivedItem({
-                        itemType: carry[i].itemType,
-                        identifier: carry[i].identifier,
-                        amount: carry[i].amount,
-                        token: carry[i].token,
+                        itemType: carryItem.itemType,
+                        identifier: carryItem.identifier,
+                        amount: carryItem.amount,
+                        token: carryItem.token,
                         recipient: payable(carryRecipient)
                     });
 
@@ -125,7 +127,7 @@ library StarportLib {
             }
         }
 
-        assembly {
+        assembly ("memory-safe") {
             mstore(consideration, j)
         }
     }
@@ -139,12 +141,13 @@ library StarportLib {
         newConsideration = new ReceivedItem[](consideration.length);
         for (uint256 i = 0; i < consideration.length;) {
             if (consideration[i].amount > 0) {
+                ReceivedItem memory considerationItem = consideration[i];
                 newConsideration[j] = ReceivedItem({
-                    itemType: consideration[i].itemType,
-                    identifier: consideration[i].identifier,
-                    amount: consideration[i].amount,
-                    token: consideration[i].token,
-                    recipient: consideration[i].recipient
+                    itemType: considerationItem.itemType,
+                    identifier: considerationItem.identifier,
+                    amount: considerationItem.amount,
+                    token: considerationItem.token,
+                    recipient: considerationItem.recipient
                 });
 
                 unchecked {
@@ -155,7 +158,7 @@ library StarportLib {
                 ++i;
             }
         }
-        assembly {
+        assembly ("memory-safe") {
             mstore(newConsideration, j)
         }
     }
@@ -163,24 +166,23 @@ library StarportLib {
     function transferAdditionalTransfersCalldata(AdditionalTransfer[] calldata transfers) internal {
         uint256 i = 0;
         for (; i < transfers.length;) {
-            if (transfers[i].token.code.length == 0) {
+            AdditionalTransfer calldata transfer = transfers[i];
+            if (transfer.token.code.length == 0) {
                 revert InvalidItemTokenNoCode();
             }
-            if (transfers[i].itemType == ItemType.ERC20) {
+            if (transfer.itemType == ItemType.ERC20) {
                 // erc20 transfer
-                if (transfers[i].amount > 0) {
-                    SafeTransferLib.safeTransferFrom(
-                        transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount
-                    );
+                if (transfer.amount > 0) {
+                    SafeTransferLib.safeTransferFrom(transfer.token, transfer.from, transfer.to, transfer.amount);
                 }
-            } else if (transfers[i].itemType == ItemType.ERC721) {
+            } else if (transfer.itemType == ItemType.ERC721) {
                 // erc721 transfer
-                ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
+                ERC721(transfer.token).transferFrom(transfer.from, transfer.to, transfer.identifier);
             } else if (transfers[i].itemType == ItemType.ERC1155) {
                 // erc1155 transfer
-                if (transfers[i].amount > 0) {
-                    ERC1155(transfers[i].token).safeTransferFrom(
-                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                if (transfer.amount > 0) {
+                    ERC1155(transfer.token).safeTransferFrom(
+                        transfer.from, transfer.to, transfer.identifier, transfer.amount, new bytes(0)
                     );
                 }
             } else {
@@ -195,24 +197,23 @@ library StarportLib {
     function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
         for (; i < transfers.length;) {
-            if (transfers[i].token.code.length == 0) {
+            AdditionalTransfer memory transfer = transfers[i];
+            if (transfer.token.code.length == 0) {
                 revert InvalidItemTokenNoCode();
             }
-            if (transfers[i].itemType == ItemType.ERC20) {
+            if (transfer.itemType == ItemType.ERC20) {
                 // erc20 transfer
-                if (transfers[i].amount > 0) {
-                    SafeTransferLib.safeTransferFrom(
-                        transfers[i].token, transfers[i].from, transfers[i].to, transfers[i].amount
-                    );
+                if (transfer.amount > 0) {
+                    SafeTransferLib.safeTransferFrom(transfer.token, transfer.from, transfer.to, transfer.amount);
                 }
-            } else if (transfers[i].itemType == ItemType.ERC721) {
+            } else if (transfer.itemType == ItemType.ERC721) {
                 // erc721 transfer
-                ERC721(transfers[i].token).transferFrom(transfers[i].from, transfers[i].to, transfers[i].identifier);
-            } else if (transfers[i].itemType == ItemType.ERC1155) {
+                ERC721(transfer.token).transferFrom(transfer.from, transfer.to, transfer.identifier);
+            } else if (transfer.itemType == ItemType.ERC1155) {
                 // erc1155 transfer
-                if (transfers[i].amount > 0) {
-                    ERC1155(transfers[i].token).safeTransferFrom(
-                        transfers[i].from, transfers[i].to, transfers[i].identifier, transfers[i].amount, new bytes(0)
+                if (transfer.amount > 0) {
+                    ERC1155(transfer.token).safeTransferFrom(
+                        transfer.from, transfer.to, transfer.identifier, transfer.amount, new bytes(0)
                     );
                 }
             } else {
@@ -274,15 +275,8 @@ library StarportLib {
         if (transfers.length > 0) {
             uint256 i = 0;
             for (; i < transfers.length;) {
-                _transferItem(
-                    transfers[i].itemType,
-                    transfers[i].token,
-                    transfers[i].identifier,
-                    transfers[i].amount,
-                    from,
-                    to,
-                    safe
-                );
+                SpentItem memory transfer = transfers[i];
+                _transferItem(transfer.itemType, transfer.token, transfer.identifier, transfer.amount, from, to, safe);
                 unchecked {
                     ++i;
                 }

@@ -7,25 +7,25 @@ import {Starport} from "starport-core/Starport.sol";
 
 library Cast {
     function toUint(uint8 input) internal pure returns (uint256 ret) {
-        assembly {
+        assembly ("memory-safe") {
             ret := input
         }
     }
 
     function toUint(address input) internal pure returns (uint256 ret) {
-        assembly {
+        assembly ("memory-safe") {
             ret := input
         }
     }
 
     function toItemType(uint256 input) internal pure returns (ItemType ret) {
-        assembly {
+        assembly ("memory-safe") {
             ret := input
         }
     }
 
     function toStorage(ConsiderationItem[] memory a, ConsiderationItem[] storage b) internal {
-        assembly {
+        assembly ("memory-safe") {
             sstore(b.slot, mload(a))
         }
         for (uint256 i; i < a.length; i++) {
@@ -34,7 +34,7 @@ library Cast {
     }
 
     function toStorage(SpentItem[] memory a, SpentItem[] storage b) internal {
-        assembly {
+        assembly ("memory-safe") {
             sstore(b.slot, mload(a))
         }
 

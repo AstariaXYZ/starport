@@ -60,7 +60,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         view
         virtual
         override
-        returns (ReceivedItem[] memory consideration, address restricted)
+        returns (ReceivedItem[] memory consideration, address authorized)
     {
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
 

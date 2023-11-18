@@ -39,7 +39,7 @@ abstract contract Settlement is Validation {
         public
         view
         virtual
-        returns (ReceivedItem[] memory consideration, address restricted);
+        returns (ReceivedItem[] memory consideration, address authorized);
 
     /*
     * @dev standard erc1155 received hook
