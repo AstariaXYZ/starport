@@ -39,7 +39,14 @@ contract BorrowerEnforcer is CaveatEnforcer {
         details.loan.originator = loan.originator;
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) revert InvalidLoanTerms();
 
-        //Should additional transfers from the accounts other than the borrower be allowed?
-        if (additionalTransfers.length > 0) revert InvalidAdditionalTransfer();
+        if (additionalTransfers.length > 0) {
+            uint256 i = 0;
+            for (; i < additionalTransfers.length;) {
+                if (additionalTransfers[i].from == loan.borrower) revert InvalidAdditionalTransfer();
+                unchecked {
+                    ++i;
+                }
+            }
+        }
     }
 }

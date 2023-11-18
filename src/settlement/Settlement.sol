@@ -48,15 +48,15 @@ abstract contract Settlement is Validation {
 
     /*
     * @dev helper to get the consideration for a loan
-    * @param loan      The loan in question
-    * @return consideration      The settlement consideration for the loan
-    * @return address            The address of the authorized party (if any)
+    * @param loan           The loan in question
+    * @return consideration The settlement consideration for the loan
+    * @return authorized    The address of the authorized party (if any)
     */
     function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         virtual
-        returns (ReceivedItem[] memory consideration, address restricted);
+        returns (ReceivedItem[] memory consideration, address authorized);
 
     /*
     * @dev standard erc1155 received hook

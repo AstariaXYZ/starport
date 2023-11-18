@@ -105,13 +105,13 @@ abstract contract Bound is StdUtils {
     }
 
     function _toUint(address value) internal view returns (uint256 output) {
-        assembly {
+        assembly ("memory-safe") {
             output := value
         }
     }
 
     function _toAddress(uint256 value) internal view returns (address output) {
-        assembly {
+        assembly ("memory-safe") {
             output := value
         }
     }

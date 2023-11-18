@@ -118,7 +118,7 @@ contract Starport is PausableNonReentrant {
         address custodian = address(new Custodian(this, seaport_));
 
         bytes32 defaultCustodianCodeHash;
-        assembly {
+        assembly ("memory-safe") {
             defaultCustodianCodeHash := extcodehash(custodian)
         }
         defaultCustodian = payable(custodian);
@@ -289,7 +289,7 @@ contract Starport is PausableNonReentrant {
         address custodian = loan.custodian;
         // Comparing the retrieved code hash with a known hash
         bytes32 codeHash;
-        assembly {
+        assembly ("memory-safe") {
             codeHash := extcodehash(custodian)
         }
         if (
@@ -324,10 +324,8 @@ contract Starport is PausableNonReentrant {
     ) internal pure {
         uint256 i = 0;
         for (; i < additionalTransfers.length;) {
-            if (
-                additionalTransfers[i].from != borrower && additionalTransfers[i].from != lender
-                    && additionalTransfers[i].from != fulfiller
-            ) {
+            address from = additionalTransfers[i].from;
+            if (from != borrower && from != lender && from != fulfiller) {
                 revert UnauthorizedAdditionalTransferIncluded();
             }
             unchecked {
@@ -402,7 +400,7 @@ contract Starport is PausableNonReentrant {
     }
 
     function invalidateCaveatSalt(bytes32 salt) external {
-        invalidSalts[msg.sender][salt] = true;
+        invalidSalts.validateSalt(msg.sender, salt);
         emit CaveatSaltInvalidated(msg.sender, salt);
     }
 
@@ -502,33 +500,35 @@ contract Starport is PausableNonReentrant {
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
             uint256 amount;
-            if (debt[i].itemType == ItemType.ERC20) {
-                Fee memory feeOverride = feeOverrides[debt[i].token];
-                feeItems[i].identifier = 0;
-                amount = debt[i].amount.mulDiv(
-                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debt[i].token).decimals()
+            SpentItem memory debtItem = debt[i];
+            if (debtItem.itemType == ItemType.ERC20) {
+                Fee memory feeOverride = feeOverrides[debtItem.token];
+                SpentItem memory feeItem = feeItems[i];
+                feeItem.identifier = 0;
+                amount = debtItem.amount.mulDiv(
+                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debtItem.token).decimals()
                 );
 
                 if (amount > 0) {
-                    feeItems[i].amount = amount;
-                    feeItems[i].token = debt[i].token;
-                    feeItems[i].itemType = debt[i].itemType;
+                    feeItem.amount = amount;
+                    feeItem.token = debtItem.token;
+                    feeItem.itemType = debtItem.itemType;
 
                     ++totalFeeItems;
                 }
             }
             paymentToBorrower[i] = SpentItem({
-                token: debt[i].token,
-                itemType: debt[i].itemType,
-                identifier: debt[i].identifier,
-                amount: debt[i].amount - amount
+                token: debtItem.token,
+                itemType: debtItem.itemType,
+                identifier: debtItem.identifier,
+                amount: debtItem.amount - amount
             });
             unchecked {
                 ++i;
             }
         }
 
-        assembly {
+        assembly ("memory-safe") {
             mstore(feeItems, totalFeeItems)
         }
     }
