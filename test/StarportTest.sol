@@ -372,6 +372,7 @@ contract StarportTest is BaseOrderTest {
     ) internal returns (Starport.Loan memory) {
         (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat) =
             newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt, invalidateLender);
+        vm.roll(1);
         return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
     }
 
