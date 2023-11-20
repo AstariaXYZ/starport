@@ -1,5 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
 
 pragma solidity ^0.8.17;
 
@@ -20,17 +44,33 @@ import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 
 abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
-    constructor(Starport SP_) Settlement(SP_) {}
-
     using FixedPointMathLib for uint256;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     error InvalidAmount();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(Starport SP_) Settlement(SP_) {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Details {
         uint256 startingPrice;
         uint256 endingPrice;
         uint256 window;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      EXTERNAL FUNCTIONS                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Settlement
     function postSettlement(Starport.Loan calldata loan, address fulfiller)
@@ -47,11 +87,21 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         return Settlement.postRepayment.selector;
     }
 
-    /*
-    * @dev get the start of the auction
-    * @param loan The loan in question
-    * @return uint256 The start of the auction
-    */
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
+        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev Get the start of the auction
+     * @param loan The loan in question
+     * @return uint256 The start of the auction
+     */
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
 
     // @inheritdoc Settlement
@@ -108,11 +158,5 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
             token: loan.debt[0].token,
             recipient: payable(loan.issuer)
         });
-    }
-
-    // @inheritdoc Validation
-    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
-        Details memory details = abi.decode(loan.terms.settlementData, (Details));
-        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 }

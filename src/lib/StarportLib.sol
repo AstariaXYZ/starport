@@ -1,5 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
 
 pragma solidity ^0.8.17;
 
@@ -13,11 +37,19 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                          LIB ENUMS                         */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
 enum Actions {
     Nothing,
     Repayment,
     Settlement
 }
+
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                         LIB STRUCTS                        */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
 struct AdditionalTransfer {
     ItemType itemType;
@@ -32,15 +64,40 @@ library StarportLib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     error InvalidSalt();
     error InvalidItemAmount();
     error NativeAssetsNotSupported();
     error InvalidItemTokenNoCode();
-    error InvalidItemIdentifier(); //must be zero for ERC20's
+    error InvalidItemIdentifier(); // Must be zero for ERC20's
     error InvalidItemType();
     error InvalidTransferLength();
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function calculateSimpleInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        rate /= 365 days;
+        return ((delta_t * rate) * amount) / 10 ** decimals;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function getId(Starport.Loan memory loan) internal pure returns (uint256 loanId) {
         loanId = uint256(keccak256(abi.encode(loan)));
@@ -55,17 +112,16 @@ library StarportLib {
             mstore(0x0, borrower)
             mstore(0x20, usedSalts.slot)
 
-            //usedSalts[borrower]
-
+            // usedSalts[borrower]
             mstore(0x20, keccak256(0x0, 0x40))
             mstore(0x0, salt)
 
-            //usedSalts[borrower][salt]
+            // usedSalts[borrower][salt]
             let loc := keccak256(0x0, 0x40)
 
-            //if (usedSalts[borrower][salt] == true)
+            // if (usedSalts[borrower][salt] == true)
             if iszero(iszero(sload(loc))) {
-                //revert InvalidSalt()
+                // revert InvalidSalt()
                 mstore(0x0, _INVALID_SALT)
                 revert(0x0, 0x04)
             }
@@ -74,6 +130,14 @@ library StarportLib {
         }
     }
 
+    /**
+     * @dev Merges an array of SpentItems into ReceivedItems
+     * @param payment The SpentItem[] for payment
+     * @param paymentRecipient The recipient address of the payment
+     * @param carry The SpentItem[] for carry
+     * @param carryRecipient The recipient address of the carry
+     * @return consideration An array of ReceivedItems
+     */
     function mergeSpentItemsToReceivedItems(
         SpentItem[] memory payment,
         address paymentRecipient,
@@ -132,6 +196,11 @@ library StarportLib {
         }
     }
 
+    /**
+     * @dev Removes ReceivedItems with zero amounts
+     * @param consideration The ReceivedItem[] for payment
+     * @return newConsideration An array of ReceivedItems with zero amounts removed
+     */
     function removeZeroAmountItems(ReceivedItem[] memory consideration)
         internal
         pure
@@ -225,14 +294,24 @@ library StarportLib {
         }
     }
 
-    function calculateSimpleInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
-        public
-        pure
-        returns (uint256)
-    {
-        rate /= 365 days;
-        return ((delta_t * rate) * amount) / 10 ** decimals;
+    function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal {
+        if (transfers.length > 0) {
+            uint256 i = 0;
+            for (; i < transfers.length;) {
+                SpentItem memory transfer = transfers[i];
+                _transferItem(transfer.itemType, transfer.token, transfer.identifier, transfer.amount, from, to, safe);
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            revert InvalidTransferLength();
+        }
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*               PRIVATE INTERNAL FUNCTIONS                   */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function _transferItem(
         ItemType itemType,
@@ -268,21 +347,6 @@ library StarportLib {
             ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
         } else {
             revert InvalidItemType();
-        }
-    }
-
-    function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal {
-        if (transfers.length > 0) {
-            uint256 i = 0;
-            for (; i < transfers.length;) {
-                SpentItem memory transfer = transfers[i];
-                _transferItem(transfer.itemType, transfer.token, transfer.identifier, transfer.amount, from, to, safe);
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            revert InvalidTransferLength();
         }
     }
 }

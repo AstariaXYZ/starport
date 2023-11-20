@@ -1,5 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
 
 pragma solidity ^0.8.17;
 
@@ -19,10 +43,9 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
 
-    Starport public immutable SP;
-    address public immutable seaport;
-
-    event SeaportCompatibleContractDeployed();
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error ImplementInChild();
     error InvalidAction();
@@ -36,11 +59,22 @@ contract Custodian is ERC721, ContractOffererInterface {
     error NotSeaport();
     error NotStarport();
 
-    constructor(Starport SP_, address seaport_) {
-        seaport = seaport_;
-        SP = SP_;
-        emit SeaportCompatibleContractDeployed();
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           EVENTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    event SeaportCompatibleContractDeployed();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    Starport public immutable SP;
+    address public immutable seaport;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Command {
         Actions action;
@@ -48,18 +82,39 @@ contract Custodian is ERC721, ContractOffererInterface {
         bytes extraData;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(Starport SP_, address seaport_) {
+        seaport = seaport_;
+        SP = SP_;
+
+        emit SeaportCompatibleContractDeployed();
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     FUNCTION OVERRIDES                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     /**
-     * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
-     * @param loan Loan to get the borrower of
-     * @return address The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
+     * @dev The name of the ERC721 contract
+     * @return string The name of the contract
      */
-    function getBorrower(Starport.Loan memory loan) public view returns (address) {
-        uint256 loanId = loan.getId();
-        return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
+    function name() public pure override returns (string memory) {
+        return "Starport Custodian";
     }
 
     /**
-     * @dev  erc721 tokenURI override
+     * @dev The symbol of the ERC721 contract
+     * @return string The symbol of the contract
+     */
+    function symbol() public pure override returns (string memory) {
+        return "SC";
+    }
+
+    /**
+     * @dev ERC-721 tokenURI override
      * @param loanId The id of the custody token/loan
      * @return string URI of the custody token/loan
      */
@@ -86,44 +141,18 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev The name of the ERC721 contract
-     * @return string The name of the contract
+     * @dev onERC1155Received handler, if we are able to increment the counter
+     * in seaport that means we have not entered into seaport we dont add for
+     * ERC-721 as they are able to ignore the on handler call as apart of the spec
+     * revert with NotEnteredViaSeaport()
      */
-    function name() public pure override returns (string memory) {
-        return "Starport Custodian";
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public virtual returns (bytes4) {
+        return this.onERC1155Received.selector;
     }
 
-    /**
-     * @dev The symbol of the ERC721 contract
-     * @return string The symbol of the contract
-     */
-    function symbol() public pure override returns (string memory) {
-        return "SC";
-    }
-
-    // MODIFIERS
-
-    /**
-     * @dev only allows Starport to execute the function
-     */
-    modifier onlyStarport() {
-        if (msg.sender != address(SP)) {
-            revert NotStarport();
-        }
-        _;
-    }
-
-    /**
-     * @dev only allows seaport to execute the function
-     */
-    modifier onlySeaport() {
-        if (msg.sender != address(seaport)) {
-            revert NotSeaport();
-        }
-        _;
-    }
-
-    // EXTERNAL FUNCTIONS
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      EXTERNAL FUNCTIONS                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Mints a custody token for a loan.
@@ -135,7 +164,6 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (loan.custodian != address(this) || !SP.active(loanId)) {
             revert InvalidLoan();
         }
-
         _safeMint(loan.borrower, loanId, encodedLoan);
     }
 
@@ -253,10 +281,22 @@ contract Custodian is ERC721, ContractOffererInterface {
         return ("Loans", schemas);
     }
 
-    // PUBLIC FUNCTIONS
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev previews the order for this contract offerer.
+     * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
+     * @param loan Loan to get the borrower of
+     * @return address The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
+     */
+    function getBorrower(Starport.Loan memory loan) public view returns (address) {
+        uint256 loanId = loan.getId();
+        return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
+    }
+
+    /**
+     * @dev Previews the order for this contract offerer.
      * @param caller The address of the contract fulfiller.
      * @param fulfiller The address of the contract fulfiller.
      * @param minimumReceived The minimum the fulfiller must receive.
@@ -270,7 +310,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         address fulfiller,
         SpentItem[] calldata minimumReceived,
         SpentItem[] calldata maximumSpent,
-        bytes calldata context // encoded based on the schemaID
+        bytes calldata context // Encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Command memory close) = abi.decode(context, (Command));
         Starport.Loan memory loan = close.loan;
@@ -302,17 +342,9 @@ contract Custodian is ERC721, ContractOffererInterface {
         }
     }
 
-    /**
-     * @dev onERC1155Received handler
-     * If we are able to increment the counter in seaport that means we have not entered into seaport
-     * we dont add for 721 as they are able to ignore the on handler call as apart of the spec
-     * revert with NotEnteredViaSeaport()
-     */
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public virtual returns (bytes4) {
-        return this.onERC1155Received.selector;
-    }
-
-    // INTERNAL FUNCTIONS
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Enables the collateral deposited to be spent via seaport
@@ -330,7 +362,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev Setsapprovals for the collateral deposited to be spent via seaport
+     * @dev Sets approvals for the collateral deposited to be spent via seaport
      * @param loan The loan being settled
      */
     function _setOfferApprovalsWithSeaport(Starport.Loan memory loan) internal {
@@ -345,7 +377,6 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param offer The item to send out of the Custodian
      * @param authorized The address handling the asset further
      */
-
     function _transferCollateralAuthorized(SpentItem memory offer, address authorized) internal {
         // Approve consideration based on item type
         if (offer.itemType == ItemType.ERC721) {
@@ -386,7 +417,6 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param loan The the loan that is settled
      * @param fulfiller The address executing seaport
      */
-
     function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
         _beforeSettlementHandlerHook(loan);
         if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
@@ -409,6 +439,10 @@ contract Custodian is ERC721, ContractOffererInterface {
         _afterSettleLoanHook(loan);
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                            HOOKS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     /**
      * @dev hook to call before the approvals are set
      * @param loan The loan being settled
@@ -416,38 +450,61 @@ contract Custodian is ERC721, ContractOffererInterface {
     function _beforeApprovalsSetHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  hook to call before the loan get settlement call
+     * @dev  Hook to call before the loan get settlement call
      * @param loan The loan being settled
      */
     function _beforeGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  hook to call after the loan get settlement call
+     * @dev  Hook to call after the loan get settlement call
      * @param loan The loan being settled
      */
     function _afterGetSettlementConsideration(Starport.Loan memory loan) internal virtual {}
     /**
-     * @dev  hook to call before the the loan settlement handler execute call
+     * @dev  Hook to call before the the loan settlement handler execute call
      * @param loan The loan being settled
      */
     function _beforeSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  hook to call after the the loan settlement handler execute call
-     *
+     * @dev  Hook to call after the the loan settlement handler execute call
      * @param loan The loan being settled
      */
     function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  hook to call before the loan is settled with the LM
+     * @dev  Hook to call before the loan is settled with the LM
      * @param loan The loan being settled
      */
     function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  hook to call after the loan is settled with the LM
+     * @dev  Hook to call after the loan is settled with the LM
      * @param loan The loan being settled
      */
     function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          MODIFIERS                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev only allows Starport to execute the function
+     */
+    modifier onlyStarport() {
+        if (msg.sender != address(SP)) {
+            revert NotStarport();
+        }
+        _;
+    }
+
+    /**
+     * @dev only allows seaport to execute the function
+     */
+    modifier onlySeaport() {
+        if (msg.sender != address(seaport)) {
+            revert NotSeaport();
+        }
+        _;
+    }
 }

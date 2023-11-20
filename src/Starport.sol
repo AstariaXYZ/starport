@@ -1,5 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
 
 pragma solidity ^0.8.17;
 
@@ -21,14 +45,62 @@ contract Starport is PausableNonReentrant {
     using {StarportLib.getId} for Starport.Loan;
     using {StarportLib.validateSalt} for mapping(address => mapping(bytes32 => bool));
 
-    enum ApprovalType {
-        NOTHING,
-        BORROWER,
-        LENDER
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error AdditionalTransferError();
+    error CannotTransferLoans();
+    error CaveatDeadlineExpired();
+    error InvalidCaveatSigner();
+    error InvalidCustodian();
+    error InvalidLoan();
+    error InvalidPostRepayment();
+    error InvalidRefinance();
+    error LoanExists();
+    error MalformedRefinance();
+    error NotLoanCustodian();
+    error UnauthorizedAdditionalTransferIncluded();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           EVENTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    event ApprovalSet(address indexed owner, address indexed spender, uint8 approvalType);
+    event CaveatFilled(address owner, bytes32 hash, bytes32 salt);
+    event CaveatNonceIncremented(address owner, uint256 newNonce);
+    event CaveatSaltInvalidated(address owner, bytes32 salt);
+    event Close(uint256 loanId);
+    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
+    event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
+    event Open(uint256 loanId, Starport.Loan loan);
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     uint256 public constant LOAN_INACTIVE_FLAG = 0x0;
     uint256 public constant LOAN_ACTIVE_FLAG = 0x1;
+
+    bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
+    bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
+
+    address public immutable defaultCustodian;
+    bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
+
+    bytes32 internal immutable _DOMAIN_SEPARATOR;
+
+    // Define the EIP712 domain and typehash constants for generating signatures
+    bytes32 public constant EIP_DOMAIN =
+        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
+    string public constant VERSION = "0";
+    bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
+        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+    );
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Terms {
         address status; // the address of the status module
@@ -55,18 +127,19 @@ contract Starport is PausableNonReentrant {
         uint88 amount;
     }
 
-    bytes32 internal immutable _DOMAIN_SEPARATOR;
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           ENUMS                            */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    address public immutable defaultCustodian;
-    bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
+    enum ApprovalType {
+        NOTHING,
+        BORROWER,
+        LENDER
+    }
 
-    // Define the EIP712 domain and typehash constants for generating signatures
-    bytes32 public constant EIP_DOMAIN =
-        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    string public constant VERSION = "0";
-    bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
-        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
-    );
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STORAGE                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     address public feeTo;
     uint88 public defaultFeeRake;
@@ -77,27 +150,9 @@ contract Starport is PausableNonReentrant {
     mapping(address => uint256) public caveatNonces;
     mapping(uint256 => uint256) public loanState;
 
-    event ApprovalSet(address indexed owner, address indexed spender, uint8 approvalType);
-    event CaveatFilled(address owner, bytes32 hash, bytes32 salt);
-    event CaveatNonceIncremented(address owner, uint256 newNonce);
-    event CaveatSaltInvalidated(address owner, bytes32 salt);
-    event Close(uint256 loanId);
-    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
-    event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
-    event Open(uint256 loanId, Starport.Loan loan);
-
-    error AdditionalTransferError();
-    error CannotTransferLoans();
-    error CaveatDeadlineExpired();
-    error InvalidCaveatSigner();
-    error InvalidCustodian();
-    error InvalidLoan();
-    error InvalidPostRepayment();
-    error InvalidRefinance();
-    error LoanExists();
-    error MalformedRefinance();
-    error NotLoanCustodian();
-    error UnauthorizedAdditionalTransferIncluded();
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     constructor(address seaport_) {
         address custodian = address(new Custodian(this, seaport_));
@@ -111,6 +166,10 @@ contract Starport is PausableNonReentrant {
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      EXTERNAL FUNCTIONS                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Sets approval to originate loans without having to check caveats
@@ -220,15 +279,60 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Settle the loan with the LoanManager
-     * @param loan The the loan that is settled
-     * @param fulfiller The address executing the settle
+     * @dev Helper to settle a loan
+     * guarded to ensure only the loan.custodian can call it
+     * @param loan The entire loan struct
      */
-    function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
-        if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
-            revert InvalidPostRepayment();
+    function settle(Loan memory loan) external {
+        if (msg.sender != loan.custodian) {
+            revert NotLoanCustodian();
         }
+        _settle(loan);
     }
+
+    /**
+     * @dev Increments caveat nonce for sender and emits event
+     */
+    function incrementCaveatNonce() external {
+        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
+        caveatNonces[msg.sender] = newNonce;
+        emit CaveatNonceIncremented(msg.sender, newNonce);
+    }
+
+    /**
+     * @dev Invalidates a caveat salt
+     * @param salt The salt to invalidate
+     */
+    function invalidateCaveatSalt(bytes32 salt) external {
+        invalidSalts.validateSalt(msg.sender, salt);
+        emit CaveatSaltInvalidated(msg.sender, salt);
+    }
+
+    /**
+     * @dev Sets the default fee data, only owner can call
+     * @param feeTo_ The feeToAddress
+     * @param defaultFeeRake_ The default fee rake in WAD denomination(1e17 = 10%)
+     */
+    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
+        feeTo = feeTo_;
+        defaultFeeRake = defaultFeeRake_;
+        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
+    }
+
+    /**
+     * @dev Sets fee overrides for specific tokens, only owner can call
+     * @param token The token to override
+     * @param overrideValue The new value in WAD denomination to override(1e17 = 10%)
+     * @param enabled Whether or not the override is enabled
+     */
+    function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
+        feeOverrides[token] = Fee({enabled: enabled, amount: overrideValue});
+        emit FeeOverrideUpdated(token, overrideValue, enabled);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Refinances an existing loan with new pricing data, its the only thing that can be changed
@@ -272,6 +376,75 @@ contract Starport is PausableNonReentrant {
                 }
             }
             return considerationPayment;
+        }
+    }
+
+    /**
+     * @dev Helper to hash a caveat with a salt and nonce
+     * @param account The account that is originating the loan
+     * @param singleUse Whether or not the caveat is single use
+     * @param salt The salt to use
+     * @param deadline The deadline of the caveat
+     * @param caveats The caveats to hash
+     * @return bytes32 The hash of the caveat
+     */
+    function hashCaveatWithSaltAndNonce(
+        address account,
+        bool singleUse,
+        bytes32 salt,
+        uint256 deadline,
+        CaveatEnforcer.Caveat[] calldata caveats
+    ) public view virtual returns (bytes32) {
+        return keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                _DOMAIN_SEPARATOR,
+                keccak256(
+                    abi.encode(
+                        INTENT_ORIGINATION_TYPEHASH,
+                        account,
+                        caveatNonces[account],
+                        singleUse,
+                        salt,
+                        deadline,
+                        keccak256(abi.encode(caveats))
+                    )
+                )
+            )
+        );
+    }
+
+    /**
+     * @dev Helper to check if a loan is active
+     * @param loanId The id of the loan
+     * @return bool True if the loan is active
+     */
+    function active(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_ACTIVE_FLAG;
+    }
+
+    /**
+     * @dev Helper to check if a loan is inactive
+     * @param loanId The id of the loan
+     * @return bool True if the loan is inactive
+     */
+    function inactive(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_INACTIVE_FLAG;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev Settle the loan with the LoanManager
+     * @param loan The the loan that is settled
+     * @param fulfiller The address executing the settle
+     */
+    function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
+        if (Settlement(loan.terms.settlement).postRepayment(loan, fulfiller) != Settlement.postRepayment.selector) {
+            revert InvalidPostRepayment();
         }
     }
 
@@ -382,93 +555,6 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Helper to hash a caveat with a salt and nonce
-     * @param account The account that is originating the loan
-     * @param singleUse Whether or not the caveat is single use
-     * @param salt The salt to use
-     * @param deadline The deadline of the caveat
-     * @param caveats The caveats to hash
-     * @return bytes32 The hash of the caveat
-     */
-    function hashCaveatWithSaltAndNonce(
-        address account,
-        bool singleUse,
-        bytes32 salt,
-        uint256 deadline,
-        CaveatEnforcer.Caveat[] calldata caveats
-    ) public view virtual returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(
-                bytes1(0x19),
-                bytes1(0x01),
-                _DOMAIN_SEPARATOR,
-                keccak256(
-                    abi.encode(
-                        INTENT_ORIGINATION_TYPEHASH,
-                        account,
-                        caveatNonces[account],
-                        singleUse,
-                        salt,
-                        deadline,
-                        keccak256(abi.encode(caveats))
-                    )
-                )
-            )
-        );
-    }
-
-    /**
-     * @dev Increments caveat nonce for sender and emits event
-     */
-    function incrementCaveatNonce() external {
-        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
-        caveatNonces[msg.sender] = newNonce;
-        emit CaveatNonceIncremented(msg.sender, newNonce);
-    }
-
-    /**
-     * @dev Invalidates a caveat salt
-     * @param salt The salt to invalidate
-     */
-    function invalidateCaveatSalt(bytes32 salt) external {
-        invalidSalts.validateSalt(msg.sender, salt);
-        emit CaveatSaltInvalidated(msg.sender, salt);
-    }
-
-    /**
-     * @dev Helper to check if a loan is active
-     * @param loanId The id of the loan
-     * @return bool True if the loan is active
-     */
-    function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_ACTIVE_FLAG;
-    }
-
-    /**
-     * @dev Helper to check if a loan is inactive
-     * @param loanId The id of the loan
-     * @return bool True if the loan is inactive
-     */
-    function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_INACTIVE_FLAG;
-    }
-
-    /**
-     * @dev Helper to settle a loan
-     * guarded to ensure only the loan.custodian can call it
-     * @param loan The entire loan struct
-     */
-    function settle(Loan memory loan) external {
-        if (msg.sender != loan.custodian) {
-            revert NotLoanCustodian();
-        }
-        _settle(loan);
-    }
-
-    bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
-    bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
-
-    /**
      * @dev Internal helper to settle a loan
      * @param loan The entire loan struct
      */
@@ -479,12 +565,11 @@ contract Starport is PausableNonReentrant {
             mstore(0x20, loanState.slot)
 
             // loanState[loanId]
-
             let loc := keccak256(0x0, 0x40)
 
             // if (inactive(loanId)) {
             if iszero(sload(loc)) {
-                //revert InvalidLoan()
+                // revert InvalidLoan()
                 mstore(0x0, _INVALID_LOAN)
                 revert(0x0, 0x04)
             }
@@ -496,33 +581,9 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Sets the default fee data, only owner can call
-     * @param feeTo_ The feeToAddress
-     * @param defaultFeeRake_ The default fee rake in WAD denomination(1e17 = 10%)
-     */
-    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
-        feeTo = feeTo_;
-        defaultFeeRake = defaultFeeRake_;
-        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
-    }
-
-    /**
-     * @dev set's fee override's for specific tokens
-     * only owner can call
-     * @param token The token to override
-     * @param overrideValue The new value in WAD denomination to override(1e17 = 10%)
-     * @param enabled Whether or not the override is enabled
-     */
-    function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
-        feeOverrides[token] = Fee({enabled: enabled, amount: overrideValue});
-        emit FeeOverrideUpdated(token, overrideValue, enabled);
-    }
-
-    /**
-     * @dev set's fee override's for specific tokens
-     * only owner can call
+     * @dev Sets fee overrides for specific tokens, only owner can call
      * @param debt The debt to rake
-     * @return feeItems SpentItem[] of fee's
+     * @return feeItems SpentItem[] of fees
      */
     function _feeRake(SpentItem[] memory debt)
         internal
@@ -568,27 +629,24 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev issues a LM token if needed, only owner can call
-     * @param loan  the loan to issue
+     * @dev Issues a LM token if needed, only owner can call
+     * @param loan The loan to issue
      */
     function _issueLoan(Loan memory loan) internal {
         loan.start = block.timestamp;
         loan.originator = loan.originator != address(0) ? loan.originator : msg.sender;
 
         uint256 loanId = loan.getId();
-        //        if (active(loanId)) {
-        //            revert LoanExists();
-        //        }
-        //
+
         assembly {
             mstore(0x0, loanId)
             mstore(0x20, loanState.slot)
 
-            //loanState[loanId]
+            // loanState[loanId]
             let loc := keccak256(0x0, 0x40)
             // if (active(loanId))
             if iszero(iszero(sload(loc))) {
-                //revert LoanExists()
+                // revert LoanExists()
                 mstore(0x0, _LOAN_EXISTS)
                 revert(0x0, 0x04)
             }
