@@ -1,7 +1,7 @@
 IntegrationTestCaveats:testOriginateUnapprovedFulfiller() (gas: 327586)
 IntegrationTestCaveats:testOriginateWBorrowerApproval() (gas: 281010)
 IntegrationTestCaveats:testOriginateWCaveatsAsBorrower() (gas: 303246)
-IntegrationTestCaveats:testOriginateWCaveatsExpired() (gas: 157436)
+IntegrationTestCaveats:testOriginateWCaveatsExpired() (gas: 157348)
 IntegrationTestCaveats:testOriginateWCaveatsIncrementedNonce() (gas: 166167)
 IntegrationTestCaveats:testOriginateWCaveatsInvalidSalt() (gas: 281357)
 IntegrationTestCaveats:testOriginateWCaveatsInvalidSaltManual() (gas: 140098)

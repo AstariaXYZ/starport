@@ -537,7 +537,7 @@ contract Starport is PausableNonReentrant {
             emit CaveatFilled(validator, hash, signedCaveats.salt);
         }
 
-        if (block.timestamp > signedCaveats.deadline) {
+        if (block.number > signedCaveats.deadline) {
             revert CaveatDeadlineExpired();
         }
         if (!SignatureCheckerLib.isValidSignatureNowCalldata(validator, hash, signedCaveats.signature)) {

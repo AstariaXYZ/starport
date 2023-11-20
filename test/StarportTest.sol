@@ -46,7 +46,6 @@ import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC1155} from "seaport/contracts/test/TestERC1155.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
-//import {AAVEPoolCustodian} from "starport-core/custodians/AAVEPoolCustodian.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
 import {Status} from "starport-core/status/Status.sol";
@@ -307,7 +306,7 @@ contract StarportTest is BaseOrderTest {
         signedCaveats = CaveatEnforcer.SignedCaveats({
             signature: "",
             singleUse: invalidate,
-            deadline: block.timestamp + 1 days,
+            deadline: block.number + (1 days / 12),
             salt: salt,
             caveats: new CaveatEnforcer.Caveat[](1)
         });
@@ -410,7 +409,7 @@ contract StarportTest is BaseOrderTest {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
         signedCaveats.singleUse = true;
-        signedCaveats.deadline = block.timestamp + 1 days;
+        signedCaveats.deadline = block.number + (1 days / 12);
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
             signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
@@ -429,7 +428,7 @@ contract StarportTest is BaseOrderTest {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
         signedCaveats.singleUse = true;
-        signedCaveats.deadline = block.timestamp + 1 days;
+        signedCaveats.deadline = block.number + (1 days / 12);
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
             signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats

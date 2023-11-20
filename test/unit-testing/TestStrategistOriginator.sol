@@ -68,7 +68,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -110,7 +110,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -153,7 +153,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -196,7 +196,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -240,7 +240,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -282,7 +282,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -324,7 +324,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -368,7 +368,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -412,7 +412,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(uint256(1)),
