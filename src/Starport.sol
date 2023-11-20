@@ -257,10 +257,10 @@ contract Starport is PausableNonReentrant {
         ) {
             revert MalformedRefinance();
         }
-        newDebt = new SpentItem[](considerationPayment.length);
 
-        uint256 i = 0;
         if (carryPayment.length > 0) {
+            SpentItem[] memory newDebt = new SpentItem[](considerationPayment.length);
+            uint256 i = 0;
             for (; i < considerationPayment.length;) {
                 newDebt[i] = considerationPayment[i];
                 newDebt[i].amount += carryPayment[i].amount;
@@ -271,16 +271,18 @@ contract Starport is PausableNonReentrant {
                     ++i;
                 }
             }
+            return newDebt;
         } else {
+            uint256 i = 0;
             for (; i < considerationPayment.length;) {
-                newDebt[i] = considerationPayment[i];
-                if (newDebt[i].itemType == ItemType.ERC721 && newDebt[i].amount > 1) {
+                if (considerationPayment[i].itemType == ItemType.ERC721 && considerationPayment[i].amount > 1) {
                     revert MalformedRefinance();
                 }
                 unchecked {
                     ++i;
                 }
             }
+            return considerationPayment;
         }
     }
 
