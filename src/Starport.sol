@@ -42,10 +42,9 @@ contract Starport is PausableNonReentrant {
         BORROWER,
         LENDER
     }
-    enum FieldFlags {
-        INACTIVE,
-        ACTIVE
-    }
+
+    uint256 public constant LOAN_INACTIVE_FLAG = 0x0;
+    uint256 public constant LOAN_ACTIVE_FLAG = 0x1;
 
     struct Terms {
         address status; //the address of the status module
@@ -415,7 +414,7 @@ contract Starport is PausableNonReentrant {
      * @return                  True if the loan is active
      */
     function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == uint256(FieldFlags.ACTIVE);
+        return loanState[loanId] == LOAN_ACTIVE_FLAG;
     }
 
     /**
@@ -424,7 +423,7 @@ contract Starport is PausableNonReentrant {
      * @return                  True if the loan is inactive
      */
     function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == uint256(FieldFlags.INACTIVE);
+        return loanState[loanId] == LOAN_INACTIVE_FLAG;
     }
 
     /**
@@ -439,13 +438,28 @@ contract Starport is PausableNonReentrant {
         _settle(loan);
     }
 
+    bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
+    bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
+
     function _settle(Loan memory loan) internal {
         uint256 loanId = loan.getId();
-        if (inactive(loanId)) {
-            revert InvalidLoan();
-        }
+        assembly {
+            mstore(0x0, loanId)
+            mstore(0x20, loanState.slot)
 
-        loanState[loanId] = uint256(FieldFlags.INACTIVE);
+            // loanState[loanId]
+
+            let loc := keccak256(0x0, 0x40)
+
+            // if (inactive(loanId)) {
+            if iszero(sload(loc)) {
+                //revert InvalidLoan()
+                mstore(0x0, _INVALID_LOAN)
+                revert(0x0, 0x04)
+            }
+
+            sstore(loc, LOAN_INACTIVE_FLAG)
+        }
 
         emit Close(loanId);
     }
@@ -533,11 +547,25 @@ contract Starport is PausableNonReentrant {
         loan.originator = loan.originator != address(0) ? loan.originator : msg.sender;
 
         uint256 loanId = loan.getId();
-        if (active(loanId)) {
-            revert LoanExists();
-        }
+        //        if (active(loanId)) {
+        //            revert LoanExists();
+        //        }
+        //
+        assembly {
+            mstore(0x0, loanId)
+            mstore(0x20, loanState.slot)
 
-        loanState[loanId] = uint256(FieldFlags.ACTIVE);
+            //loanState[loanId]
+            let loc := keccak256(0x0, 0x40)
+            // if (active(loanId))
+            if iszero(iszero(sload(loc))) {
+                //revert LoanExists()
+                mstore(0x0, _LOAN_EXISTS)
+                revert(0x0, 0x04)
+            }
+
+            sstore(loc, LOAN_ACTIVE_FLAG)
+        }
         emit Open(loanId, loan);
     }
 }

@@ -14,22 +14,27 @@ import "forge-std/console.sol";
 contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     event LogLoan(Starport.Loan loan);
 
-    function testOriginateWCaveats() public {
+    using Cast for *;
+
+    Starport.Loan activeLoan;
+
+    function setUp() public override {
+        super.setUp();
         Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.toStorage(activeLoan);
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+    }
 
-        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+    function testOriginateWCaveatsAsBorrower() public {
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat;
+        CaveatEnforcer.SignedCaveats memory lenderCaveat;
 
-        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
-            details: LenderEnforcer.Details({loan: loan}),
-            signer: lender,
-            salt: bytes32(0),
-            enforcer: address(lenderEnforcer)
-        });
+        borrowerCaveat = _generateSignedCaveatBorrower(activeLoan, borrower, bytes32(0));
 
-        _setApprovalsForSpentItems(lender.addr, loan.debt);
+        lenderCaveat = _generateSignedCaveatLender(activeLoan, lender, bytes32(0), false);
 
-        vm.prank(loan.borrower);
-        SP.originate(new AdditionalTransfer[](0), _emptyCaveat(), lenderCaveat, loan);
+        newLoan(activeLoan, borrowerCaveat, lenderCaveat, borrower.addr);
     }
 
     function testOriginateWCaveatsInvalidSalt() public {
