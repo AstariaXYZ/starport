@@ -328,8 +328,27 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testApplyRefinanceConsiderationToLoanMalformed() public {
+        //test for 721 witt more than 1 amount
+        SpentItem[] memory dummy721 = new SpentItem[](1);
+        dummy721[0] = SpentItem({token: address(0), amount: 2, identifier: 0, itemType: ItemType.ERC721});
         vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, new SpentItem[](0), new SpentItem[](0), "");
+        SP.applyRefinanceConsiderationToLoan(dummy721, new SpentItem[](0));
+
+        dummy721 = new SpentItem[](1);
+        dummy721[0] = SpentItem({token: address(0), amount: 1, identifier: 0, itemType: ItemType.ERC721});
+        SP.applyRefinanceConsiderationToLoan(dummy721, new SpentItem[](0));
+
+        SpentItem[] memory dummyCarry721 = new SpentItem[](1);
+        dummyCarry721[0] = SpentItem({token: address(0), amount: 1, identifier: 0, itemType: ItemType.ERC721});
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(dummy721, dummyCarry721);
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(dummy721, dummyCarry721);
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(new SpentItem[](0), new SpentItem[](0));
 
         SpentItem[] memory dummy = new SpentItem[](1);
         dummy[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
@@ -337,9 +356,12 @@ contract TestStarport is StarportTest, DeepEq {
         dummyCarry[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
         dummyCarry[1] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
         vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, dummy, dummyCarry, "");
-        vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, dummyCarry, new SpentItem[](0), "");
+        SP.applyRefinanceConsiderationToLoan(dummy, dummyCarry);
+        Starport.Loan memory goodLoan = activeLoan;
+        Starport.Loan memory testLoan = loanCopy(goodLoan);
+        testLoan.debt = dummyCarry;
+        goodLoan.debt = SP.applyRefinanceConsiderationToLoan(dummyCarry, new SpentItem[](0));
+        assert(keccak256(abi.encode(testLoan)) == keccak256(abi.encode(goodLoan)));
     }
 
     function testInitializedFlagSetProperly() public {

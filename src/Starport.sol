@@ -210,7 +210,8 @@ contract Starport is PausableNonReentrant {
 
         _settle(loan);
         _postRepaymentExecute(loan, msg.sender);
-        loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
+        loan.debt = applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        loan.terms.pricingData = pricingData;
 
         StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
@@ -246,39 +247,42 @@ contract Starport is PausableNonReentrant {
         }
     }
 
-    function applyRefinanceConsiderationToLoan(
-        Starport.Loan memory loan,
-        SpentItem[] memory considerationPayment,
-        SpentItem[] memory carryPayment,
-        bytes calldata pricingData
-    ) public pure returns (Starport.Loan memory) {
+    function applyRefinanceConsiderationToLoan(SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment)
+        public
+        pure
+        returns (SpentItem[] memory newDebt)
+    {
         if (
             considerationPayment.length == 0
                 || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length)
-                || considerationPayment.length != loan.debt.length
         ) {
             revert MalformedRefinance();
         }
+        newDebt = new SpentItem[](considerationPayment.length);
 
         uint256 i = 0;
         if (carryPayment.length > 0) {
             for (; i < considerationPayment.length;) {
-                loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
-
+                newDebt[i] = considerationPayment[i];
+                newDebt[i].amount += carryPayment[i].amount;
+                if (newDebt[i].itemType == ItemType.ERC721 && newDebt[i].amount > 1) {
+                    revert MalformedRefinance();
+                }
                 unchecked {
                     ++i;
                 }
             }
         } else {
             for (; i < considerationPayment.length;) {
-                loan.debt[i].amount = considerationPayment[i].amount;
+                newDebt[i] = considerationPayment[i];
+                if (newDebt[i].itemType == ItemType.ERC721 && newDebt[i].amount > 1) {
+                    revert MalformedRefinance();
+                }
                 unchecked {
                     ++i;
                 }
             }
         }
-        loan.terms.pricingData = pricingData;
-        return loan;
     }
 
     /**

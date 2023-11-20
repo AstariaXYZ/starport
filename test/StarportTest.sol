@@ -482,16 +482,6 @@ contract StarportTest is BaseOrderTest {
         return refinanceLoan(loan, newPricingData, asWho, lenderCaveat, lender, "");
     }
 
-    function getRefinanceCaveat(Starport.Loan memory loan, bytes memory pricingData, address fulfiller)
-        public
-        view
-        returns (Starport.Loan memory)
-    {
-        (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
-            Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, fulfiller);
-        return SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-    }
-
     function refinanceLoan(
         Starport.Loan memory loan,
         bytes memory pricingData,
