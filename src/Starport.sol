@@ -209,13 +209,13 @@ contract Starport is PausableNonReentrant {
 
         _settle(loan);
         _postRepaymentExecute(loan, msg.sender);
-        loan.debt = applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
-        loan.terms.pricingData = pricingData;
 
         StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
             StarportLib.transferSpentItems(carryPayment, lender, loan.originator, false);
         }
+        loan.debt = applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        loan.terms.pricingData = pricingData;
 
         loan.issuer = lender;
         loan.originator = address(0);
