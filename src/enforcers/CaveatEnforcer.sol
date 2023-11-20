@@ -54,9 +54,9 @@ abstract contract CaveatEnforcer {
 
     /**
      * @dev Enforces that the loan terms are identical except for the issuer
-     * @param solution              The additional transfers to be made
-     * @param loan                  The loan terms
-     * @param caveatData            The borrowers encoded details
+     * @param solution The additional transfers to be made
+     * @param loan The loan terms
+     * @param caveatData The borrowers encoded details
      */
     function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
         public
