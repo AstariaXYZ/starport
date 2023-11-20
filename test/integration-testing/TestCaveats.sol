@@ -185,10 +185,9 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
     function testRefinanceWCaveatsInvalidSalt() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
-
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)
-        });
+        Starport.Loan memory refiLoan = loanCopy(loan);
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         details.loan.issuer = lender.addr;
         details.loan.originator = address(0);
@@ -238,9 +237,10 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
     function testRefinanceUnapprovedFulfiller() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)
-        });
+        Starport.Loan memory refiLoan = loanCopy(loan);
+
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         details.loan.issuer = lender.addr;
         details.loan.originator = address(0);
