@@ -26,10 +26,9 @@ contract Starport is PausableNonReentrant {
         BORROWER,
         LENDER
     }
-    enum FieldFlags {
-        INACTIVE,
-        ACTIVE
-    }
+
+    uint256 public constant LOAN_INACTIVE_FLAG = 0x0;
+    uint256 public constant LOAN_ACTIVE_FLAG = 0x1;
 
     struct Terms {
         address status; // the address of the status module
@@ -195,12 +194,13 @@ contract Starport is PausableNonReentrant {
 
         _settle(loan);
         _postRepaymentExecute(loan, msg.sender);
-        loan = applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
 
         StarportLib.transferSpentItems(considerationPayment, lender, loan.issuer, false);
         if (carryPayment.length > 0) {
             StarportLib.transferSpentItems(carryPayment, lender, loan.originator, false);
         }
+        loan.debt = applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        loan.terms.pricingData = pricingData;
 
         loan.issuer = lender;
         loan.originator = address(0);
@@ -232,44 +232,47 @@ contract Starport is PausableNonReentrant {
 
     /**
      * @dev Refinances an existing loan with new pricing data, its the only thing that can be changed
-     * @param loan The target loan
      * @param considerationPayment the payment consideration
      * @param carryPayment The loan to be issued
-     * @param pricingData The new pricing data
      */
-    function applyRefinanceConsiderationToLoan(
-        Starport.Loan memory loan,
-        SpentItem[] memory considerationPayment,
-        SpentItem[] memory carryPayment,
-        bytes calldata pricingData
-    ) public pure returns (Starport.Loan memory) {
+    function applyRefinanceConsiderationToLoan(SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment)
+        public
+        pure
+        returns (SpentItem[] memory newDebt)
+    {
         if (
             considerationPayment.length == 0
                 || (carryPayment.length != 0 && considerationPayment.length != carryPayment.length)
-                || considerationPayment.length != loan.debt.length
         ) {
             revert MalformedRefinance();
         }
 
-        uint256 i = 0;
         if (carryPayment.length > 0) {
+            SpentItem[] memory newDebt = new SpentItem[](considerationPayment.length);
+            uint256 i = 0;
             for (; i < considerationPayment.length;) {
-                loan.debt[i].amount = considerationPayment[i].amount + carryPayment[i].amount;
-
+                newDebt[i] = considerationPayment[i];
+                newDebt[i].amount += carryPayment[i].amount;
+                if (newDebt[i].itemType == ItemType.ERC721 && newDebt[i].amount > 1) {
+                    revert MalformedRefinance();
+                }
                 unchecked {
                     ++i;
                 }
             }
+            return newDebt;
         } else {
+            uint256 i = 0;
             for (; i < considerationPayment.length;) {
-                loan.debt[i].amount = considerationPayment[i].amount;
+                if (considerationPayment[i].itemType == ItemType.ERC721 && considerationPayment[i].amount > 1) {
+                    revert MalformedRefinance();
+                }
                 unchecked {
                     ++i;
                 }
             }
+            return considerationPayment;
         }
-        loan.terms.pricingData = pricingData;
-        return loan;
     }
 
     /**
@@ -438,7 +441,7 @@ contract Starport is PausableNonReentrant {
      * @return bool True if the loan is active
      */
     function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == uint256(FieldFlags.ACTIVE);
+        return loanState[loanId] == LOAN_ACTIVE_FLAG;
     }
 
     /**
@@ -447,11 +450,11 @@ contract Starport is PausableNonReentrant {
      * @return bool True if the loan is inactive
      */
     function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == uint256(FieldFlags.INACTIVE);
+        return loanState[loanId] == LOAN_INACTIVE_FLAG;
     }
 
     /**
-     * @dev Helper to check if a loan is initialized(ie. has never been opened)
+     * @dev Helper to settle a loan
      * guarded to ensure only the loan.custodian can call it
      * @param loan The entire loan struct
      */
@@ -462,17 +465,32 @@ contract Starport is PausableNonReentrant {
         _settle(loan);
     }
 
+    bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
+    bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
+
     /**
-     * @dev Internal helper to check if a loan is initialized
+     * @dev Internal helper to settle a loan
      * @param loan The entire loan struct
      */
     function _settle(Loan memory loan) internal {
         uint256 loanId = loan.getId();
-        if (inactive(loanId)) {
-            revert InvalidLoan();
-        }
+        assembly {
+            mstore(0x0, loanId)
+            mstore(0x20, loanState.slot)
 
-        loanState[loanId] = uint256(FieldFlags.INACTIVE);
+            // loanState[loanId]
+
+            let loc := keccak256(0x0, 0x40)
+
+            // if (inactive(loanId)) {
+            if iszero(sload(loc)) {
+                //revert InvalidLoan()
+                mstore(0x0, _INVALID_LOAN)
+                revert(0x0, 0x04)
+            }
+
+            sstore(loc, LOAN_INACTIVE_FLAG)
+        }
 
         emit Close(loanId);
     }
@@ -558,11 +576,25 @@ contract Starport is PausableNonReentrant {
         loan.originator = loan.originator != address(0) ? loan.originator : msg.sender;
 
         uint256 loanId = loan.getId();
-        if (active(loanId)) {
-            revert LoanExists();
-        }
+        //        if (active(loanId)) {
+        //            revert LoanExists();
+        //        }
+        //
+        assembly {
+            mstore(0x0, loanId)
+            mstore(0x20, loanState.slot)
 
-        loanState[loanId] = uint256(FieldFlags.ACTIVE);
+            //loanState[loanId]
+            let loc := keccak256(0x0, 0x40)
+            // if (active(loanId))
+            if iszero(iszero(sload(loc))) {
+                //revert LoanExists()
+                mstore(0x0, _LOAN_EXISTS)
+                revert(0x0, 0x04)
+            }
+
+            sstore(loc, LOAN_ACTIVE_FLAG)
+        }
         emit Open(loanId, loan);
     }
 }

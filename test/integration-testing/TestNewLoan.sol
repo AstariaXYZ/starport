@@ -104,11 +104,12 @@ contract TestNewLoan is StarportTest {
 
     function testNewLoanRefinance() public {
         Starport.Loan memory loan = testNewLoanERC721CollateralDefaultTerms2();
+        Starport.Loan memory refiLoan = loanCopy(loan);
         bytes memory newPricingData =
             abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 100, decimals: 18}));
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), newPricingData)
-        });
+        refiLoan.terms.pricingData = newPricingData;
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         details.loan.issuer = refinancer.addr;
         details.loan.originator = address(0);

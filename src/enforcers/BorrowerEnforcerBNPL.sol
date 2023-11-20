@@ -42,7 +42,7 @@ contract BorrowerEnforcerBNPL is CaveatEnforcer {
             revert BorrowerOnlyEnforcer();
         }
         details.loan.issuer = loan.issuer;
-
+        details.loan.originator = loan.originator;
         if (loanHash != keccak256(abi.encode(details.loan))) {
             revert InvalidLoanTerms();
         }

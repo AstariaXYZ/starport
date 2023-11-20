@@ -14,22 +14,27 @@ import "forge-std/console.sol";
 contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
     event LogLoan(Starport.Loan loan);
 
-    function testOriginateWCaveats() public {
+    using Cast for *;
+
+    Starport.Loan activeLoan;
+
+    function setUp() public override {
+        super.setUp();
         Starport.Loan memory loan = generateDefaultLoanTerms();
+        loan.toStorage(activeLoan);
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+    }
 
-        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+    function testOriginateWCaveatsAsBorrower() public {
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat;
+        CaveatEnforcer.SignedCaveats memory lenderCaveat;
 
-        CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
-            details: LenderEnforcer.Details({loan: loan}),
-            signer: lender,
-            salt: bytes32(0),
-            enforcer: address(lenderEnforcer)
-        });
+        borrowerCaveat = _generateSignedCaveatBorrower(activeLoan, borrower, bytes32(0));
 
-        _setApprovalsForSpentItems(lender.addr, loan.debt);
+        lenderCaveat = _generateSignedCaveatLender(activeLoan, lender, bytes32(0), false);
 
-        vm.prank(loan.borrower);
-        SP.originate(new AdditionalTransfer[](0), _emptyCaveat(), lenderCaveat, loan);
+        newLoan(activeLoan, borrowerCaveat, lenderCaveat, borrower.addr);
     }
 
     function testOriginateWCaveatsInvalidSalt() public {
@@ -180,10 +185,9 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
     function testRefinanceWCaveatsInvalidSalt() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
-
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)
-        });
+        Starport.Loan memory refiLoan = loanCopy(loan);
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         details.loan.issuer = lender.addr;
         details.loan.originator = address(0);
@@ -233,9 +237,10 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
     function testRefinanceUnapprovedFulfiller() public {
         Starport.Loan memory loan = newLoanWithDefaultTerms();
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(loan, loan.debt, new SpentItem[](0), defaultPricingData)
-        });
+        Starport.Loan memory refiLoan = loanCopy(loan);
+
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         details.loan.issuer = lender.addr;
         details.loan.originator = address(0);

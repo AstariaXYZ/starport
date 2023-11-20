@@ -40,7 +40,7 @@ contract BorrowerEnforcer is CaveatEnforcer {
         Details memory details
     ) internal pure {
         details.loan.issuer = loan.issuer;
-
+        details.loan.originator = loan.originator;
         if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) revert InvalidLoanTerms();
 
         if (additionalTransfers.length > 0) {

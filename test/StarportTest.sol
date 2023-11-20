@@ -361,6 +361,7 @@ contract StarportTest is BaseOrderTest {
     ) internal returns (Starport.Loan memory) {
         (CaveatEnforcer.SignedCaveats memory borrowerCaveat, CaveatEnforcer.SignedCaveats memory lenderCaveat) =
             newLoanOriginationSetup(loan, borrower, borrowerSalt, lender, lenderSalt, invalidateLender);
+        vm.roll(1);
         return newLoan(loan, borrowerCaveat, lenderCaveat, fulfiller);
     }
 
@@ -482,16 +483,6 @@ contract StarportTest is BaseOrderTest {
         return refinanceLoan(loan, newPricingData, asWho, lenderCaveat, lender, "");
     }
 
-    function getRefinanceCaveat(Starport.Loan memory loan, bytes memory pricingData, address fulfiller)
-        public
-        view
-        returns (Starport.Loan memory)
-    {
-        (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
-            Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, fulfiller);
-        return SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-    }
-
     function refinanceLoan(
         Starport.Loan memory loan,
         bytes memory pricingData,
@@ -583,7 +574,11 @@ contract StarportTest is BaseOrderTest {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
             payable(activeLoan.custodian)
         ).previewOrder(
-            address(consideration), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan)
+            address(consideration),
+            fulfiller,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(

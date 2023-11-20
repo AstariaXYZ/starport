@@ -9,6 +9,172 @@ import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 
+import {Validation} from "starport-core/lib/Validation.sol";
+
+contract MockFixedTermDutchAuctionSettlement is DutchAuctionSettlement {
+    using {StarportLib.getId} for Starport.Loan;
+    using FixedPointMathLib for uint256;
+
+    address public debtToken;
+
+    constructor(Starport SP_, address debtToken_) DutchAuctionSettlement(SP_) {
+        debtToken = debtToken_;
+    }
+
+    // @inheritdoc DutchAuctionSettlement
+    function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
+        FixedTermStatus.Details memory details = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
+        return loan.start + details.loanDuration;
+    }
+
+    function getSettlementConsideration(Starport.Loan calldata loan)
+        public
+        view
+        virtual
+        override
+        returns (ReceivedItem[] memory consideration, address authorized)
+    {
+        Details memory details = abi.decode(loan.terms.settlementData, (Details));
+
+        uint256 start = getAuctionStart(loan);
+
+        // DutchAuction has failed, allow lender to redeem
+        if (start + details.window < block.timestamp) {
+            return (new ReceivedItem[](0), loan.issuer);
+        }
+
+        uint256 settlementPrice = _locateCurrentAmount({
+            startAmount: details.startingPrice,
+            endAmount: details.endingPrice,
+            startTime: start,
+            endTime: start + details.window,
+            roundUp: true
+        });
+
+        consideration = new ReceivedItem[](1);
+
+        consideration[0] = ReceivedItem({
+            itemType: ItemType.ERC20,
+            identifier: 0,
+            amount: settlementPrice,
+            token: debtToken,
+            recipient: payable(loan.issuer)
+        });
+    }
+}
+
+contract MockExoticPricing is Pricing {
+    error NoRefinance();
+
+    using FixedPointMathLib for uint256;
+    using {StarportLib.getId} for Starport.Loan;
+
+    struct Details {
+        uint256 rate;
+        uint256 carryRate;
+        uint256 decimals;
+        address token;
+        uint256 debtAmount;
+    }
+
+    constructor(Starport SP_) Pricing(SP_) {}
+
+    function getPaymentConsideration(Starport.Loan calldata loan)
+        public
+        view
+        virtual
+        override
+        returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration)
+    {
+        Details memory details = abi.decode(loan.terms.pricingData, (Details));
+        if (details.carryRate > 0 && loan.issuer != loan.originator) {
+            carryConsideration = new SpentItem[](loan.debt.length + 1);
+        } else {
+            carryConsideration = new SpentItem[](0);
+        }
+        repayConsideration = new SpentItem[](loan.debt.length + 1);
+
+        repayConsideration[0] = loan.debt[0];
+
+        if (carryConsideration.length > 1) {
+            SpentItem memory empty;
+            carryConsideration[0] = empty;
+        }
+        uint256 i = 0;
+        for (; i < loan.debt.length;) {
+            uint256 interest =
+                _getInterest(details.debtAmount, details.rate, loan.start, block.timestamp, details.decimals);
+
+            if (carryConsideration.length > 0) {
+                carryConsideration[i + 1] = SpentItem({
+                    itemType: ItemType.ERC20,
+                    identifier: 0,
+                    amount: (interest * details.carryRate) / 10 ** details.decimals,
+                    token: details.token
+                });
+                repayConsideration[i + 1] = SpentItem({
+                    itemType: ItemType.ERC20,
+                    identifier: 0,
+                    amount: details.debtAmount + interest - carryConsideration[i].amount,
+                    token: details.token
+                });
+            } else {
+                repayConsideration[i + 1] = SpentItem({
+                    itemType: ItemType.ERC20,
+                    identifier: 0,
+                    amount: details.debtAmount + interest,
+                    token: details.token
+                });
+            }
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
+        Details memory details = abi.decode(loan.terms.pricingData, (Details));
+        return (details.decimals > 0) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+    }
+
+    function getInterest(Starport.Loan calldata loan, uint256 end) public pure returns (uint256) {
+        Details memory details = abi.decode(loan.terms.pricingData, (Details));
+        uint256 delta_t = end - loan.start;
+        return calculateInterest(delta_t, details.debtAmount, details.rate, details.decimals);
+    }
+
+    function _getInterest(uint256 amount, uint256 rate, uint256 start, uint256 end, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        uint256 delta_t = end - start;
+        return calculateInterest(delta_t, amount, rate, decimals);
+    }
+
+    function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        return StarportLib.calculateSimpleInterest(delta_t, amount, rate, decimals);
+    }
+
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
+        external
+        view
+        virtual
+        override
+        returns (
+            SpentItem[] memory repayConsideration,
+            SpentItem[] memory carryConsideration,
+            AdditionalTransfer[] memory additionalConsideration
+        )
+    {
+        revert NoRefinance();
+    }
+}
+
 contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
     constructor(Starport SP_, address strategist_, uint256 fee_)
         StrategistOriginator(SP_, strategist_, fee_, msg.sender)
@@ -162,8 +328,27 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testApplyRefinanceConsiderationToLoanMalformed() public {
+        //test for 721 witt more than 1 amount
+        SpentItem[] memory dummy721 = new SpentItem[](1);
+        dummy721[0] = SpentItem({token: address(0), amount: 2, identifier: 0, itemType: ItemType.ERC721});
         vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, new SpentItem[](0), new SpentItem[](0), "");
+        SP.applyRefinanceConsiderationToLoan(dummy721, new SpentItem[](0));
+
+        dummy721 = new SpentItem[](1);
+        dummy721[0] = SpentItem({token: address(0), amount: 1, identifier: 0, itemType: ItemType.ERC721});
+        SP.applyRefinanceConsiderationToLoan(dummy721, new SpentItem[](0));
+
+        SpentItem[] memory dummyCarry721 = new SpentItem[](1);
+        dummyCarry721[0] = SpentItem({token: address(0), amount: 1, identifier: 0, itemType: ItemType.ERC721});
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(dummy721, dummyCarry721);
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(dummy721, dummyCarry721);
+
+        vm.expectRevert(Starport.MalformedRefinance.selector);
+        SP.applyRefinanceConsiderationToLoan(new SpentItem[](0), new SpentItem[](0));
 
         SpentItem[] memory dummy = new SpentItem[](1);
         dummy[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
@@ -171,9 +356,12 @@ contract TestStarport is StarportTest, DeepEq {
         dummyCarry[0] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
         dummyCarry[1] = SpentItem({token: address(0), amount: 0, identifier: 0, itemType: ItemType.ERC20});
         vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, dummy, dummyCarry, "");
-        vm.expectRevert(Starport.MalformedRefinance.selector);
-        SP.applyRefinanceConsiderationToLoan(activeLoan, dummyCarry, new SpentItem[](0), "");
+        SP.applyRefinanceConsiderationToLoan(dummy, dummyCarry);
+        Starport.Loan memory goodLoan = activeLoan;
+        Starport.Loan memory testLoan = loanCopy(goodLoan);
+        testLoan.debt = dummyCarry;
+        goodLoan.debt = SP.applyRefinanceConsiderationToLoan(dummyCarry, new SpentItem[](0));
+        assert(keccak256(abi.encode(testLoan)) == keccak256(abi.encode(goodLoan)));
     }
 
     function testInitializedFlagSetProperly() public {
@@ -466,6 +654,99 @@ contract TestStarport is StarportTest, DeepEq {
         emit Open(loanCopy.getId(), loanCopy);
         vm.prank(loan.borrower);
         SP.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
+    }
+
+    function testExoticDebtWithCustomPricingAndRepayment() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        MockExoticPricing mockPricing = new MockExoticPricing(SP);
+
+        loan.terms.pricing = address(mockPricing);
+        loan.terms.pricingData = abi.encode(
+            MockExoticPricing.Details({
+                token: address(erc20s[0]),
+                debtAmount: 100,
+                rate: 100,
+                carryRate: 100,
+                decimals: 18
+            })
+        );
+
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc721s[2]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
+
+        loan.debt = exoticDebt;
+        loan.collateral[0] =
+            SpentItem({token: address(erc721s[0]), amount: 1, identifier: 2, itemType: ItemType.ERC721});
+        CaveatEnforcer.SignedCaveats memory borrowerEnforcer;
+        CaveatEnforcer.SignedCaveats memory lenderEnforcer = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        Starport.Loan memory loanCopy = abi.decode(abi.encode(loan), (Starport.Loan));
+        loanCopy.start = block.timestamp;
+        loanCopy.originator = address(loan.borrower);
+        vm.expectEmit();
+        emit Open(loanCopy.getId(), loanCopy);
+        vm.prank(loan.borrower);
+        SP.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
+        loan.start = block.timestamp;
+        loan.originator = address(loan.borrower);
+
+        skip(100);
+
+        _executeRepayLoan(loan, loan.borrower);
+    }
+
+    function testExoticDebtWithCustomPricingAndSettlement() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        MockExoticPricing mockPricing = new MockExoticPricing(SP);
+        MockFixedTermDutchAuctionSettlement mockSettlement =
+            new MockFixedTermDutchAuctionSettlement(SP, address(erc20s[0]));
+        loan.terms.settlement = address(mockSettlement);
+        loan.terms.pricing = address(mockPricing);
+        loan.terms.pricingData = abi.encode(
+            MockExoticPricing.Details({
+                token: address(erc20s[0]),
+                debtAmount: 100,
+                rate: 100,
+                carryRate: 100,
+                decimals: 18
+            })
+        );
+        SpentItem[] memory exoticDebt = new SpentItem[](1);
+        exoticDebt[0] = SpentItem({token: address(erc721s[2]), amount: 1, identifier: 1, itemType: ItemType.ERC721});
+
+        loan.debt = exoticDebt;
+        loan.collateral[0] =
+            SpentItem({token: address(erc721s[0]), amount: 1, identifier: 2, itemType: ItemType.ERC721});
+        CaveatEnforcer.SignedCaveats memory borrowerEnforcer;
+        CaveatEnforcer.SignedCaveats memory lenderEnforcer = getLenderSignedCaveat({
+            details: LenderEnforcer.Details({loan: loan}),
+            signer: lender,
+            salt: bytes32(0),
+            enforcer: address(lenderEnforcer)
+        });
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+        Starport.Loan memory loanCopy = abi.decode(abi.encode(loan), (Starport.Loan));
+        loanCopy.start = block.timestamp;
+        loanCopy.originator = address(loan.borrower);
+        vm.expectEmit();
+        emit Open(loanCopy.getId(), loanCopy);
+        vm.prank(loan.borrower);
+        SP.originate(new AdditionalTransfer[](0), borrowerEnforcer, lenderEnforcer, loan);
+        loan.start = block.timestamp;
+        loan.originator = address(loan.borrower);
+
+        skip(abi.decode(loan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1);
+
+        _settleLoan(loan, loan.borrower);
     }
 
     function testNonPayableFunctions() public {
