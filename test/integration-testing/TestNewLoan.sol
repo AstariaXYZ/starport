@@ -293,7 +293,7 @@ contract TestNewLoan is StarportTest {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -334,7 +334,7 @@ contract TestNewLoan is StarportTest {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.timestamp + 100,
+            deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -548,7 +548,7 @@ contract TestNewLoan is StarportTest {
         signedCaveats = CaveatEnforcer.SignedCaveats({
             signature: "",
             singleUse: invalidate,
-            deadline: block.timestamp + 1 days,
+            deadline: block.number + (1 days / 12),
             salt: salt,
             caveats: new CaveatEnforcer.Caveat[](1)
         });
