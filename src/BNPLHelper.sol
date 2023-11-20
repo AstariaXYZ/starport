@@ -145,10 +145,10 @@ contract BNPLHelper is IFlashLoanRecipient {
             transfers[i] = AdditionalTransfer({
                 itemType: ItemType.ERC20,
                 identifier: 0,
-                token: tokens[0],
+                token: tokens[i],
                 from: execution.borrower,
                 to: vault,
-                amount: amounts[0] + feeAmounts[0]
+                amount: amounts[i] + feeAmounts[i]
             });
             unchecked {
                 ++i;
