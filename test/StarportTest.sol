@@ -583,7 +583,11 @@ contract StarportTest is BaseOrderTest {
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(
             payable(activeLoan.custodian)
         ).previewOrder(
-            address(consideration), fulfiller, new SpentItem[](0), new SpentItem[](0), abi.encode(activeLoan)
+            address(consideration),
+            fulfiller,
+            new SpentItem[](0),
+            new SpentItem[](0),
+            abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
         );
 
         OrderParameters memory op = _buildContractOrder(
