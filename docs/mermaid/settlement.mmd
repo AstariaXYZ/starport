@@ -1,35 +1,36 @@
 sequenceDiagram
     title Starport Settlement Sequence Diagram
+    Box green
     participant F as Fulfiller
-
+    participant Seaport
+    end
+    Box rgb(112, 100, 0)
+    participant Custodian
+    participant Status
+    participant Pricing
+    participant Settlement
+    participant Starport
+    participant Authorized
+    end
     F->>Seaport: fulfillAdvancedOrder/matchAdvancedOrder
     Seaport->>Custodian: generateOrder
     Custodian->>Status: isActive
     Status->>Custodian: (true/false)
     alt Action is Repayment and Status is Active
-        Custodian->>Custodian: _beforeApprovalsSetHook
-        Custodian->>Custodian: _setOfferApprovalsWithSeaport
         Custodian->>Pricing: getPaymentConsideration
         Pricing->>Custodian: (SpentItem[] payment, SpentItem[] carry)
         Custodian->>Starport: settle loan
+        Custodian->>Settlement: postRepayment
     else Action Settlement and Custodian->>Status: isActive is false
-        Custodian->>Custodian: _beforeGetSettlement
-        Custodian->>SettlementHandler: getSettlement
-        SettlementHandler->>Custodian: (ReceivedItem[] consideration, address authorized)
-        Custodian->>Custodian: _afterGetSettlement
+        Custodian->>Settlement: getSettlement
+        Settlement->>Custodian: (ReceivedItem[] consideration, address authorized)
         alt authorized is address(0) || authorized is Fulfiller
-            Custodian->>Custodian: _beforeApprovalsSetHook
             Custodian->>Custodian: _setOfferApprovalsWithSeaport
         else authorized is loan handler || authorized is loan issuer
             Custodian->>Custodian: _moveCollateralToAuthorized
-            Custodian->>Custodian: _beforeSettlementHandlerHook
-            alt authorized is loan handler
-                Custodian->>SettlementHandler: execute
-                Custodian->>Custodian: _afterSettlementHandlerHook
-            end
+            Custodian->>Authorized: transfer 1->n collateral
         end
         Custodian->>Starport: settle loan
-        opt Lender is contract
-            Starport->>Lender: onLoanSettledHook
-        end
+        Custodian->>Settlement: postSettlement
+
     end
