@@ -2,18 +2,21 @@ sequenceDiagram
     title Starport Origination Sequence Diagram
 
 
-    Box green Orignation
+    Box blue Parties
+        participant AdditionalTransferRecipient
         participant Fulfiller
+    end
+
+    Box green Orignation
         participant Starport
         participant CaveatEnforcer
     end
 
-    Box blue Assets
-        participant Lender
+    Box rgb(112,100,0) Assets
         participant Borrower
         participant Custodian
+        participant Lender
         participant FeeRecipient
-        participant AdditionalTransferRecipient
     end
 
     Fulfiller->>Starport: originate
@@ -60,8 +63,4 @@ sequenceDiagram
                 Fulfiller->>AdditionalTransferRecipient: AdditionalTransferItem from Fulfiller => AdditionalTransferRecipient
             end
         end
-    end
-
-    opt Lender is contract
-        Starport->>Lender: onLoanOpened
     end
