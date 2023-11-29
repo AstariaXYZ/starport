@@ -27,8 +27,8 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
+import {Starport} from "../Starport.sol";
+import {Validation} from "../lib/Validation.sol";
 
 abstract contract Status is Validation {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

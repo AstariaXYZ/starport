@@ -27,8 +27,8 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {Starport} from "../Starport.sol";
+import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 

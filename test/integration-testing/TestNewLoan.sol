@@ -386,9 +386,7 @@ contract TestNewLoan is StarportTest {
         (ReceivedItem[] memory settlementConsideration, address authorized) =
             Settlement(activeLoan.terms.settlement).getSettlementConsideration(activeLoan);
         settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
-        ConsiderationItem[] memory consider = new ConsiderationItem[](
-               settlementConsideration.length
-             );
+        ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
         uint256 i = 0;
         for (; i < settlementConsideration.length;) {
             consider[i].token = settlementConsideration[i].token;
@@ -401,9 +399,7 @@ contract TestNewLoan is StarportTest {
                 ++i;
             }
         }
-        OfferItem[] memory repayOffering = new OfferItem[](
-           activeLoan.collateral.length
-         );
+        OfferItem[] memory repayOffering = new OfferItem[](activeLoan.collateral.length);
         i = 0;
         for (; i < activeLoan.collateral.length;) {
             repayOffering[i] = OfferItem({

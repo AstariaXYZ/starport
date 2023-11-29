@@ -27,10 +27,10 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "../Starport.sol";
+import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
+import {Originator} from "../originators/Originator.sol";
+import {AdditionalTransfer} from "../lib/StarportLib.sol";
 
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";

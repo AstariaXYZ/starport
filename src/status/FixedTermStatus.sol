@@ -27,9 +27,9 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {Status} from "starport-core/status/Status.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
+import {Starport} from "../Starport.sol";
+import {Status} from "../status/Status.sol";
+import {Validation} from "../lib/Validation.sol";
 
 contract FixedTermStatus is Status {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

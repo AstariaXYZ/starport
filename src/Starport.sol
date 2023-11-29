@@ -40,6 +40,10 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
+interface Stargate {
+    function getOwner(address) external returns (address);
+}
+
 contract Starport is PausableNonReentrant {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
@@ -85,6 +89,7 @@ contract Starport is PausableNonReentrant {
     bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
     bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
 
+    Stargate public immutable SG;
     address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
 
@@ -154,7 +159,8 @@ contract Starport is PausableNonReentrant {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(address seaport_) {
+    constructor(address seaport_, Stargate stargate_) {
+        SG = stargate_;
         address custodian = address(new Custodian(this, seaport_));
 
         bytes32 defaultCustodianCodeHash;
@@ -626,6 +632,10 @@ contract Starport is PausableNonReentrant {
         assembly ("memory-safe") {
             mstore(feeItems, totalFeeItems)
         }
+    }
+
+    function acquireTokens(SpentItem[] memory items) external {
+        StarportLib.transferSpentItems(items, SG.getOwner(msg.sender), msg.sender, false);
     }
 
     /**

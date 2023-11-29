@@ -282,6 +282,41 @@ contract TestStarport is StarportTest, DeepEq {
         loan.toStorage(activeLoan);
     }
 
+    function testStargateGetOwner() public {
+        assertEq(address(borrower.addr), SP.SG().getOwner(address(this)));
+    }
+
+    function testAcquireTokensSuccess() public {
+        vm.startPrank(borrower.addr);
+        erc20s[1].approve(address(SP), 100);
+        erc721s[0].approve(address(SP), 2);
+        erc1155s[0].setApprovalForAll(address(SP), true);
+        vm.stopPrank();
+        uint256 balanceBefore = erc20s[1].balanceOf(address(this));
+        SpentItem[] memory items = new SpentItem[](3);
+        items[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 2, itemType: ItemType.ERC721});
+        items[1] = SpentItem({token: address(erc20s[1]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
+        items[2] = SpentItem({token: address(erc1155s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC1155});
+        SP.acquireTokens(items);
+        assert(erc721s[0].ownerOf(2) == address(this));
+        assert(erc20s[1].balanceOf(address(this)) == balanceBefore + 100);
+        assert(erc1155s[0].balanceOf(address(this), 1) == 1);
+    }
+
+    function testAcquireTokensFail() public {
+        uint256 balanceBefore = erc20s[0].balanceOf(address(this));
+        vm.mockCall(address(this), abi.encodeWithSelector(Stargate.getOwner.selector, address(this)), abi.encode(0));
+        SpentItem[] memory items = new SpentItem[](3);
+        items[0] = SpentItem({token: address(erc721s[0]), amount: 1, identifier: 2, itemType: ItemType.ERC721});
+        items[1] = SpentItem({token: address(erc20s[1]), amount: 100, identifier: 0, itemType: ItemType.ERC20});
+        items[2] = SpentItem({token: address(erc1155s[0]), amount: 1, identifier: 1, itemType: ItemType.ERC1155});
+        vm.expectRevert();
+        SP.acquireTokens(items);
+        assert(erc721s[0].ownerOf(2) == address(borrower.addr));
+        assert(erc20s[1].balanceOf(address(this)) == balanceBefore);
+        assert(erc1155s[0].balanceOf(address(this), 1) == 0);
+    }
+
     function testIncrementCaveatNonce() public {
         vm.roll(5);
         uint256 newNonce = SP.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);

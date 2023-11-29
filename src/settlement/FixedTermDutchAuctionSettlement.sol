@@ -27,11 +27,11 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "../Starport.sol";
+import {DutchAuctionSettlement} from "../settlement/DutchAuctionSettlement.sol";
+import {FixedTermStatus} from "../status/FixedTermStatus.sol";
+import {Settlement} from "../settlement/Settlement.sol";
+import {StarportLib} from "../lib/StarportLib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
