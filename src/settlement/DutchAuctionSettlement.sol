@@ -35,13 +35,13 @@ import {
     OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Pricing} from "../pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
+import {Starport, Settlement} from "../settlement/Settlement.sol";
 
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
+import {BasePricing} from "../pricing/BasePricing.sol";
+import {Validation} from "../lib/Validation.sol";
 
 abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     using FixedPointMathLib for uint256;

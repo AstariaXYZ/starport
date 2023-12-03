@@ -27,8 +27,8 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "../Starport.sol";
+import {AdditionalTransfer} from "../lib/StarportLib.sol";
 
 abstract contract CaveatEnforcer {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

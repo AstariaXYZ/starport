@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {Starport} from "starport-core/Starport.sol";
+import {Starport, Stargate} from "starport-core/Starport.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {StrategistOriginator} from "starport-core/originators/StrategistOriginator.sol";
 import {
@@ -56,7 +56,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
+import {TokenReceiverInterface} from "./interfaces/TokenReceiverInterface.sol";
 import {Actions} from "starport-core/lib/StarportLib.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
@@ -96,7 +96,7 @@ contract MockIssuer is TokenReceiverInterface {
     }
 }
 
-contract StarportTest is BaseOrderTest {
+contract StarportTest is BaseOrderTest, Stargate {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
@@ -142,6 +142,11 @@ contract StarportTest is BaseOrderTest {
 
     LenderEnforcer lenderEnforcer;
 
+    //mock the test harness as stargate
+    function getOwner(address) external view returns (address) {
+        return borrower.addr;
+    }
+
     function _deployAndConfigureConsideration() public {
         conduitController = new ConduitController();
 
@@ -179,7 +184,7 @@ contract StarportTest is BaseOrderTest {
         refinancer = makeAndAllocateAccount("refinancer");
         fulfiller = makeAndAllocateAccount("fulfiller");
 
-        SP = new Starport(address(consideration));
+        SP = new Starport(address(consideration), Stargate(address(this)));
         custodian = Custodian(payable(SP.defaultCustodian()));
         SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(SP);
@@ -553,9 +558,7 @@ contract StarportTest is BaseOrderTest {
         pure
         returns (ConsiderationItem[] memory)
     {
-        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](
-            _receivedItems.length
-        );
+        ConsiderationItem[] memory considerationItems = new ConsiderationItem[](_receivedItems.length);
         for (uint256 i = 0; i < _receivedItems.length; ++i) {
             considerationItems[i] = ConsiderationItem(
                 _receivedItems[i].itemType,

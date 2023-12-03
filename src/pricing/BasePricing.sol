@@ -27,11 +27,11 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {Status} from "starport-core/status/Status.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "../Starport.sol";
+import {Pricing} from "../pricing/Pricing.sol";
+import {Status} from "../status/Status.sol";
+import {Validation} from "../lib/Validation.sol";
+import {StarportLib} from "../lib/StarportLib.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";

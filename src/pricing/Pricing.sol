@@ -27,9 +27,9 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
+import {Starport} from "../Starport.sol";
+import {AdditionalTransfer} from "../lib/StarportLib.sol";
+import {Validation} from "../lib/Validation.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
