@@ -49,7 +49,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
     }
 
     function testIncrementCounterAsStrategist() public {
-        uint256 newCounter = SO.getCounter() + uint256(blockhash(block.number - 1) << 0x80);
+        uint256 newCounter = SO.getCounter() + uint256(blockhash(block.timestamp - 1) << 0x80);
         vm.expectEmit();
         emit CounterUpdated(newCounter);
         vm.prank(strategist.addr);
@@ -68,7 +68,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -110,7 +110,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -153,7 +153,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -196,7 +196,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -240,7 +240,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -282,7 +282,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -324,7 +324,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -368,7 +368,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(0),
@@ -412,7 +412,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
             custodian: SP.defaultCustodian(),
             issuer: lender.addr,
-            deadline: block.number + 8,
+            deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
                 terms: loan.terms,
                 salt: bytes32(uint256(1)),
