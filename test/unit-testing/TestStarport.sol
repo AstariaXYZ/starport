@@ -962,7 +962,7 @@ contract TestStarport is StarportTest, DeepEq {
         skip(1);
         uint256 borrowerBalanceBefore = erc20s[0].balanceOf(address(activeLoan.borrower));
         vm.startPrank(lender.addr);
-        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
         assert(erc20s[0].balanceOf(address(activeLoan.borrower)) == borrowerBalanceBefore + 20);
     }
 
@@ -981,7 +981,7 @@ contract TestStarport is StarportTest, DeepEq {
         skip(1);
         vm.expectRevert(abi.encodeWithSelector(Starport.InvalidPostRepayment.selector));
         vm.startPrank(lender.addr);
-        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
     }
 
     function testInvalidAdditionalTransfersRefinance() public {
@@ -1009,6 +1009,6 @@ contract TestStarport is StarportTest, DeepEq {
         skip(1);
         vm.startPrank(lender.addr);
         vm.expectRevert(abi.encodeWithSelector(Starport.UnauthorizedAdditionalTransferIncluded.selector));
-        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData);
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
     }
 }

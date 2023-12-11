@@ -255,7 +255,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         vm.warp(block.timestamp + 1);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
         vm.expectRevert(StarportLib.InvalidSalt.selector);
-        SP.refinance(lender.addr, lenderCaveat, loan, "");
+        SP.refinance(lender.addr, lenderCaveat, loan, "", "");
     }
 
     function testRefinanceAsLender() public {
@@ -268,7 +268,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         vm.warp(block.timestamp + 1);
         vm.prank(newLender);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
-        SP.refinance(newLender, _emptyCaveat(), loan, defaultPricingData);
+        SP.refinance(newLender, _emptyCaveat(), loan, defaultPricingData, "");
     }
 
     function testRefinanceWLenderApproval() public {
@@ -282,7 +282,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         vm.warp(block.timestamp + 1);
         vm.prank(borrower.addr);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
-        SP.refinance(lender.addr, _emptyCaveat(), loan, defaultPricingData);
+        SP.refinance(lender.addr, _emptyCaveat(), loan, defaultPricingData, "");
     }
 
     function testRefinanceUnapprovedFulfiller() public {
@@ -311,7 +311,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
 
-        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData);
+        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData, "");
     }
 
     function testRefinanceCaveatFailure() public {
@@ -330,7 +330,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         vm.prank(loan.borrower);
         mockIsValidRefinanceCall(loan.terms.pricing, loan.debt, new SpentItem[](0), new AdditionalTransfer[](0));
         vm.expectRevert(LenderEnforcer.InvalidLoanTerms.selector);
-        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData);
+        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData, "");
     }
 
     function testRefinanceLoanStartAtBlockTimestampInvalidLoan() public {
@@ -347,6 +347,6 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
 
         vm.prank(loan.borrower);
         vm.expectRevert(Starport.InvalidLoan.selector);
-        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData);
+        SP.refinance(lender.addr, lenderCaveat, loan, defaultPricingData, "");
     }
 }

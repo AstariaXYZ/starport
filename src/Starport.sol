@@ -31,6 +31,7 @@ import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import {Custodian} from "./Custodian.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
 import {Pricing} from "./pricing/Pricing.sol";
+import {Status} from "./status/Status.sol";
 import {Settlement} from "./settlement/Settlement.sol";
 import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
 
@@ -61,6 +62,7 @@ contract Starport is PausableNonReentrant {
     error InvalidCaveatSigner();
     error InvalidCustodian();
     error InvalidLoan();
+    error InvalidLoanState();
     error InvalidPostRepayment();
     error InvalidRefinance();
     error LoanExists();
@@ -248,10 +250,14 @@ contract Starport is PausableNonReentrant {
         address lender,
         CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan,
-        bytes calldata pricingData
+        bytes calldata pricingData,
+        bytes calldata statusData
     ) external pausableNonReentrant {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
+        }
+        if (!Status(loan.terms.status).isActive(loan, statusData)) {
+            revert InvalidLoanState();
         }
         (
             SpentItem[] memory considerationPayment,

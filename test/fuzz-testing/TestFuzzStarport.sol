@@ -599,8 +599,11 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         Account memory account = makeAndAllocateAccount(params.refiKey);
 
         address refiFulfiller;
-        skip(1);
-        skip(_boundMax(params.skipTime, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration));
+        skip(
+            _bound(
+                params.skipTime, 1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration - 1
+            )
+        );
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
@@ -641,7 +644,8 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
                 account.addr,
                 refiFulfiller != account.addr ? lenderCaveat : _emptyCaveat(),
                 goodLoan2,
-                abi.encode(newPricingDetails)
+                abi.encode(newPricingDetails),
+                ""
             );
         }
     }

@@ -501,7 +501,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         if (revertMessage.length > 0) {
             vm.expectRevert(revertMessage); //reverts InvalidContractOfferer with an address an a contract nonce so expect general revert
         }
-        SP.refinance(lender, lenderCaveat, loan, pricingData);
+        SP.refinance(lender, lenderCaveat, loan, pricingData, "");
 
         vm.stopPrank();
 
