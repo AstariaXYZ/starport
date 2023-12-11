@@ -161,7 +161,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     function mint(Starport.Loan calldata loan) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !SP.active(loanId)) {
+        if (loan.custodian != address(this) || SP.closed(loanId)) {
             revert InvalidLoan();
         }
         _safeMint(loan.borrower, loanId, encodedLoan);
@@ -175,7 +175,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external {
         bytes memory encodedLoan = abi.encode(loan);
         uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || !SP.active(loanId)) {
+        if (loan.custodian != address(this) || SP.closed(loanId)) {
             revert InvalidLoan();
         }
         if (msg.sender != loan.borrower) {
@@ -314,7 +314,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Command memory close) = abi.decode(context, (Command));
         Starport.Loan memory loan = close.loan;
-        if (loan.start == block.timestamp || SP.inactive(loan.getId())) {
+        if (loan.start == block.timestamp || SP.closed(loan.getId())) {
             revert InvalidLoan();
         }
         bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);

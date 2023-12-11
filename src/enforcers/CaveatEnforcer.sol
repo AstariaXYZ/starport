@@ -61,5 +61,6 @@ abstract contract CaveatEnforcer {
     function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
         public
         view
-        virtual;
+        virtual
+        returns (bytes4);
 }

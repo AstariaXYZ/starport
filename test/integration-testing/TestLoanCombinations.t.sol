@@ -33,7 +33,7 @@ contract TestLoanCombinations is StarportTest {
         assertTrue(erc20s[0].balanceOf(borrower.addr) > initial20Balance, "Borrower did not receive ERC20");
 
         uint256 loanId = loan.getId();
-        assertTrue(SP.active(loanId), "LoanId not in active state after a new loan");
+        assertTrue(SP.open(loanId), "LoanId not in active state after a new loan");
         skip(10 days);
 
         _repayLoan({borrower: borrower.addr, amount: 375, loan: loan});

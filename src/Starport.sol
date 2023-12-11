@@ -31,6 +31,7 @@ import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import {Custodian} from "./Custodian.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
 import {Pricing} from "./pricing/Pricing.sol";
+import {Status} from "./status/Status.sol";
 import {Settlement} from "./settlement/Settlement.sol";
 import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
 
@@ -56,9 +57,12 @@ contract Starport is PausableNonReentrant {
     error AdditionalTransferError();
     error CannotTransferLoans();
     error CaveatDeadlineExpired();
+    error InvalidCaveat();
+    error InvalidCaveatLength();
     error InvalidCaveatSigner();
     error InvalidCustodian();
     error InvalidLoan();
+    error InvalidLoanState();
     error InvalidPostRepayment();
     error InvalidRefinance();
     error LoanExists();
@@ -83,8 +87,8 @@ contract Starport is PausableNonReentrant {
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    uint256 public constant LOAN_INACTIVE_FLAG = 0x0;
-    uint256 public constant LOAN_ACTIVE_FLAG = 0x1;
+    uint256 public constant LOAN_CLOSED_FLAG = 0x0;
+    uint256 public constant LOAN_OPEN_FLAG = 0x1;
 
     bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
     bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
@@ -246,10 +250,14 @@ contract Starport is PausableNonReentrant {
         address lender,
         CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan,
-        bytes calldata pricingData
+        bytes calldata pricingData,
+        bytes calldata extraData
     ) external pausableNonReentrant {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
+        }
+        if (!Status(loan.terms.status).isActive(loan, extraData)) {
+            revert InvalidLoanState();
         }
         (
             SpentItem[] memory considerationPayment,
@@ -426,8 +434,8 @@ contract Starport is PausableNonReentrant {
      * @param loanId The id of the loan
      * @return bool True if the loan is active
      */
-    function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_ACTIVE_FLAG;
+    function open(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_OPEN_FLAG;
     }
 
     /**
@@ -435,8 +443,8 @@ contract Starport is PausableNonReentrant {
      * @param loanId The id of the loan
      * @return bool True if the loan is inactive
      */
-    function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_INACTIVE_FLAG;
+    function closed(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_CLOSED_FLAG;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -550,10 +558,18 @@ contract Starport is PausableNonReentrant {
             revert InvalidCaveatSigner();
         }
 
+        if (signedCaveats.caveats.length == 0) {
+            revert InvalidCaveatLength();
+        }
+
         for (uint256 i = 0; i < signedCaveats.caveats.length;) {
-            CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
-                additionalTransfers, loan, signedCaveats.caveats[i].data
-            );
+            if (
+                CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
+                    additionalTransfers, loan, signedCaveats.caveats[i].data
+                ) != CaveatEnforcer.validate.selector
+            ) {
+                revert InvalidCaveat();
+            }
             unchecked {
                 ++i;
             }
@@ -580,7 +596,7 @@ contract Starport is PausableNonReentrant {
                 revert(0x0, 0x04)
             }
 
-            sstore(loc, LOAN_INACTIVE_FLAG)
+            sstore(loc, LOAN_CLOSED_FLAG)
         }
 
         emit Close(loanId);
@@ -661,7 +677,7 @@ contract Starport is PausableNonReentrant {
                 revert(0x0, 0x04)
             }
 
-            sstore(loc, LOAN_ACTIVE_FLAG)
+            sstore(loc, LOAN_OPEN_FLAG)
         }
         emit Open(loanId, loan);
     }
