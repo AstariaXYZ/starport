@@ -251,12 +251,12 @@ contract Starport is PausableNonReentrant {
         CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan,
         bytes calldata pricingData,
-        bytes calldata statusData
+        bytes calldata extraData
     ) external pausableNonReentrant {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
-        if (!Status(loan.terms.status).isActive(loan, statusData)) {
+        if (!Status(loan.terms.status).isActive(loan, extraData)) {
             revert InvalidLoanState();
         }
         (
