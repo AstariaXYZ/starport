@@ -69,7 +69,7 @@ contract BorrowerEnforcerBNPL is CaveatEnforcer {
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
         bytes calldata caveatData
-    ) public view virtual override {
+    ) public view virtual override returns (bytes4 selector) {
         bytes32 loanHash = keccak256(abi.encode(loan));
 
         Details memory details = abi.decode(caveatData, (Details));
@@ -106,5 +106,7 @@ contract BorrowerEnforcerBNPL is CaveatEnforcer {
                 revert InvalidAdditionalTransfer();
             }
         }
+
+        selector = CaveatEnforcer.validate.selector;
     }
 }

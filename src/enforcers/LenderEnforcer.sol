@@ -56,8 +56,9 @@ contract LenderEnforcer is CaveatEnforcer {
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
         bytes calldata caveatData
-    ) public view virtual override {
+    ) public view virtual override returns (bytes4 selector) {
         _validate(additionalTransfers, loan, abi.decode(caveatData, (Details)));
+        selector = CaveatEnforcer.validate.selector;
     }
 
     function _validate(

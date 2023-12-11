@@ -121,6 +121,59 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
     }
 
+    function testInvalidCaveats() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        CaveatEnforcer.SignedCaveats memory borrowerCaveat = getBorrowerSignedCaveat({
+            details: BorrowerEnforcer.Details({loan: loan}),
+            signer: borrower,
+            salt: bytes32(0),
+            enforcer: address(borrowerEnforcer)
+        });
+        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+
+        _setApprovalsForSpentItems(lender.addr, loan.debt);
+
+        vm.roll(5);
+        //function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
+        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
+        //
+        vm.mockCall(
+            address(borrowerEnforcer),
+            abi.encodeWithSelector(
+                CaveatEnforcer.validate.selector, new AdditionalTransfer[](0), loan, borrowerCaveat.caveats[0].data
+            ),
+            abi.encode(bytes4(0))
+        );
+
+        vm.expectRevert(Starport.InvalidCaveat.selector);
+        vm.prank(lender.addr);
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
+    }
+
+    function testInvalidCaveatLength() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        CaveatEnforcer.SignedCaveats memory signedCaveats;
+        signedCaveats.caveats = new CaveatEnforcer.Caveat[](0);
+        signedCaveats.salt = bytes32(0);
+        signedCaveats.singleUse = true;
+        signedCaveats.deadline = block.timestamp + 1 days;
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            borrower.addr, signedCaveats.singleUse, signedCaveats.salt, signedCaveats.deadline, signedCaveats.caveats
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(borrower.key, hash);
+        signedCaveats.signature = abi.encodePacked(r, s, v);
+        _setApprovalsForSpentItems(borrower.addr, loan.collateral);
+
+        _setApprovalsForSpentItems(lender.addr, loan.debt);
+
+        vm.expectRevert(Starport.InvalidCaveatLength.selector);
+        vm.prank(lender.addr);
+        SP.originate(new AdditionalTransfer[](0), signedCaveats, _emptyCaveat(), loan);
+    }
+
     function testOriginateWBorrowerApproval() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 

@@ -56,6 +56,8 @@ contract Starport is PausableNonReentrant {
     error AdditionalTransferError();
     error CannotTransferLoans();
     error CaveatDeadlineExpired();
+    error InvalidCaveat();
+    error InvalidCaveatLength();
     error InvalidCaveatSigner();
     error InvalidCustodian();
     error InvalidLoan();
@@ -550,10 +552,18 @@ contract Starport is PausableNonReentrant {
             revert InvalidCaveatSigner();
         }
 
+        if (signedCaveats.caveats.length == 0) {
+            revert InvalidCaveatLength();
+        }
+
         for (uint256 i = 0; i < signedCaveats.caveats.length;) {
-            CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
-                additionalTransfers, loan, signedCaveats.caveats[i].data
-            );
+            if (
+                CaveatEnforcer(signedCaveats.caveats[i].enforcer).validate(
+                    additionalTransfers, loan, signedCaveats.caveats[i].data
+                ) != CaveatEnforcer.validate.selector
+            ) {
+                revert InvalidCaveat();
+            }
             unchecked {
                 ++i;
             }
