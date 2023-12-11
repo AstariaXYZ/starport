@@ -311,7 +311,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         signedCaveats = CaveatEnforcer.SignedCaveats({
             signature: "",
             singleUse: invalidate,
-            deadline: block.number + (1 days / 12),
+            deadline: block.timestamp + (1 days / 12),
             salt: salt,
             caveats: new CaveatEnforcer.Caveat[](1)
         });
@@ -414,7 +414,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
         signedCaveats.singleUse = true;
-        signedCaveats.deadline = block.number + (1 days / 12);
+        signedCaveats.deadline = block.timestamp + 1 days;
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
             signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
@@ -433,7 +433,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
         signedCaveats.singleUse = true;
-        signedCaveats.deadline = block.number + (1 days / 12);
+        signedCaveats.deadline = block.timestamp + 1 days;
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
             signer.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats

@@ -68,7 +68,7 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
             salt: bytes32(uint256(1)),
             enforcer: address(borrowerEnforcer)
         });
-        vm.roll(borrowerCaveat.deadline + 1);
+        vm.warp(borrowerCaveat.deadline + 1);
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
 
         _setApprovalsForSpentItems(lender.addr, loan.debt);
