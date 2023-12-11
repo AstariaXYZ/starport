@@ -386,10 +386,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         badLoan.originator = goodLoan.originator;
 
         assert(goodLoan.originator != address(0));
-        assert(SP.active(goodLoan.getId()));
-        assert(!SP.inactive(goodLoan.getId()));
-        assert(SP.inactive(badLoan.getId()));
-        assert(!SP.active(badLoan.getId()));
+        assert(SP.open(goodLoan.getId()));
+        assert(!SP.closed(goodLoan.getId()));
+        assert(SP.closed(badLoan.getId()));
+        assert(!SP.open(badLoan.getId()));
     }
 
     function testFuzzRepaymentFails(FuzzRepaymentLoan memory params) public {

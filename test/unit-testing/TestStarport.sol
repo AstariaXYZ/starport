@@ -401,11 +401,11 @@ contract TestStarport is StarportTest, DeepEq {
 
     function testInitializedFlagSetProperly() public {
         activeLoan.borrower = address(0);
-        assert(SP.inactive(activeLoan.getId()));
+        assert(SP.closed(activeLoan.getId()));
     }
 
     function testActive() public {
-        assert(SP.active(activeLoan.getId()));
+        assert(SP.open(activeLoan.getId()));
     }
 
     function testNonDefaultCustodianCustodyCallFails() public {

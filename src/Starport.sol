@@ -87,8 +87,8 @@ contract Starport is PausableNonReentrant {
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    uint256 public constant LOAN_INACTIVE_FLAG = 0x0;
-    uint256 public constant LOAN_ACTIVE_FLAG = 0x1;
+    uint256 public constant LOAN_CLOSED_FLAG = 0x0;
+    uint256 public constant LOAN_OPEN_FLAG = 0x1;
 
     bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
     bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
@@ -434,8 +434,8 @@ contract Starport is PausableNonReentrant {
      * @param loanId The id of the loan
      * @return bool True if the loan is active
      */
-    function active(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_ACTIVE_FLAG;
+    function open(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_OPEN_FLAG;
     }
 
     /**
@@ -443,8 +443,8 @@ contract Starport is PausableNonReentrant {
      * @param loanId The id of the loan
      * @return bool True if the loan is inactive
      */
-    function inactive(uint256 loanId) public view returns (bool) {
-        return loanState[loanId] == LOAN_INACTIVE_FLAG;
+    function closed(uint256 loanId) public view returns (bool) {
+        return loanState[loanId] == LOAN_CLOSED_FLAG;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -596,7 +596,7 @@ contract Starport is PausableNonReentrant {
                 revert(0x0, 0x04)
             }
 
-            sstore(loc, LOAN_INACTIVE_FLAG)
+            sstore(loc, LOAN_CLOSED_FLAG)
         }
 
         emit Close(loanId);
@@ -677,7 +677,7 @@ contract Starport is PausableNonReentrant {
                 revert(0x0, 0x04)
             }
 
-            sstore(loc, LOAN_ACTIVE_FLAG)
+            sstore(loc, LOAN_OPEN_FLAG)
         }
         emit Open(loanId, loan);
     }
