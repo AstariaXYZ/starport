@@ -135,9 +135,6 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
         vm.roll(5);
-        //function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
-        //function mockCallRevert(address callee, bytes calldata data, bytes calldata revertData) external;
-        //
         vm.mockCall(
             address(borrowerEnforcer),
             abi.encodeWithSelector(
