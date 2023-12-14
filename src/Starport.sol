@@ -103,9 +103,11 @@ contract Starport is PausableNonReentrant {
     bytes32 public constant EIP_DOMAIN =
         keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
     string public constant VERSION = "0";
+
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
-        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,Caveat[] caveats)"
     );
+    bytes32 public constant CAVEAT_TYPEHASH = keccak256("Caveat(address enforcer,bytes data)");
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -409,6 +411,14 @@ contract Starport is PausableNonReentrant {
         uint256 deadline,
         CaveatEnforcer.Caveat[] calldata caveats
     ) public view virtual returns (bytes32) {
+        bytes32[] memory caveatHashes = new bytes32[](caveats.length);
+        uint256 i = 0;
+        for (; i < caveats.length;) {
+            caveatHashes[i] = _hashCaveat(caveats[i]);
+            unchecked {
+                ++i;
+            }
+        }
         return keccak256(
             abi.encodePacked(
                 bytes1(0x19),
@@ -422,11 +432,22 @@ contract Starport is PausableNonReentrant {
                         singleUse,
                         salt,
                         deadline,
-                        keccak256(abi.encode(caveats))
+                        keccak256(abi.encodePacked(caveatHashes))
                     )
                 )
             )
         );
+    }
+
+    /**
+     * @dev Internal view function to derive the EIP-712 hash for a caveat
+     *
+     * @param caveat The caveat to hash.
+     *
+     * @return The hash.
+     */
+    function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal view returns (bytes32) {
+        return keccak256(abi.encode(CAVEAT_TYPEHASH, caveat.enforcer, caveat.data));
     }
 
     /**

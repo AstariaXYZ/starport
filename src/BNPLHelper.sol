@@ -82,7 +82,7 @@ contract BNPLHelper is IFlashLoanRecipient {
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    address private constant vault = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
+    address private constant VAULT = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STORAGE                           */
@@ -109,7 +109,7 @@ contract BNPLHelper is IFlashLoanRecipient {
     function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
         activeUserDataHash = keccak256(userData);
 
-        IVault(vault).flashLoan(this, tokens, amounts, userData);
+        IVault(VAULT).flashLoan(this, tokens, amounts, userData);
     }
 
     function receiveFlashLoan(
@@ -118,7 +118,7 @@ contract BNPLHelper is IFlashLoanRecipient {
         uint256[] calldata feeAmounts,
         bytes calldata userData
     ) external override {
-        if (msg.sender != vault) {
+        if (msg.sender != VAULT) {
             revert SenderNotVault();
         }
 
@@ -147,7 +147,7 @@ contract BNPLHelper is IFlashLoanRecipient {
                 identifier: 0,
                 token: tokens[i],
                 from: execution.borrower,
-                to: vault,
+                to: VAULT,
                 amount: amounts[i] + feeAmounts[i]
             });
             unchecked {

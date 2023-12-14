@@ -25,6 +25,8 @@
 //                       ↑↑↑↑
 //                       ↑↑↑↑
 
+pragma solidity ^0.8.17;
+
 import {Ownable} from "solady/src/auth/Ownable.sol";
 
 abstract contract PausableNonReentrant is Ownable {
