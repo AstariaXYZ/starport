@@ -8,7 +8,7 @@ import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
-
+import {LibString} from "solady/src/utils/LibString.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 
 contract MockFixedTermDutchAuctionSettlement is DutchAuctionSettlement {
@@ -280,6 +280,38 @@ contract TestStarport is StarportTest, DeepEq {
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
+    }
+
+    function testEIP721Signing() public {
+        CaveatEnforcer.SignedCaveats memory empty = _emptyCaveat();
+
+        bytes32 hashToTest =
+            SP.hashCaveatWithSaltAndNonce(borrower.addr, empty.singleUse, empty.salt, empty.deadline, empty.caveats);
+
+        console2.log("account", borrower.addr);
+        console2.log("singleUse", empty.singleUse);
+        console2.log("salt");
+        console2.logBytes32(empty.salt);
+        console2.log("deadline", empty.deadline);
+        console2.log("starport", address(SP));
+        console2.log("nonce", SP.caveatNonces(borrower.addr));
+        console2.log("chainId", block.chainid);
+        string[] memory commands = new string[](11);
+        commands[0] = "ts-node";
+        commands[1] = "ffi-scripts/test-origination-hash.ts";
+        commands[2] = LibString.toHexString(borrower.key);
+        commands[3] = LibString.toHexString(uint160(address(SP)));
+        commands[4] = LibString.toHexString(uint160(borrower.addr));
+        commands[5] = LibString.toHexString(SP.caveatNonces(borrower.addr));
+        commands[6] = LibString.toHexString((empty.singleUse) ? 1 : 0);
+        commands[7] = LibString.toHexString(uint256(empty.salt));
+        commands[8] = LibString.toHexString(empty.deadline);
+        commands[9] = LibString.toHexString(abi.encode(empty.caveats));
+        commands[10] = LibString.toHexString(block.chainid);
+
+        bytes memory incomingHashBytes = vm.ffi(commands);
+        bytes32 incomingHash = abi.decode(incomingHashBytes, (bytes32));
+        assertEq(hashToTest, incomingHash);
     }
 
     function testStargateGetOwner() public {

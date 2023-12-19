@@ -106,6 +106,7 @@ contract Starport is PausableNonReentrant {
 
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
         "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,Caveat[] caveats)"
+        "Caveat(address enforcer,bytes data)"
     );
     bytes32 public constant CAVEAT_TYPEHASH = keccak256("Caveat(address enforcer,bytes data)");
 
@@ -177,6 +178,10 @@ contract Starport is PausableNonReentrant {
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
+    }
+
+    function domainSeparator() public view returns (bytes32) {
+        return keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -423,7 +428,7 @@ contract Starport is PausableNonReentrant {
             abi.encodePacked(
                 bytes1(0x19),
                 bytes1(0x01),
-                _DOMAIN_SEPARATOR,
+                domainSeparator(),
                 keccak256(
                     abi.encode(
                         INTENT_ORIGINATION_TYPEHASH,
@@ -473,7 +478,7 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev Settle the loan with the LoanManager
+     * @dev Settle the loan
      * @param loan The the loan that is settled
      * @param fulfiller The address executing the settle
      */

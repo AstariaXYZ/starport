@@ -4,6 +4,8 @@ out = "out"
 libs = ["lib"]
 ignored_error_codes = [2018, 9302, 5574]
 
+fs_permissions = [{ access = "read-write", path = "./"}]
+
 [profile.default.fuzz]
 include_storage = false
 runs = 10000
