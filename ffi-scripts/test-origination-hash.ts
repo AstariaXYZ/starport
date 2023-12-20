@@ -1,7 +1,6 @@
-import { Address, hashTypedData, pad, Hex, hexToString } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
-import { decodeAbiParameters } from 'viem'
-
+import { Address, hashTypedData, pad, Hex, hexToString, keccak256 } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { decodeAbiParameters, parseAbiParameters } from "viem";
 
 
 const types = {
@@ -44,16 +43,16 @@ const types = {
 };
 
 
-const domain = (verifyingContract: Address, chainId: any) => ({
-  version: "0" ,
-  chainId,
-  verifyingContract: verifyingContract
+const domain = (verifyingContract: Address, chainId: number) => ({
+  version: "0",
+  chainId: chainId,
+  verifyingContract
 });
 
 type caveatType = [`0x${string}`, `0x${string}`];
 
-const typeDataMessage = (account: Address, accountNonce: string, singleUse: boolean, salt: Hex, deadline: string, caveats: caveatType) => ({
-  account: account, accountNonce: accountNonce, singleUse: true, salt: salt, deadline: deadline, caveats: caveats
+const typeDataMessage = (account: Address, accountNonce: string, singleUse: boolean, salt: Hex, deadline: string, caveats: any) => ({
+  account: account, accountNonce: parseInt(accountNonce), singleUse: singleUse, salt: salt, deadline: deadline, caveats: caveats[0]
 });
 
 //verifying contract
@@ -69,18 +68,16 @@ const main = async () => {
   const [signerKeyRaw, verifyingContract, account, accountNonce, singleUse, salt, deadline, caveatsRaw, chainId] = args;
   const signerKey: any = `${signerKeyRaw}`;
   // const signer = privateKeyToAccount(signerKey);//anvil account 1
-  const caveats : unknown  = decodeAbiParameters([{ name: 'enforcer', type: 'address' },
-    { name: 'data', type: 'bytes' },], caveatsRaw as `0x${string}`);
-
-  const hashData : any = {
-    domain: domain(verifyingContract as Address, parseInt(chainId as Hex).toString()),
+  const caveats: any = decodeAbiParameters(parseAbiParameters("(address enforcer,bytes data)[]"), caveatsRaw as `0x${string}`);
+  const hashData: any = {
+    domain: domain(verifyingContract as Address, parseInt(chainId as Hex)),
     types,
     primaryType: "Origination",
-    message: typeDataMessage(account as Address, "0", !!parseInt(singleUse as Hex), pad(salt as Hex, {size: 32}), pad(deadline as Hex, {size: 32}), [] as  any)
+    message: typeDataMessage(account as Address, accountNonce, !!parseInt(singleUse as Hex), pad(salt as Hex, {size: 32}), parseInt(deadline as Hex).toString(), caveats as  any)
   };
-  const dataHash = hashTypedData(hashData);
 
+  const dataHash: Hex = hashTypedData(hashData);
   console.log(dataHash);
-}
+};
 
 main();

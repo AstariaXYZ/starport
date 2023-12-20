@@ -282,20 +282,15 @@ contract TestStarport is StarportTest, DeepEq {
         loan.toStorage(activeLoan);
     }
 
-    function testEIP721Signing() public {
+    function testEIP712Signing() public {
         CaveatEnforcer.SignedCaveats memory empty = _emptyCaveat();
 
+        empty.caveats = new CaveatEnforcer.Caveat[](2);
+        empty.caveats[0] = CaveatEnforcer.Caveat({enforcer: address(1), data: abi.encode(uint256(1))});
+        empty.caveats[1] = CaveatEnforcer.Caveat({enforcer: address(2), data: abi.encode(uint256(2))});
         bytes32 hashToTest =
             SP.hashCaveatWithSaltAndNonce(borrower.addr, empty.singleUse, empty.salt, empty.deadline, empty.caveats);
 
-        console2.log("account", borrower.addr);
-        console2.log("singleUse", empty.singleUse);
-        console2.log("salt");
-        console2.logBytes32(empty.salt);
-        console2.log("deadline", empty.deadline);
-        console2.log("starport", address(SP));
-        console2.log("nonce", SP.caveatNonces(borrower.addr));
-        console2.log("chainId", block.chainid);
         string[] memory commands = new string[](11);
         commands[0] = "ts-node";
         commands[1] = "ffi-scripts/test-origination-hash.ts";

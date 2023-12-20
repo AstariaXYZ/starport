@@ -97,18 +97,16 @@ contract Starport is PausableNonReentrant {
     address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
 
-    bytes32 internal immutable _DOMAIN_SEPARATOR;
-
-    // Define the EIP712 domain and typehash constants for generating signatures
+    // Define the EIP712 domain and typeHash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
-        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    string public constant VERSION = "0";
+        keccak256("EIP712Domain(" "string version," "uint256 chainId," "address verifyingContract" ")");
+    bytes32 public constant VERSION = keccak256(bytes("0"));
 
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
-        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,Caveat[] caveats)"
-        "Caveat(address enforcer,bytes data)"
+        "Origination(" "address account," "uint256 accountNonce," "bool singleUse," "bytes32 salt," "uint256 deadline,"
+        "Caveat[] caveats" ")" "Caveat(" "address enforcer," "bytes data" ")"
     );
-    bytes32 public constant CAVEAT_TYPEHASH = keccak256("Caveat(address enforcer,bytes data)");
+    bytes32 public constant CAVEAT_TYPEHASH = keccak256("Caveat(" "address enforcer," "bytes data" ")");
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -176,7 +174,6 @@ contract Starport is PausableNonReentrant {
         }
         defaultCustodian = payable(custodian);
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
-        _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
     }
 
@@ -452,7 +449,7 @@ contract Starport is PausableNonReentrant {
      * @return The hash.
      */
     function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal view returns (bytes32) {
-        return keccak256(abi.encode(CAVEAT_TYPEHASH, caveat.enforcer, caveat.data));
+        return keccak256(abi.encode(CAVEAT_TYPEHASH, caveat.enforcer, keccak256(caveat.data)));
     }
 
     /**
