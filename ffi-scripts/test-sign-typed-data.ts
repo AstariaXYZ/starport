@@ -1,6 +1,14 @@
-import { Address, hashTypedData, decodeAbiParameters, parseAbiParameters } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+'use strict';
+import { decodeAbiParameters, parseAbiParameters, createWalletClient, http, Address, hashTypedData, pad, Hex, hexToString, keccak256 } from "viem";
 
+import { mainnet } from 'viem/chains'
+
+const transport = http('http://localhost:1248')
+
+const client = createWalletClient({
+  chain: mainnet,
+  transport,
+})
 
 const types = {
   Origination: [
@@ -42,15 +50,16 @@ const types = {
 };
 
 
-const domain = (verifyingContract: Address) => ({
-  version: "0" ,
-  verifyingContract: verifyingContract
+const domain = (verifyingContract: Address, chainId: number) => ({
+  version: "0",
+  chainId: chainId,
+  verifyingContract
 });
 
 type caveatType = [`0x${string}`, `0x${string}`];
 
-const typeDataMessage = (account: Address, accountNonce: string, singleUse: number, salt: string, deadline: string, caveats: any) => ({
-  account: account, accountNonce: accountNonce, singleUse: !!(singleUse), salt: salt, deadline: deadline, caveats: caveats
+const typeDataMessage = (account: Address, accountNonce: string, singleUse: number, salt: Hex, deadline: string, caveats: any) => ({
+  account: account, accountNonce: parseInt(accountNonce), singleUse: singleUse, salt: salt, deadline: deadline, caveats: caveats[0]
 });
 
 //verifying contract
@@ -63,19 +72,20 @@ const typeDataMessage = (account: Address, accountNonce: string, singleUse: numb
 const args = process.argv.slice(2);
 
 const main = async () => {
-  const [signerKey, verifyingContract, account, accountNonce, singleUse, salt, deadline, caveatsRaw] = args;
-  const signer = privateKeyToAccount(signerKey as `0x{string}`);//anvil account 1
-  const caveats : any  = decodeAbiParameters(parseAbiParameters('(address,bytes)[]'), caveatsRaw as any );
-  const message = typeDataMessage(account as Address, accountNonce, parseInt(singleUse), salt, deadline, caveats);
-  console.log(message);
-  const dataHash = await signer.signTypedData({
-    domain: domain(verifyingContract as Address),
+   const [signerAccount] = await client.getAddresses()
+  const [signerKeyRaw, verifyingContract, account, accountNonce, singleUse, salt, deadline, caveatsRaw, chainId] = args;
+  // const signer = privateKeyToAccount(signerKey);//anvil account 1
+  const caveats: any = decodeAbiParameters(parseAbiParameters("(address enforcer,bytes data)[]"), caveatsRaw as `0x${string}`);
+  const hashData: any = {
+    account: signerAccount,
+    domain: domain(verifyingContract as Address, parseInt(chainId as Hex)),
     types,
     primaryType: "Origination",
-    message
-  });
+    message: typeDataMessage(account as Address, accountNonce, parseInt(singleUse as Hex), pad(salt as Hex, {size: 32}), parseInt(deadline as Hex).toString(), caveats as  any)
+  };
 
+  const dataHash: Hex = await client.signTypedData(hashData);
   console.log(dataHash);
-}
+};
 
 main();

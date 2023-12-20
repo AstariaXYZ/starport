@@ -645,9 +645,14 @@ contract Starport is PausableNonReentrant {
                 Fee memory feeOverride = feeOverrides[debtItem.token];
                 SpentItem memory feeItem = feeItems[i];
                 feeItem.identifier = 0;
-                amount = debtItem.amount.mulDiv(
-                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debtItem.token).decimals()
-                );
+                uint8 decimals;
+                try ERC20(debtItem.token).decimals() returns (uint8 _decimals) {
+                    decimals = _decimals;
+                } catch {
+                    decimals = 18;
+                }
+                amount =
+                    debtItem.amount.mulDiv(!feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** decimals);
 
                 if (amount > 0) {
                     feeItem.amount = amount;

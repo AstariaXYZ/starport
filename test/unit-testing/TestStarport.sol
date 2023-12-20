@@ -291,18 +291,19 @@ contract TestStarport is StarportTest, DeepEq {
         bytes32 hashToTest =
             SP.hashCaveatWithSaltAndNonce(borrower.addr, empty.singleUse, empty.salt, empty.deadline, empty.caveats);
 
-        string[] memory commands = new string[](11);
-        commands[0] = "ts-node";
-        commands[1] = "ffi-scripts/test-origination-hash.ts";
-        commands[2] = LibString.toHexString(borrower.key);
-        commands[3] = LibString.toHexString(uint160(address(SP)));
-        commands[4] = LibString.toHexString(uint160(borrower.addr));
-        commands[5] = LibString.toHexString(SP.caveatNonces(borrower.addr));
-        commands[6] = LibString.toHexString((empty.singleUse) ? 1 : 0);
-        commands[7] = LibString.toHexString(uint256(empty.salt));
-        commands[8] = LibString.toHexString(empty.deadline);
-        commands[9] = LibString.toHexString(abi.encode(empty.caveats));
-        commands[10] = LibString.toHexString(block.chainid);
+        string[] memory commands = new string[](12);
+        commands[0] = "npx";
+        commands[1] = "ts-node";
+        commands[2] = "ffi-scripts/test-origination-hash.ts";
+        commands[3] = LibString.toHexString(borrower.key);
+        commands[4] = LibString.toHexString(uint160(address(SP)));
+        commands[5] = LibString.toHexString(uint160(borrower.addr));
+        commands[6] = LibString.toHexString(SP.caveatNonces(borrower.addr));
+        commands[7] = LibString.toHexString((empty.singleUse) ? 1 : 0);
+        commands[8] = LibString.toHexString(uint256(empty.salt));
+        commands[9] = LibString.toHexString(empty.deadline);
+        commands[10] = LibString.toHexString(abi.encode(empty.caveats));
+        commands[11] = LibString.toHexString(block.chainid);
 
         bytes memory incomingHashBytes = vm.ffi(commands);
         bytes32 incomingHash = abi.decode(incomingHashBytes, (bytes32));
