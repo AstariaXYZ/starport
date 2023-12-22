@@ -5,6 +5,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {MockCall} from "starport-test/utils/MockCall.sol";
 import "forge-std/Test.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {LibString} from "solady/src/utils/LibString.sol";
 
 contract MockCustodian is Custodian {
     constructor(Starport SP_, address seaport_) Custodian(SP_, seaport_) {}
@@ -103,7 +104,10 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     }
 
     function testTokenURI() public {
-        assertEq(custodian.tokenURI(uint256(keccak256(abi.encode(activeLoan)))), "");
+        assertEq(
+            custodian.tokenURI(uint256(keccak256(abi.encode(activeLoan)))),
+            LibString.toString(uint256(keccak256(abi.encode(activeLoan))))
+        );
     }
 
     function testTokenURIInvalidLoan() public {

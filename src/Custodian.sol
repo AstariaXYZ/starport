@@ -39,6 +39,8 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {LibString} from "solady/src/utils/LibString.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
@@ -122,7 +124,8 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (!_exists(loanId)) {
             revert InvalidLoan();
         }
-        return string("");
+        //TODO: PLACEHOLDER that is semantically sound
+        return string.concat("", LibString.toString(loanId));
     }
 
     /**
@@ -357,7 +360,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).setApprovalForAll(seaport, true);
         } else if (offer.itemType == ItemType.ERC20) {
-            ERC20(offer.token).approve(seaport, type(uint256).max);
+            SafeTransferLib.safeApproveWithRetry(offer.token, seaport, type(uint256).max);
         }
     }
 
@@ -384,7 +387,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).safeTransferFrom(address(this), authorized, offer.identifier, offer.amount, "");
         } else if (offer.itemType == ItemType.ERC20) {
-            ERC20(offer.token).transfer(authorized, offer.amount);
+            SafeTransferLib.safeTransfer(offer.token, authorized, offer.amount);
         }
     }
 

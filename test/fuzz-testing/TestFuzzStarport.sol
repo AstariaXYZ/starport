@@ -268,8 +268,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         Starport.Loan memory loan = boundFuzzLoan(params, loanBoundsData);
         vm.assume(!willArithmeticOverflow(loan));
 
-        uint88 feeRake = uint88(_boundMax(0, 1e17));
         address feeReceiver = address(20);
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = _boundMax(0, 1e17);
         if (params.feesOn) {
             SP.setFeeData(feeReceiver, feeRake);
         }
@@ -292,7 +294,7 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         if (params.feesOn) {
             assert(
                 ERC20(loan.debt[0].token).balanceOf(loan.borrower)
-                    == (borrowerDebtBalanceBefore + (loan.debt[0].amount - loan.debt[0].amount.mulWad(feeRake)))
+                    == (borrowerDebtBalanceBefore + (loan.debt[0].amount - loan.debt[0].amount.mulWad(feeRake[0][1])))
             );
         } else {
             assert(

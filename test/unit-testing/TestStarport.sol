@@ -8,7 +8,7 @@ import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
-
+import {LibString} from "solady/src/utils/LibString.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 
 contract MockFixedTermDutchAuctionSettlement is DutchAuctionSettlement {
@@ -280,6 +280,34 @@ contract TestStarport is StarportTest, DeepEq {
         Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
+    }
+
+    function testEIP712Signing() public {
+        CaveatEnforcer.SignedCaveats memory empty = _emptyCaveat();
+
+        empty.caveats = new CaveatEnforcer.Caveat[](2);
+        empty.caveats[0] = CaveatEnforcer.Caveat({enforcer: address(1), data: abi.encode(uint256(1))});
+        empty.caveats[1] = CaveatEnforcer.Caveat({enforcer: address(2), data: abi.encode(uint256(2))});
+        bytes32 hashToTest =
+            SP.hashCaveatWithSaltAndNonce(borrower.addr, empty.singleUse, empty.salt, empty.deadline, empty.caveats);
+
+        string[] memory commands = new string[](12);
+        commands[0] = "npx";
+        commands[1] = "ts-node";
+        commands[2] = "ffi-scripts/test-origination-hash.ts";
+        commands[3] = LibString.toHexString(borrower.key);
+        commands[4] = LibString.toHexString(uint160(address(SP)));
+        commands[5] = LibString.toHexString(uint160(borrower.addr));
+        commands[6] = LibString.toHexString(SP.caveatNonces(borrower.addr));
+        commands[7] = LibString.toHexString((empty.singleUse) ? 1 : 0);
+        commands[8] = LibString.toHexString(uint256(empty.salt));
+        commands[9] = LibString.toHexString(empty.deadline);
+        commands[10] = LibString.toHexString(abi.encode(empty.caveats));
+        commands[11] = LibString.toHexString(block.chainid);
+
+        bytes memory incomingHashBytes = vm.ffi(commands);
+        bytes32 incomingHash = abi.decode(incomingHashBytes, (bytes32));
+        assertEq(hashToTest, incomingHash);
     }
 
     function testStargateGetOwner() public {
@@ -606,10 +634,14 @@ contract TestStarport is StarportTest, DeepEq {
         vm.stopPrank();
     }
 
-    function testDefaultFeeRake() public {
-        assertEq(SP.defaultFeeRake(), 0);
+    function testDefaultFeeRake1() public {
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17, "fee's not set properly");
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
@@ -621,10 +653,14 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testDefaultFeeRakeExoticDebt() public {
-        assertEq(SP.defaultFeeRake(), 0);
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
 
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17);
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC1155SpentItem(erc1155s[1]), lender.addr
         );
@@ -635,9 +671,13 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testOverrideFeeRake() public {
-        assertEq(SP.defaultFeeRake(), 0);
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17);
         SP.setFeeOverride(address(erc20s[0]), 0, true); //0% fees
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(

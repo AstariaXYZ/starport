@@ -79,7 +79,7 @@ contract Starport is PausableNonReentrant {
     event CaveatNonceIncremented(address owner, uint256 newNonce);
     event CaveatSaltInvalidated(address owner, bytes32 salt);
     event Close(uint256 loanId);
-    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
+    event FeeDataUpdated(address feeTo, uint256[2][] defaultFeeRakeByDecimals);
     event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
     event Open(uint256 loanId, Starport.Loan loan);
 
@@ -97,15 +97,16 @@ contract Starport is PausableNonReentrant {
     address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
 
-    bytes32 internal immutable _DOMAIN_SEPARATOR;
-
-    // Define the EIP712 domain and typehash constants for generating signatures
+    // Define the EIP712 domain and typeHash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
-        keccak256("EIP712Domain(string version,uint256 chainId,address verifyingContract)");
-    string public constant VERSION = "0";
+        keccak256("EIP712Domain(" "string version," "uint256 chainId," "address verifyingContract" ")");
+    bytes32 public constant VERSION = keccak256(bytes("0"));
+
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
-        "Origination(address account,uint256 accountNonce,bool singleUse,bytes32 salt,uint256 deadline,bytes32 caveatHash"
+        "Origination(" "address account," "uint256 accountNonce," "bool singleUse," "bytes32 salt," "uint256 deadline,"
+        "Caveat[] caveats" ")" "Caveat(" "address enforcer," "bytes data" ")"
     );
+    bytes32 public constant CAVEAT_TYPEHASH = keccak256("Caveat(" "address enforcer," "bytes data" ")");
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -151,8 +152,7 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     address public feeTo;
-    uint88 public defaultFeeRake;
-
+    mapping(uint256 => uint256) public defaultFeeRakeByDecimals;
     mapping(address => Fee) public feeOverrides;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => mapping(bytes32 => bool)) public invalidSalts;
@@ -173,8 +173,11 @@ contract Starport is PausableNonReentrant {
         }
         defaultCustodian = payable(custodian);
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
-        _DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
         _initializeOwner(msg.sender);
+    }
+
+    function domainSeparator() public view returns (bytes32) {
+        return keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -325,18 +328,24 @@ contract Starport is PausableNonReentrant {
     /**
      * @dev Sets the default fee data, only owner can call
      * @param feeTo_ The feeToAddress
-     * @param defaultFeeRake_ The default fee rake in WAD denomination(1e17 = 10%)
+     * @param defaultFeeRakeByDecimals_ [decimals, defaultFeeRakeByDecimals] pairs
      */
-    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint256[2][] memory defaultFeeRakeByDecimals_) external onlyOwner {
         feeTo = feeTo_;
-        defaultFeeRake = defaultFeeRake_;
-        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
+        for (uint256 i = 0; i < defaultFeeRakeByDecimals_.length;) {
+            defaultFeeRakeByDecimals[defaultFeeRakeByDecimals_[i][0]] = defaultFeeRakeByDecimals_[i][1];
+            unchecked {
+                ++i;
+            }
+        }
+        emit FeeDataUpdated(feeTo_, defaultFeeRakeByDecimals_);
     }
 
     /**
      * @dev Sets fee overrides for specific tokens, only owner can call
      * @param token The token to override
-     * @param overrideValue The new value in WAD denomination to override(1e17 = 10%)
+     * @param overrideValue The new value in decimals base denomination
+     * to override eg if token has 18 decimals (1e17 = 10%)
      * @param enabled Whether or not the override is enabled
      */
     function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
@@ -409,11 +418,19 @@ contract Starport is PausableNonReentrant {
         uint256 deadline,
         CaveatEnforcer.Caveat[] calldata caveats
     ) public view virtual returns (bytes32) {
+        bytes32[] memory caveatHashes = new bytes32[](caveats.length);
+        uint256 i = 0;
+        for (; i < caveats.length;) {
+            caveatHashes[i] = _hashCaveat(caveats[i]);
+            unchecked {
+                ++i;
+            }
+        }
         return keccak256(
             abi.encodePacked(
                 bytes1(0x19),
                 bytes1(0x01),
-                _DOMAIN_SEPARATOR,
+                domainSeparator(),
                 keccak256(
                     abi.encode(
                         INTENT_ORIGINATION_TYPEHASH,
@@ -422,11 +439,22 @@ contract Starport is PausableNonReentrant {
                         singleUse,
                         salt,
                         deadline,
-                        keccak256(abi.encode(caveats))
+                        keccak256(abi.encodePacked(caveatHashes))
                     )
                 )
             )
         );
+    }
+
+    /**
+     * @dev Internal view function to derive the EIP-712 hash for a caveat
+     *
+     * @param caveat The caveat to hash.
+     *
+     * @return The hash.
+     */
+    function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal view returns (bytes32) {
+        return keccak256(abi.encode(CAVEAT_TYPEHASH, caveat.enforcer, keccak256(caveat.data)));
     }
 
     /**
@@ -452,7 +480,7 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev Settle the loan with the LoanManager
+     * @dev Settle the loan
      * @param loan The the loan that is settled
      * @param fulfiller The address executing the settle
      */
@@ -622,9 +650,23 @@ contract Starport is PausableNonReentrant {
                 Fee memory feeOverride = feeOverrides[debtItem.token];
                 SpentItem memory feeItem = feeItems[i];
                 feeItem.identifier = 0;
-                amount = debtItem.amount.mulDiv(
-                    !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** ERC20(debtItem.token).decimals()
-                );
+                uint8 decimals;
+                try ERC20(debtItem.token).decimals() returns (uint8 _decimals) {
+                    decimals = _decimals;
+                } catch {
+                    decimals = 18;
+                }
+                uint256 defaultFeeRake = defaultFeeRakeByDecimals[decimals];
+
+                if (defaultFeeRake == 0 && !feeOverride.enabled) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue;
+                }
+
+                amount =
+                    debtItem.amount.mulDiv(!feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** decimals);
 
                 if (amount > 0) {
                     feeItem.amount = amount;
