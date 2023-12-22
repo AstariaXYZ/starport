@@ -206,7 +206,7 @@ contract Starport is PausableNonReentrant {
         CaveatEnforcer.SignedCaveats calldata borrowerCaveat,
         CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan
-    ) external payable pausableNonReentrant returns (Starport.Loan memory) {
+    ) external payable pausableNonReentrant {
         // Cache the addresses
         address borrower = loan.borrower;
         address issuer = loan.issuer;
@@ -240,7 +240,6 @@ contract Starport is PausableNonReentrant {
         // Sets originator and start time
         _issueLoan(loan);
         _callCustody(loan);
-        return loan;
     }
 
     /**
@@ -256,7 +255,7 @@ contract Starport is PausableNonReentrant {
         Starport.Loan memory loan,
         bytes calldata pricingData,
         bytes calldata extraData
-    ) external pausableNonReentrant returns (Starport.Loan memory) {
+    ) external pausableNonReentrant {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
@@ -294,7 +293,6 @@ contract Starport is PausableNonReentrant {
 
         // Sets originator and start time
         _issueLoan(loan);
-        return loan;
     }
 
     /**
@@ -346,7 +344,8 @@ contract Starport is PausableNonReentrant {
     /**
      * @dev Sets fee overrides for specific tokens, only owner can call
      * @param token The token to override
-     * @param overrideValue The new value in WAD denomination to override(1e17 = 10%)
+     * @param overrideValue The new value in decimals base denomination
+     * to override eg if token has 18 decimals (1e17 = 10%)
      * @param enabled Whether or not the override is enabled
      */
     function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
