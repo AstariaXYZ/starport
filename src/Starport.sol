@@ -79,7 +79,7 @@ contract Starport is PausableNonReentrant {
     event CaveatNonceIncremented(address owner, uint256 newNonce);
     event CaveatSaltInvalidated(address owner, bytes32 salt);
     event Close(uint256 loanId);
-    event FeeDataUpdated(address feeTo, uint88 defaultFeeRake);
+    event FeeDataUpdated(address feeTo, uint256[2][] defaultFeeRakeByDecimals);
     event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
     event Open(uint256 loanId, Starport.Loan loan);
 
@@ -152,8 +152,7 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     address public feeTo;
-    uint88 public defaultFeeRake;
-
+    mapping(uint256 => uint256) public defaultFeeRakeByDecimals;
     mapping(address => Fee) public feeOverrides;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => mapping(bytes32 => bool)) public invalidSalts;
@@ -207,7 +206,7 @@ contract Starport is PausableNonReentrant {
         CaveatEnforcer.SignedCaveats calldata borrowerCaveat,
         CaveatEnforcer.SignedCaveats calldata lenderCaveat,
         Starport.Loan memory loan
-    ) external payable pausableNonReentrant {
+    ) external payable pausableNonReentrant returns (Starport.Loan memory) {
         // Cache the addresses
         address borrower = loan.borrower;
         address issuer = loan.issuer;
@@ -241,6 +240,7 @@ contract Starport is PausableNonReentrant {
         // Sets originator and start time
         _issueLoan(loan);
         _callCustody(loan);
+        return loan;
     }
 
     /**
@@ -256,7 +256,7 @@ contract Starport is PausableNonReentrant {
         Starport.Loan memory loan,
         bytes calldata pricingData,
         bytes calldata extraData
-    ) external pausableNonReentrant {
+    ) external pausableNonReentrant returns (Starport.Loan memory) {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
@@ -294,6 +294,7 @@ contract Starport is PausableNonReentrant {
 
         // Sets originator and start time
         _issueLoan(loan);
+        return loan;
     }
 
     /**
@@ -329,12 +330,17 @@ contract Starport is PausableNonReentrant {
     /**
      * @dev Sets the default fee data, only owner can call
      * @param feeTo_ The feeToAddress
-     * @param defaultFeeRake_ The default fee rake in WAD denomination(1e17 = 10%)
+     * @param defaultFeeRakeByDecimals_ [decimals, defaultFeeRakeByDecimals] pairs
      */
-    function setFeeData(address feeTo_, uint88 defaultFeeRake_) external onlyOwner {
+    function setFeeData(address feeTo_, uint256[2][] memory defaultFeeRakeByDecimals_) external onlyOwner {
         feeTo = feeTo_;
-        defaultFeeRake = defaultFeeRake_;
-        emit FeeDataUpdated(feeTo_, defaultFeeRake_);
+        for (uint256 i = 0; i < defaultFeeRakeByDecimals_.length;) {
+            defaultFeeRakeByDecimals[defaultFeeRakeByDecimals_[i][0]] = defaultFeeRakeByDecimals_[i][1];
+            unchecked {
+                ++i;
+            }
+        }
+        emit FeeDataUpdated(feeTo_, defaultFeeRakeByDecimals_);
     }
 
     /**
@@ -651,6 +657,15 @@ contract Starport is PausableNonReentrant {
                 } catch {
                     decimals = 18;
                 }
+                uint256 defaultFeeRake = defaultFeeRakeByDecimals[decimals];
+
+                if (defaultFeeRake == 0 && !feeOverride.enabled) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue;
+                }
+
                 amount =
                     debtItem.amount.mulDiv(!feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** decimals);
 

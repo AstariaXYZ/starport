@@ -634,10 +634,14 @@ contract TestStarport is StarportTest, DeepEq {
         vm.stopPrank();
     }
 
-    function testDefaultFeeRake() public {
-        assertEq(SP.defaultFeeRake(), 0);
+    function testDefaultFeeRake1() public {
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17, "fee's not set properly");
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC20SpentItem(erc20s[0], borrowAmount), lender.addr
@@ -649,10 +653,14 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testDefaultFeeRakeExoticDebt() public {
-        assertEq(SP.defaultFeeRake(), 0);
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
 
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17);
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC1155SpentItem(erc1155s[1]), lender.addr
         );
@@ -663,9 +671,13 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testOverrideFeeRake() public {
-        assertEq(SP.defaultFeeRake(), 0);
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);
-        SP.setFeeData(feeReceiver, 1e17); //10% fees
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17);
         SP.setFeeOverride(address(erc20s[0]), 0, true); //0% fees
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(
