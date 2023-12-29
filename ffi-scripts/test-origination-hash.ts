@@ -44,6 +44,7 @@ const types = {
 
 
 const domain = (verifyingContract: Address, chainId: number) => ({
+  name: "Starport",
   version: "0",
   chainId: chainId,
   verifyingContract
@@ -51,7 +52,7 @@ const domain = (verifyingContract: Address, chainId: number) => ({
 
 type caveatType = [`0x${string}`, `0x${string}`];
 
-const typeDataMessage = (account: Address, accountNonce: string, singleUse: number, salt: Hex, deadline: string, caveats: any) => ({
+const typeDataMessage = (account: Address, accountNonce: string, singleUse: boolean, salt: Hex, deadline: string, caveats: any) => ({
   account: account, accountNonce: parseInt(accountNonce), singleUse: singleUse, salt: salt, deadline: deadline, caveats: caveats[0]
 });
 

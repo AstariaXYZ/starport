@@ -104,6 +104,21 @@ contract ModuleTesting is StarportTest, DeepEq {
         );
     }
 
+    function testFixedTermDutchAuctionSettlementAuctionNotStarted() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(fixedTermStatus),
+            settlement: address(dutchAuctionSettlement), //fixed term dutch auction
+            pricing: address(simpleInterestPricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+        vm.expectRevert(DutchAuctionSettlement.AuctionNotStarted.selector);
+        FixedTermDutchAuctionSettlement(loan.terms.settlement).getSettlementConsideration(loan);
+    }
+
     function testFixedTermDutchAuctionSettlementNotValid() public {
         DutchAuctionSettlement.Details memory details =
             DutchAuctionSettlement.Details({startingPrice: 1 ether, endingPrice: 10 ether, window: 7 days});

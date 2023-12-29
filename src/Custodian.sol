@@ -48,7 +48,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
+    error CustodianCannotBeAuthorized();
     error ImplementInChild();
     error InvalidAction();
     error InvalidFulfiller();
@@ -162,12 +162,7 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param loan The loan to mint a custody token for
      */
     function mint(Starport.Loan calldata loan) external {
-        bytes memory encodedLoan = abi.encode(loan);
-        uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || SP.closed(loanId)) {
-            revert InvalidLoan();
-        }
-        _safeMint(loan.borrower, loanId, encodedLoan);
+        _validateAndMint(loan);
     }
 
     /**
@@ -176,16 +171,22 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param approvedTo The address with pre approvals set
      */
     function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external {
-        bytes memory encodedLoan = abi.encode(loan);
-        uint256 loanId = uint256(keccak256(encodedLoan));
-        if (loan.custodian != address(this) || SP.closed(loanId)) {
-            revert InvalidLoan();
-        }
         if (msg.sender != loan.borrower) {
             revert NotAuthorized();
         }
-        _safeMint(loan.borrower, loanId, encodedLoan);
-        _approve(loan.borrower, approvedTo, loanId);
+        _approve(loan.borrower, approvedTo, _validateAndMint(loan));
+    }
+
+    /**
+     * @dev internal helper that validates and mints a custody token for a loan.
+     * @param loan The loan to mint a custody token for
+     */
+    function _validateAndMint(Starport.Loan calldata loan) internal returns (uint256 loanId) {
+        loanId = loan.getId();
+        if (loan.custodian != address(this) || SP.closed(loanId)) {
+            revert InvalidLoan();
+        }
+        _safeMint(loan.borrower, loanId);
     }
 
     /**
@@ -244,6 +245,9 @@ contract Custodian is ERC721, ContractOffererInterface {
             address authorized;
             _beforeGetSettlementConsideration(loan);
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);
+            if (authorized == address(this)) {
+                revert CustodianCannotBeAuthorized();
+            }
             consideration = StarportLib.removeZeroAmountItems(consideration);
             _afterGetSettlementConsideration(loan);
             if (authorized == address(0) || fulfiller == authorized) {
@@ -334,6 +338,9 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (close.action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);
+            if (authorized == address(this)) {
+                revert CustodianCannotBeAuthorized();
+            }
             consideration = StarportLib.removeZeroAmountItems(consideration);
             if (authorized == address(0) || fulfiller == authorized) {
                 offer = loan.collateral;

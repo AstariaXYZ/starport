@@ -176,7 +176,7 @@ contract TestRepayLoan is StarportTest {
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
 
         vm.startPrank(borrower.addr);
-        skip(14 days);
+        skip(14 days + 1);
         BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals

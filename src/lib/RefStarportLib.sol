@@ -56,12 +56,12 @@ library RefStarportLib {
 
     function validateSalt(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
-        address borrower,
+        address validator,
         bytes32 salt
     ) internal {
-        if (usedSalts[borrower][salt]) {
+        if (usedSalts[validator][salt]) {
             revert InvalidSalt();
         }
-        usedSalts[borrower][salt] = true;
+        usedSalts[validator][salt] = true;
     }
 }

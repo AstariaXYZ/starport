@@ -51,6 +51,7 @@ const types = {
 
 
 const domain = (verifyingContract: Address, chainId: number) => ({
+  name: "Starport",
   version: "0",
   chainId: chainId,
   verifyingContract

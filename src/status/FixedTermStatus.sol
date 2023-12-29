@@ -47,7 +47,7 @@ contract FixedTermStatus is Status {
     // @inheritdoc Status
     function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
-        return loan.start + details.loanDuration > block.timestamp;
+        return loan.start + details.loanDuration >= block.timestamp;
     }
 
     function validate(Starport.Loan calldata loan) external view override returns (bytes4) {

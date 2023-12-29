@@ -50,7 +50,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error InvalidAmount();
+    error AuctionNotStarted();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                        CONSTRUCTOR                         */
@@ -116,6 +116,9 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
 
         uint256 start = getAuctionStart(loan);
 
+        if (start > block.timestamp) {
+            revert AuctionNotStarted();
+        }
         // DutchAuction has failed, allow lender to redeem
         if (start + details.window < block.timestamp) {
             return (new ReceivedItem[](0), loan.issuer);
@@ -134,7 +137,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
 
-        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+        uint256 carry = interest * pricingDetails.carryRate / 10 ** pricingDetails.decimals;
 
         if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
             consideration = new ReceivedItem[](2);

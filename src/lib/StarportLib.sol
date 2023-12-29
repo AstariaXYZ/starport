@@ -105,11 +105,11 @@ library StarportLib {
 
     function validateSalt(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
-        address borrower,
+        address validator,
         bytes32 salt
     ) internal {
         assembly ("memory-safe") {
-            mstore(0x0, borrower)
+            mstore(0x0, validator)
             mstore(0x20, usedSalts.slot)
 
             // usedSalts[borrower]
