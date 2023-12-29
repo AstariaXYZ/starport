@@ -91,8 +91,7 @@ library StarportLib {
         pure
         returns (uint256)
     {
-        rate /= 365 days;
-        return ((delta_t * rate) * amount) / 10 ** decimals;
+        return (((delta_t * rate) * amount) / 10 ** decimals) / 365 days;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
