@@ -320,7 +320,7 @@ contract Starport is PausableNonReentrant {
      * @dev Increments caveat nonce for sender and emits event
      */
     function incrementCaveatNonce() external {
-        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
+        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) >> 0x80);
         caveatNonces[msg.sender] = newNonce;
         emit CaveatNonceIncremented(msg.sender, newNonce);
     }
