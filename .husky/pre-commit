@@ -2,6 +2,6 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 forge fmt --check
-forge snapshot --no-match-path '*fuzz*'
+forge snapshot --ffi --no-match-path '*fuzz*'
 
 git add .gas-snapshot

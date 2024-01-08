@@ -377,7 +377,7 @@ contract TestNewLoan is StarportTest {
         //     //default is 14 day term
         Starport.Loan memory activeLoan = testNewLoanERC721CollateralDefaultTerms2();
 
-        skip(14 days);
+        skip(14 days + 1);
 
         minimumReceived.push(
             SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 600 ether, identifier: 0})

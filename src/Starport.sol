@@ -94,13 +94,16 @@ contract Starport is PausableNonReentrant {
     bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
 
     Stargate public immutable SG;
+    uint256 public immutable chainId;
     address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
+    bytes32 public immutable CACHED_DOMAIN_SEPARATOR;
 
     // Define the EIP712 domain and typeHash constants for generating signatures
     bytes32 public constant EIP_DOMAIN =
-        keccak256("EIP712Domain(" "string version," "uint256 chainId," "address verifyingContract" ")");
+        keccak256("EIP712Domain(" "string name," "string version," "uint256 chainId," "address verifyingContract" ")");
     bytes32 public constant VERSION = keccak256(bytes("0"));
+    bytes32 public constant NAME = keccak256(bytes("Starport"));
 
     bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
         "Origination(" "address account," "uint256 accountNonce," "bool singleUse," "bytes32 salt," "uint256 deadline,"
@@ -165,19 +168,25 @@ contract Starport is PausableNonReentrant {
 
     constructor(address seaport_, Stargate stargate_) {
         SG = stargate_;
+        chainId = block.chainid;
+        CACHED_DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, NAME, VERSION, block.chainid, address(this)));
         address custodian = address(new Custodian(this, seaport_));
 
         bytes32 defaultCustodianCodeHash;
         assembly ("memory-safe") {
             defaultCustodianCodeHash := extcodehash(custodian)
         }
-        defaultCustodian = payable(custodian);
+        defaultCustodian = custodian;
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _initializeOwner(msg.sender);
     }
 
     function domainSeparator() public view returns (bytes32) {
-        return keccak256(abi.encode(EIP_DOMAIN, VERSION, block.chainid, address(this)));
+        //return the cached domain separator if the chainId is the same
+        if (chainId == block.chainid) {
+            return CACHED_DOMAIN_SEPARATOR;
+        }
+        return keccak256(abi.encode(EIP_DOMAIN, NAME, VERSION, block.chainid, address(this)));
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -311,7 +320,7 @@ contract Starport is PausableNonReentrant {
      * @dev Increments caveat nonce for sender and emits event
      */
     function incrementCaveatNonce() external {
-        uint256 newNonce = caveatNonces[msg.sender] + uint256(blockhash(block.number - 1) << 0x80);
+        uint256 newNonce = caveatNonces[msg.sender] + 1 + uint256(blockhash(block.number - 1) >> 0x80);
         caveatNonces[msg.sender] = newNonce;
         emit CaveatNonceIncremented(msg.sender, newNonce);
     }
@@ -502,10 +511,8 @@ contract Starport is PausableNonReentrant {
         assembly ("memory-safe") {
             codeHash := extcodehash(custodian)
         }
-        if (
-            codeHash != DEFAULT_CUSTODIAN_CODE_HASH
-                && Custodian(payable(custodian)).custody(loan) != Custodian.custody.selector
-        ) {
+        if (codeHash != DEFAULT_CUSTODIAN_CODE_HASH && Custodian(custodian).custody(loan) != Custodian.custody.selector)
+        {
             revert InvalidCustodian();
         }
     }

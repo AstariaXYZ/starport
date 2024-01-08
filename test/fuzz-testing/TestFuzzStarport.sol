@@ -535,12 +535,14 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
 
         skip(
-            _bound(0, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration, uint256(1000 days))
+            _bound(
+                0, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1, uint256(1000 days)
+            )
         );
     }
 
     function _skipToRepayment(Starport.Loan memory goodLoan) internal virtual {
-        skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration - 1));
+        skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration));
     }
 
     function testFuzzSettlementSuccess(FuzzSettleLoan memory params) public virtual {

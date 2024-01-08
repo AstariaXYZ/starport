@@ -91,8 +91,7 @@ library StarportLib {
         pure
         returns (uint256)
     {
-        rate /= 365 days;
-        return ((delta_t * rate) * amount) / 10 ** decimals;
+        return (((delta_t * rate) * amount) / 10 ** decimals) / 365 days;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -105,11 +104,11 @@ library StarportLib {
 
     function validateSalt(
         mapping(address => mapping(bytes32 => bool)) storage usedSalts,
-        address borrower,
+        address validator,
         bytes32 salt
     ) internal {
         assembly ("memory-safe") {
-            mstore(0x0, borrower)
+            mstore(0x0, validator)
             mstore(0x20, usedSalts.slot)
 
             // usedSalts[borrower]

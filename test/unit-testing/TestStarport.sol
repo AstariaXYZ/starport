@@ -347,7 +347,7 @@ contract TestStarport is StarportTest, DeepEq {
 
     function testIncrementCaveatNonce() public {
         vm.roll(5);
-        uint256 newNonce = SP.caveatNonces(address(this)) + uint256(blockhash(block.number - 1) << 0x80);
+        uint256 newNonce = SP.caveatNonces(address(this)) + 1 + uint256(blockhash(block.number - 1) >> 0x80);
         vm.expectEmit();
         emit CaveatNonceIncremented(address(this), newNonce);
         SP.incrementCaveatNonce();

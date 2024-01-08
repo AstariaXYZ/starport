@@ -613,4 +613,26 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
             seaportAddr, alice, new SpentItem[](0), activeDebt, abi.encode(Actions.Nothing, activeLoan)
         );
     }
+
+    function testCustodianCannotBeAuthorized() public {
+        mockStatusCall(activeLoan.terms.status, false);
+        mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(custodian));
+
+        vm.expectRevert(abi.encodeWithSelector(Custodian.CustodianCannotBeAuthorized.selector));
+        custodian.previewOrder(
+            seaportAddr,
+            alice,
+            new SpentItem[](0),
+            activeDebt,
+            abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
+        );
+
+        mockStatusCall(activeLoan.terms.status, false);
+        mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(custodian));
+        vm.prank(seaportAddr);
+        vm.expectRevert(abi.encodeWithSelector(Custodian.CustodianCannotBeAuthorized.selector));
+        custodian.generateOrder(
+            alice, new SpentItem[](0), activeDebt, abi.encode(Custodian.Command(Actions.Settlement, activeLoan, ""))
+        );
+    }
 }

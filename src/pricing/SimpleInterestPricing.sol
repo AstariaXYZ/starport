@@ -86,7 +86,6 @@ contract SimpleInterestPricing is BasePricing {
 
         if (oldDetails.decimals == newDetails.decimals && (newDetails.rate < oldDetails.rate)) {
             (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
-            additionalConsideration = new AdditionalTransfer[](0);
         } else {
             revert InvalidRefinance();
         }
