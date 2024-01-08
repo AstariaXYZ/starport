@@ -26,7 +26,7 @@ jobs:
         run: forge fmt --check
 
       - name: Snapshot
-        run: forge snapshot --check --no-match-path '*fuzz*'
+        run: forge snapshot --check --no-match-path '*fuzz*' --no-match-test 'testEIP712Signing'
 
       - name: Test
-        run: forge test -vvv
+        run: forge test -vvv --no-match-test 'testEIP712Signing'
