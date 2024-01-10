@@ -666,7 +666,7 @@ contract Starport is PausableNonReentrant {
                 uint256 defaultFeeRake = defaultFeeRakeByDecimals[decimals];
 
                 if (defaultFeeRake != 0 || feeOverride.enabled) {
-                    amount = debtItem.amount.mulDiv(
+                    amount = debtItem.amount.mulDivUp(
                         !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** decimals
                     );
                 }
