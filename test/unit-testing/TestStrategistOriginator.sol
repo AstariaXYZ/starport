@@ -461,4 +461,38 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
             })
         );
     }
+
+    function testWithdraw() public {
+        vm.startPrank(borrower.addr);
+        erc721s[0].transferFrom(borrower.addr, address(SO), 1);
+        erc20s[1].transfer(address(SO), 10_000);
+        erc1155s[0].safeTransferFrom(borrower.addr, address(SO), 1, 1, "");
+        vm.stopPrank();
+
+        SpentItem[] memory spentItems = new SpentItem[](3);
+
+        spentItems[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721s[0]), identifier: 1, amount: 1});
+        spentItems[1] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[1]), identifier: 0, amount: 10_000});
+        spentItems[2] = SpentItem({itemType: ItemType.ERC1155, token: address(erc1155s[0]), identifier: 1, amount: 1});
+
+        uint256 balanceBefore = erc20s[1].balanceOf(strategist.addr);
+        address owner = SO.owner();
+        vm.startPrank(owner);
+        SO.withdraw(spentItems, strategist.addr);
+        vm.stopPrank();
+
+        assertEq(
+            erc721s[0].ownerOf(1), strategist.addr, "erc721s not transferred properly on StrategistOriginator withdraw"
+        );
+        assertEq(
+            erc20s[1].balanceOf(strategist.addr) - balanceBefore,
+            10_000,
+            "erc20s not transferred properly on StrategistOriginator withdraw"
+        );
+        assertEq(
+            erc1155s[0].balanceOf(strategist.addr, 1),
+            1,
+            "erc1155s not transferred properly on StrategistOriginator withdraw"
+        );
+    }
 }

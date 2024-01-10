@@ -308,6 +308,21 @@ library StarportLib {
         }
     }
 
+    function transferSpentItemsSelf(SpentItem[] memory transfers, address from, address to) internal {
+        if (transfers.length > 0) {
+            uint256 i = 0;
+            for (; i < transfers.length;) {
+                SpentItem memory transfer = transfers[i];
+                _transferItem(transfer.itemType, transfer.token, transfer.identifier, transfer.amount, from, to);
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
+            revert InvalidTransferLength();
+        }
+    }
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*               PRIVATE INTERNAL FUNCTIONS                   */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -342,6 +357,30 @@ library StarportLib {
             if (amount == 0 && safe) {
                 revert InvalidItemAmount();
             }
+            // erc1155 transfer
+            ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
+        } else {
+            revert InvalidItemType();
+        }
+    }
+
+    function _transferItem(
+        ItemType itemType,
+        address token,
+        uint256 identifier,
+        uint256 amount,
+        address from,
+        address to
+    ) internal {
+        if (token.code.length == 0) {
+            revert InvalidItemTokenNoCode();
+        }
+        if (itemType == ItemType.ERC20) {
+            SafeTransferLib.safeTransfer(token, to, amount);
+        } else if (itemType == ItemType.ERC721) {
+            // erc721 transfer
+            ERC721(token).transferFrom(from, to, identifier);
+        } else if (itemType == ItemType.ERC1155) {
             // erc1155 transfer
             ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
         } else {

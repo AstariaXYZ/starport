@@ -56,7 +56,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {ERC721} from "solady/src/tokens/ERC721.sol";
 import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
-import {TokenReceiverInterface} from "./interfaces/TokenReceiverInterface.sol";
+import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 import {Actions} from "starport-core/lib/StarportLib.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
