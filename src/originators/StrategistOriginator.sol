@@ -30,7 +30,7 @@ pragma solidity ^0.8.17;
 import {Starport} from "../Starport.sol";
 import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
 import {Originator} from "../originators/Originator.sol";
-import {AdditionalTransfer} from "../lib/StarportLib.sol";
+import {AdditionalTransfer, StarportLib} from "../lib/StarportLib.sol";
 
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
@@ -38,9 +38,10 @@ import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/Considera
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {TokenReceiverInterface} from "../interfaces/TokenReceiverInterface.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
-contract StrategistOriginator is Ownable, Originator {
+contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -147,7 +148,7 @@ contract StrategistOriginator is Ownable, Originator {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
-        _counter += uint256(blockhash(block.number - 1) >> 0x80);
+        _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
         emit CounterUpdated(_counter);
     }
 
@@ -268,5 +269,40 @@ contract StrategistOriginator is Ownable, Originator {
         if (!SignatureCheckerLib.isValidSignatureNow(strategist, hash, signature)) {
             revert InvalidSigner();
         }
+    }
+
+    function withdraw(SpentItem[] memory transfers, address recipient) external onlyOwner {
+        StarportLib.transferSpentItemsSelf(transfers, address(this), recipient);
+    }
+
+    // PUBLIC FUNCTIONS
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        public
+        pure
+        virtual
+        override
+        returns (bytes4)
+    {
+        return TokenReceiverInterface.onERC721Received.selector;
+    }
+
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+        external
+        pure
+        virtual
+        override
+        returns (bytes4)
+    {
+        return TokenReceiverInterface.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        virtual
+        override
+        returns (bytes4)
+    {
+        return TokenReceiverInterface.onERC1155BatchReceived.selector;
     }
 }

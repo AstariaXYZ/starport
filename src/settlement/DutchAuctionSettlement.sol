@@ -43,6 +43,8 @@ import {Starport, Settlement} from "../settlement/Settlement.sol";
 import {BasePricing} from "../pricing/BasePricing.sol";
 import {Validation} from "../lib/Validation.sol";
 
+// DutchAuctionSettlement is not full compatible with all debt assets supported by Starport
+// DutchAuctionSettlement makes the assumption that the loan.debt consists on an array size 1 containing only ERC-20s
 abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     using FixedPointMathLib for uint256;
 

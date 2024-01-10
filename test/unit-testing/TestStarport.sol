@@ -175,38 +175,10 @@ contract MockExoticPricing is Pricing {
     }
 }
 
-contract MockOriginator is StrategistOriginator, TokenReceiverInterface {
+contract MockOriginator is StrategistOriginator {
     constructor(Starport SP_, address strategist_, uint256 fee_)
         StrategistOriginator(SP_, strategist_, fee_, msg.sender)
     {}
-
-    // PUBLIC FUNCTIONS
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-        public
-        pure
-        virtual
-        returns (bytes4)
-    {
-        return TokenReceiverInterface.onERC721Received.selector;
-    }
-
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata)
-        external
-        pure
-        virtual
-        returns (bytes4)
-    {
-        return TokenReceiverInterface.onERC1155Received.selector;
-    }
-
-    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
-        external
-        pure
-        virtual
-        returns (bytes4)
-    {
-        return TokenReceiverInterface.onERC1155BatchReceived.selector;
-    }
 
     function terms(bytes calldata) public view returns (Starport.Terms memory) {
         return Starport.Terms({
