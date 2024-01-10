@@ -147,7 +147,7 @@ contract StrategistOriginator is Ownable, Originator {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
-        _counter += uint256(blockhash(block.number - 1) >> 0x80);
+        _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
         emit CounterUpdated(_counter);
     }
 

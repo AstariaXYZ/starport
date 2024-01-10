@@ -49,7 +49,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
     }
 
     function testIncrementCounterAsStrategist() public {
-        uint256 newCounter = SO.getCounter() + uint256(blockhash(block.timestamp - 1) << 0x80);
+        uint256 newCounter = SO.getCounter() + 1 + uint256(blockhash(block.timestamp - 1) >> 0x80);
         vm.expectEmit();
         emit CounterUpdated(newCounter);
         vm.prank(strategist.addr);
