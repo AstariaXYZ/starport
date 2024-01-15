@@ -624,6 +624,39 @@ contract TestStarport is StarportTest, DeepEq {
         assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[0].amount * 1e17 / 1e18, "fee receiver not paid properly");
     }
 
+    function testDefaultFeeRake2() public {
+        assertEq(SP.defaultFeeRakeByDecimals(18), 0);
+        address feeReceiver = address(20);
+        uint256[2][] memory feeRake = new uint256[2][](1);
+        feeRake[0][0] = uint256(18);
+        feeRake[0][1] = uint256(1e17);
+        SP.setFeeData(feeReceiver, feeRake); //10% fees
+        assertEq(SP.defaultFeeRakeByDecimals(18), 1e17, "fee's not set properly");
+
+        SpentItem[] memory debt = new SpentItem[](2);
+        debt[0] = _getERC721SpentItem(erc721s[0], uint256(2));
+        debt[1] = _getERC20SpentItem(erc20s[0], borrowAmount);
+        vm.prank(borrower.addr);
+        erc721s[0].transferFrom(borrower.addr, lender.addr, uint256(2));
+        vm.prank(lender.addr);
+        erc721s[0].approve(address(SP), uint256(2));
+
+        erc721s[0].ownerOf(uint256(3));
+        vm.prank(borrower.addr);
+        erc721s[0].approve(address(custodian), uint256(3));
+        
+        SpentItem[] memory collateral = new SpentItem[](1);
+        collateral[0] = _getERC721SpentItem(erc721s[0], uint256(3));
+        Starport.Loan memory originationDetails = _generateOriginationDetails(
+           collateral, debt, lender.addr
+        );
+
+        Starport.Loan memory loan =
+            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
+        assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[1].amount * 1e17 / 1e18, "fee receiver not paid properly");
+    }
+
+
     function testDefaultFeeRakeExoticDebt() public {
         assertEq(SP.defaultFeeRakeByDecimals(18), 0);
         address feeReceiver = address(20);

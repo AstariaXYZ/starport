@@ -749,6 +749,18 @@ contract StarportTest is BaseOrderTest, Stargate {
         loan.custodian = incomingCustodian;
     }
 
+        function _generateOriginationDetails(
+        SpentItem[] memory collateral,
+        SpentItem[] memory debt,
+        address incomingIssuer
+    ) internal view returns (Starport.Loan memory loan) {
+        loan = generateDefaultLoanTerms();
+        loan.issuer = incomingIssuer;
+        loan.collateral = collateral;
+        loan.debt = debt;
+        loan.custodian = address(custodian);
+    }
+
     function _getERC20SpentItem(TestERC20 token, uint256 amount) internal pure returns (SpentItem memory) {
         return SpentItem({
             itemType: ItemType.ERC20,
