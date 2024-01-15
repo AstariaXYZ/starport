@@ -655,7 +655,7 @@ contract Starport is PausableNonReentrant {
             SpentItem memory debtItem = debt[i];
             if (debtItem.itemType == ItemType.ERC20) {
                 Fee memory feeOverride = feeOverrides[debtItem.token];
-                SpentItem memory feeItem = feeItems[i];
+                SpentItem memory feeItem = feeItems[totalFeeItems];
                 feeItem.identifier = 0;
                 uint8 decimals;
                 try ERC20(debtItem.token).decimals() returns (uint8 _decimals) {
