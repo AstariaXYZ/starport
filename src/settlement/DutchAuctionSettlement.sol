@@ -143,7 +143,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
 
         if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
             consideration = new ReceivedItem[](2);
-            uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
+            uint256 excess = settlementPrice - (loan.debt[0].amount + interest - carry);
             consideration[0] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
                 identifier: loan.debt[0].identifier,
