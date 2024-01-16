@@ -644,18 +644,15 @@ contract TestStarport is StarportTest, DeepEq {
         erc721s[0].ownerOf(uint256(3));
         vm.prank(borrower.addr);
         erc721s[0].approve(address(custodian), uint256(3));
-        
+
         SpentItem[] memory collateral = new SpentItem[](1);
         collateral[0] = _getERC721SpentItem(erc721s[0], uint256(3));
-        Starport.Loan memory originationDetails = _generateOriginationDetails(
-           collateral, debt, lender.addr
-        );
+        Starport.Loan memory originationDetails = _generateOriginationDetails(collateral, debt, lender.addr);
 
         Starport.Loan memory loan =
             newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), loan.debt[1].amount * 1e17 / 1e18, "fee receiver not paid properly");
     }
-
 
     function testDefaultFeeRakeExoticDebt() public {
         assertEq(SP.defaultFeeRakeByDecimals(18), 0);

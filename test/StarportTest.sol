@@ -749,11 +749,11 @@ contract StarportTest is BaseOrderTest, Stargate {
         loan.custodian = incomingCustodian;
     }
 
-        function _generateOriginationDetails(
-        SpentItem[] memory collateral,
-        SpentItem[] memory debt,
-        address incomingIssuer
-    ) internal view returns (Starport.Loan memory loan) {
+    function _generateOriginationDetails(SpentItem[] memory collateral, SpentItem[] memory debt, address incomingIssuer)
+        internal
+        view
+        returns (Starport.Loan memory loan)
+    {
         loan = generateDefaultLoanTerms();
         loan.issuer = incomingIssuer;
         loan.collateral = collateral;
