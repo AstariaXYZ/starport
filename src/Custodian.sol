@@ -409,7 +409,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan that is settled
      * @param fulfiller The address executing seaport
      */
@@ -422,7 +422,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan that is settled
      * @param fulfiller The address executing seaport
      */
@@ -435,7 +435,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan to settle
      */
     function _settleLoan(Starport.Loan memory loan) internal virtual {
