@@ -54,8 +54,6 @@ contract Starport is PausableNonReentrant {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error AdditionalTransferError();
-    error CannotTransferLoans();
     error CaveatDeadlineExpired();
     error InvalidCaveat();
     error InvalidCaveatLength();
@@ -64,7 +62,6 @@ contract Starport is PausableNonReentrant {
     error InvalidLoan();
     error InvalidLoanState();
     error InvalidPostRepayment();
-    error InvalidRefinance();
     error LoanExists();
     error MalformedRefinance();
     error NotLoanCustodian();

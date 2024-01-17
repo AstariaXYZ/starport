@@ -74,7 +74,6 @@ contract BNPLHelper is IFlashLoanRecipient {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error DoNotSendETH();
     error InvalidUserDataProvided();
     error SenderNotVault();
 
