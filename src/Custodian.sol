@@ -124,8 +124,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (!_exists(loanId)) {
             revert InvalidLoan();
         }
-        //TODO: PLACEHOLDER that is semantically sound
-        return string.concat("", LibString.toString(loanId));
+        return string(abi.encodePacked("https://astaria.xyz/loans/", LibString.toString(loanId)));
     }
 
     /**
