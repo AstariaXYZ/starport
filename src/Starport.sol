@@ -579,8 +579,10 @@ contract Starport is PausableNonReentrant {
         );
 
         if (signedCaveats.singleUse) {
-            invalidSalts.validateSalt(validator, signedCaveats.salt);
+            invalidSalts.validateSalt(validator, signedCaveats.salt); //Validates and invalidates salt
             emit CaveatFilled(validator, hash, signedCaveats.salt);
+        } else if (invalidSalts[validator][signedCaveats.salt]) {
+            revert StarportLib.InvalidSalt();
         }
 
         if (block.timestamp > signedCaveats.deadline) {
