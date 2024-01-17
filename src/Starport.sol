@@ -694,7 +694,7 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Issues a LM token if needed, only owner can call
+     * @dev Changes loanId status to open for the specified loan
      * @param loan The loan to issue
      */
     function _issueLoan(Loan memory loan) internal {

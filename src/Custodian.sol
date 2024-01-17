@@ -482,13 +482,13 @@ contract Custodian is ERC721, ContractOffererInterface {
     function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  Hook to call before the loan is settled with the LM
+     * @dev  Hook to call before the loan is settled with the Starport
      * @param loan The loan being settled
      */
     function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  Hook to call after the loan is settled with the LM
+     * @dev  Hook to call after the loan is settled with the Starport
      * @param loan The loan being settled
      */
     function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual {}

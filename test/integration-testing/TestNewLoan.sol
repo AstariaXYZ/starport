@@ -236,7 +236,7 @@ contract TestNewLoan is StarportTest {
                 amounts,
                 abi.encode(
                     BNPLHelper.Execution({
-                        lm: address(SP),
+                        starport: address(SP),
                         seaport: address(seaport),
                         borrower: borrower.addr,
                         borrowerCaveat: signCaveatForAccount(
