@@ -124,8 +124,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (!_exists(loanId)) {
             revert InvalidLoan();
         }
-        //TODO: PLACEHOLDER that is semantically sound
-        return string.concat("", LibString.toString(loanId));
+        return string(abi.encodePacked("https://astaria.xyz/loans/", LibString.toString(loanId)));
     }
 
     /**
@@ -410,7 +409,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan that is settled
      * @param fulfiller The address executing seaport
      */
@@ -423,7 +422,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan that is settled
      * @param fulfiller The address executing seaport
      */
@@ -436,7 +435,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev settle the loan with the LoanManager
+     * @dev settle the loan with Starport
      * @param loan The the loan to settle
      */
     function _settleLoan(Starport.Loan memory loan) internal virtual {
@@ -483,13 +482,13 @@ contract Custodian is ERC721, ContractOffererInterface {
     function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  Hook to call before the loan is settled with the LM
+     * @dev  Hook to call before the loan is settled with the Starport
      * @param loan The loan being settled
      */
     function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual {}
 
     /**
-     * @dev  Hook to call after the loan is settled with the LM
+     * @dev  Hook to call after the loan is settled with the Starport
      * @param loan The loan being settled
      */
     function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual {}

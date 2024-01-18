@@ -74,7 +74,6 @@ contract BNPLHelper is IFlashLoanRecipient {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error DoNotSendETH();
     error InvalidUserDataProvided();
     error SenderNotVault();
 
@@ -95,7 +94,7 @@ contract BNPLHelper is IFlashLoanRecipient {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Execution {
-        address lm;
+        address starport;
         address seaport;
         address borrower;
         CaveatEnforcer.SignedCaveats borrowerCaveat;
@@ -154,6 +153,8 @@ contract BNPLHelper is IFlashLoanRecipient {
                 ++i;
             }
         }
-        Starport(execution.lm).originate(transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan);
+        Starport(execution.starport).originate(
+            transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan
+        );
     }
 }

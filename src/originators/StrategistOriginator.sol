@@ -48,7 +48,6 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
 
     error AdditionalTransferError();
     error InvalidCollateral();
-    error InvalidCustodian();
     error InvalidDeadline();
     error InvalidDebt();
     error InvalidDebtAmount();

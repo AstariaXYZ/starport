@@ -32,7 +32,6 @@ import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "../lib/StarportLib.sol";
 
 contract LenderEnforcer is CaveatEnforcer {
-    error LenderOnlyEnforcer();
     error InvalidLoanTerms();
     error InvalidAdditionalTransfer();
 
