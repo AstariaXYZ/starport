@@ -366,7 +366,9 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).setApprovalForAll(seaport, true);
         } else if (offer.itemType == ItemType.ERC20) {
-            SafeTransferLib.safeApproveWithRetry(offer.token, seaport, type(uint256).max);
+            if (ERC20(offer.token).allowance(address(this), seaport) != type(uint256).max) {
+                SafeTransferLib.safeApproveWithRetry(offer.token, seaport, type(uint256).max);
+            }
         }
     }
 
