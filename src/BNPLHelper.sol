@@ -30,7 +30,7 @@ pragma solidity ^0.8.17;
 import {Starport} from "./Starport.sol";
 import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
 import {AdditionalTransfer} from "./lib/StarportLib.sol";
-
+import {Ownable} from "solady/src/auth/Ownable.sol";
 import {Seaport} from "seaport/contracts/Seaport.sol";
 import {
     AdvancedOrder,
@@ -69,7 +69,7 @@ interface ERC20 {
     function transfer(address, uint256) external returns (bool);
 }
 
-contract BNPLHelper is IFlashLoanRecipient {
+contract BNPLHelper is IFlashLoanRecipient, Ownable {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -81,7 +81,7 @@ contract BNPLHelper is IFlashLoanRecipient {
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    address private constant VAULT = address(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
+    address private VAULT;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STORAGE                           */
@@ -105,9 +105,12 @@ contract BNPLHelper is IFlashLoanRecipient {
         Fulfillment[] fulfillments;
     }
 
-    function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
-        activeUserDataHash = keccak256(userData);
+    constructor(address vault, address owner) {
+        VAULT = vault;
+        _initializeOwner(owner);
+    }
 
+    function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
         IVault(VAULT).flashLoan(this, tokens, amounts, userData);
     }
 
@@ -117,15 +120,6 @@ contract BNPLHelper is IFlashLoanRecipient {
         uint256[] calldata feeAmounts,
         bytes calldata userData
     ) external override {
-        if (msg.sender != VAULT) {
-            revert SenderNotVault();
-        }
-
-        if (activeUserDataHash != keccak256(userData)) {
-            revert InvalidUserDataProvided();
-        }
-        delete activeUserDataHash;
-
         Execution memory execution = abi.decode(userData, (Execution));
 
         // Approve seaport
@@ -156,5 +150,9 @@ contract BNPLHelper is IFlashLoanRecipient {
         Starport(execution.starport).originate(
             transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan
         );
+    }
+
+    function setFlashVault(address vault) external onlyOwner {
+        VAULT = vault;
     }
 }

@@ -13,7 +13,8 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "snapshot": "forge snapshot --ffi --no-match-path '*fuzz*'"
+    "snapshot": "forge snapshot --ffi --no-match-path '*fuzz*'",
+    "test": "forge test --ffi --no-match-path *fuzz*"
   },
   "devDependencies": {
     "husky": "^8.0.0",
