@@ -45,14 +45,27 @@ contract IntegrationTestCaveats is StarportTest, DeepEq, MockCall {
             details: BorrowerEnforcer.Details({loan: loan}),
             signer: borrower,
             salt: bytes32(uint256(1)),
-            enforcer: address(borrowerEnforcer)
+            enforcer: address(borrowerEnforcer),
+            singleUse: true
         });
+
         _setApprovalsForSpentItems(borrower.addr, loan.collateral);
 
         _setApprovalsForSpentItems(lender.addr, loan.debt);
 
         vm.startPrank(loan.issuer);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
+
+        vm.expectRevert(StarportLib.InvalidSalt.selector);
+        SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);
+
+        borrowerCaveat = getBorrowerSignedCaveat({
+            details: BorrowerEnforcer.Details({loan: loan}),
+            signer: borrower,
+            salt: bytes32(uint256(1)),
+            enforcer: address(borrowerEnforcer),
+            singleUse: false
+        });
 
         vm.expectRevert(StarportLib.InvalidSalt.selector);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, _emptyCaveat(), loan);

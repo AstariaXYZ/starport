@@ -411,9 +411,19 @@ contract StarportTest is BaseOrderTest, Stargate {
         bytes32 salt,
         address enforcer
     ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        return getBorrowerSignedCaveat(details, signer, salt, enforcer, true);
+    }
+
+    function getBorrowerSignedCaveat(
+        BorrowerEnforcer.Details memory details,
+        Account memory signer,
+        bytes32 salt,
+        address enforcer,
+        bool singleUse
+    ) public view returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
-        signedCaveats.singleUse = true;
+        signedCaveats.singleUse = singleUse;
         signedCaveats.deadline = block.timestamp + 1 days;
         signedCaveats.caveats[0] = CaveatEnforcer.Caveat({enforcer: enforcer, data: abi.encode(details)});
         bytes32 hash = SP.hashCaveatWithSaltAndNonce(
