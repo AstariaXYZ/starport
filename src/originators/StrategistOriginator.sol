@@ -147,7 +147,9 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
-        _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
+        unchecked {
+            _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
+        }
         emit CounterUpdated(_counter);
     }
 
@@ -223,7 +225,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         }
 
         // Loop through collateral and check if the collateral is the same
-        for (uint256 i = 0; i < request.debt.length;) {
+        uint256 i = 0;
+        for (; i < request.debt.length;) {
             if (
                 request.debt[i].itemType != details.offer.debt[i].itemType
                     || request.debt[i].token != details.offer.debt[i].token
@@ -239,7 +242,7 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
                 revert InvalidDebtAmount();
             }
             unchecked {
-                i++;
+                ++i;
             }
         }
     }

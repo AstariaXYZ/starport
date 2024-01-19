@@ -366,7 +366,9 @@ contract Custodian is ERC721, ContractOffererInterface {
         } else if (offer.itemType == ItemType.ERC1155) {
             ERC1155(offer.token).setApprovalForAll(seaport, true);
         } else if (offer.itemType == ItemType.ERC20) {
-            SafeTransferLib.safeApproveWithRetry(offer.token, seaport, type(uint256).max);
+            if (ERC20(offer.token).allowance(address(this), seaport) != type(uint256).max) {
+                SafeTransferLib.safeApproveWithRetry(offer.token, seaport, type(uint256).max);
+            }
         }
     }
 
@@ -376,8 +378,12 @@ contract Custodian is ERC721, ContractOffererInterface {
      */
     function _setOfferApprovalsWithSeaport(Starport.Loan memory loan) internal {
         _beforeApprovalsSetHook(loan);
-        for (uint256 i = 0; i < loan.collateral.length; i++) {
+        uint256 i = 0;
+        for (; i < loan.collateral.length;) {
             _enableAssetWithSeaport(loan.collateral[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -403,8 +409,12 @@ contract Custodian is ERC721, ContractOffererInterface {
      * @param authorized The address handling the asset further
      */
     function _moveCollateralToAuthorized(SpentItem[] memory offer, address authorized) internal {
-        for (uint256 i = 0; i < offer.length; i++) {
+        uint256 i = 0;
+        for (; i < offer.length;) {
             _transferCollateralAuthorized(offer[i], authorized);
+            unchecked {
+                ++i;
+            }
         }
     }
 
