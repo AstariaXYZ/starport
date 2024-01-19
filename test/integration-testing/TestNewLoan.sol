@@ -277,7 +277,7 @@ contract TestNewLoan is StarportTest {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
@@ -311,14 +311,14 @@ contract TestNewLoan is StarportTest {
         );
         assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
         assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
-        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(SP.defaultCustodian()));
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(address(custodian)));
     }
 
     function testNewLoanViaOriginatorBorrowerApprovalAndLenderApproval() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.number + 8,
             offer: StrategistOriginator.Offer({
@@ -354,7 +354,7 @@ contract TestNewLoan is StarportTest {
         );
         assert(erc20s[0].balanceOf(borrower.addr) == borrowerBalanceBefore + loan.debt[0].amount);
         assert(erc20s[0].balanceOf(lender.addr) == lenderBalanceBefore - loan.debt[0].amount);
-        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(SP.defaultCustodian()));
+        assert(erc721s[0].ownerOf(loan.collateral[0].identifier) == address(address(custodian)));
     }
 
     event log_receivedItems(ReceivedItem[] items);

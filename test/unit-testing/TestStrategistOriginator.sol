@@ -66,7 +66,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -108,7 +108,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -151,7 +151,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -194,7 +194,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -238,7 +238,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         loan.debt[0].amount = 0;
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -280,7 +280,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -322,7 +322,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -366,7 +366,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
@@ -410,7 +410,7 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         StrategistOriginator.Details memory newLoanDetails = StrategistOriginator.Details({
-            custodian: SP.defaultCustodian(),
+            custodian: address(custodian),
             issuer: lender.addr,
             deadline: block.timestamp + 8,
             offer: StrategistOriginator.Offer({
