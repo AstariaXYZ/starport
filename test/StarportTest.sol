@@ -185,7 +185,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         fulfiller = makeAndAllocateAccount("fulfiller");
 
         SP = new Starport(address(consideration), Stargate(address(this)));
-        custodian = Custodian(payable(SP.defaultCustodian()));
+        custodian = new Custodian(SP, address(consideration));
         SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
         pricing = new SimpleInterestPricing(SP);
         settlement = new FixedTermDutchAuctionSettlement(SP);

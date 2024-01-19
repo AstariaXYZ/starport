@@ -92,7 +92,6 @@ contract Starport is PausableNonReentrant {
 
     Stargate public immutable SG;
     uint256 public immutable chainId;
-    address public immutable defaultCustodian;
     bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
     bytes32 public immutable CACHED_DOMAIN_SEPARATOR;
 
@@ -173,7 +172,6 @@ contract Starport is PausableNonReentrant {
         assembly ("memory-safe") {
             defaultCustodianCodeHash := extcodehash(custodian)
         }
-        defaultCustodian = custodian;
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
         _initializeOwner(msg.sender);
     }
