@@ -176,9 +176,7 @@ contract MockExoticPricing is Pricing {
 }
 
 contract MockOriginator is StrategistOriginator {
-    constructor(Starport SP_, address strategist_, uint256 fee_)
-        StrategistOriginator(SP_, strategist_, fee_, msg.sender)
-    {}
+    constructor(Starport SP_, address strategist_) StrategistOriginator(SP_, strategist_, msg.sender) {}
 
     function terms(bytes calldata) public view returns (Starport.Terms memory) {
         return Starport.Terms({

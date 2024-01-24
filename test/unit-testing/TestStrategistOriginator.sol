@@ -41,13 +41,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         );
     }
 
-    function testGetStrategistData() public {
-        StrategistOriginator SOO = new StrategistOriginator(SP, strategist.addr, 1e17, address(this));
-        (address activeStrategist, uint256 strategistFee) = SOO.getStrategistData();
-        assert(activeStrategist == strategist.addr);
-        assert(strategistFee == 1e17);
-    }
-
     function testIncrementCounterAsStrategist() public {
         uint256 newCounter = SO.getCounter() + 1 + uint256(blockhash(block.timestamp - 1) >> 0x80);
         vm.expectEmit();

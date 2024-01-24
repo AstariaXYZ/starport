@@ -226,7 +226,8 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (loan.start == block.timestamp) {
             revert InvalidLoan();
         }
-        if (close.action == Actions.Repayment && Status(loan.terms.status).isActive(loan, close.extraData)) {
+        bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
+        if (close.action == Actions.Repayment && loanActive) {
             if (fulfiller != getBorrower(loan) && fulfiller != _getApproved(loan.getId())) {
                 revert InvalidRepayer();
             }
@@ -240,7 +241,7 @@ contract Custodian is ERC721, ContractOffererInterface {
 
             _settleLoan(loan);
             _postRepaymentExecute(loan, fulfiller);
-        } else if (close.action == Actions.Settlement && !Status(loan.terms.status).isActive(loan, close.extraData)) {
+        } else if (close.action == Actions.Settlement && !loanActive) {
             address authorized;
             _beforeGetSettlementConsideration(loan);
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);

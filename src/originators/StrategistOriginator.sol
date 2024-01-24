@@ -86,7 +86,6 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
 
     // Strategist address and fee
     address public strategist;
-    uint256 public strategistFee;
     uint256 private _counter;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -111,11 +110,10 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_, address strategist_, uint256 fee_, address owner) {
+    constructor(Starport SP_, address strategist_, address owner) {
         _initializeOwner(owner);
         strategist = strategist_;
         emit StrategistTransferred(strategist_);
-        strategistFee = fee_;
         SP = SP_;
         _DOMAIN_SEPARATOR = keccak256(
             abi.encode(
@@ -147,10 +145,11 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
+        uint256 counter;
         unchecked {
-            _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
+            counter = _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
         }
-        emit CounterUpdated(_counter);
+        emit CounterUpdated(counter);
     }
 
     /**
@@ -189,14 +188,6 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
-    }
-    /**
-     * @dev Returns the strategist and fee
-     * @return strategist address and fee
-     */
-
-    function getStrategistData() public view virtual returns (address, uint256) {
-        return (strategist, strategistFee);
     }
 
     /**
