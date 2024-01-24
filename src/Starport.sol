@@ -381,7 +381,7 @@ contract Starport is PausableNonReentrant {
         }
 
         if (carryPayment.length > 0) {
-            SpentItem[] memory newDebt = new SpentItem[](considerationPayment.length);
+            newDebt = new SpentItem[](considerationPayment.length);
             uint256 i = 0;
             for (; i < considerationPayment.length;) {
                 newDebt[i] = considerationPayment[i];
