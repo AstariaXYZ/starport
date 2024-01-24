@@ -210,7 +210,6 @@ contract Custodian is ERC721, ContractOffererInterface {
     /**
      * @dev Generates the order for this contract offerer
      * @param fulfiller The address of the contract fulfiller
-     * @param maximumSpent The maximum amount of items to be spent by the order
      * @param context The context of the order
      * @return offer The items spent by the order
      * @return consideration The items received by the order
@@ -218,7 +217,7 @@ contract Custodian is ERC721, ContractOffererInterface {
     function generateOrder(
         address fulfiller,
         SpentItem[] calldata,
-        SpentItem[] calldata maximumSpent,
+        SpentItem[] calldata,
         bytes calldata context // encoded based on the schemaID
     ) external onlySeaport returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
         (Command memory close) = abi.decode(context, (Command));
