@@ -162,8 +162,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         _validateOffer(params, details);
 
         Starport.Loan memory loan = Starport.Loan({
-            start: uint256(0), // Set in the loan manager
-            originator: address(0), // Set in the loan manager
+            start: uint256(0), // Set in Starport
+            originator: address(0), // Set in Starport
             custodian: details.custodian,
             issuer: details.issuer,
             borrower: params.borrower,

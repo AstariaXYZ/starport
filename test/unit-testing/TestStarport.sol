@@ -194,8 +194,8 @@ contract MockOriginator is StrategistOriginator {
         _validateOffer(params, details);
 
         Starport.Loan memory loan = Starport.Loan({
-            start: uint256(0), // are set in the loan manager
-            originator: address(0), // are set in the loan manager
+            start: uint256(0), // are set in Starport
+            originator: address(0), // are set in Starport
             custodian: details.custodian,
             issuer: details.issuer,
             borrower: params.borrower,
