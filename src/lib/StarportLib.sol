@@ -250,7 +250,7 @@ library StarportLib {
                 // erc1155 transfer
                 if (transfer.amount > 0) {
                     ERC1155(transfer.token).safeTransferFrom(
-                        transfer.from, transfer.to, transfer.identifier, transfer.amount, new bytes(0)
+                        transfer.from, transfer.to, transfer.identifier, transfer.amount, ""
                     );
                 }
             } else {
@@ -281,7 +281,7 @@ library StarportLib {
                 // erc1155 transfer
                 if (transfer.amount > 0) {
                     ERC1155(transfer.token).safeTransferFrom(
-                        transfer.from, transfer.to, transfer.identifier, transfer.amount, new bytes(0)
+                        transfer.from, transfer.to, transfer.identifier, transfer.amount, ""
                     );
                 }
             } else {
@@ -360,7 +360,7 @@ library StarportLib {
                 revert InvalidItemAmount();
             }
             // erc1155 transfer
-            ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
+            ERC1155(token).safeTransferFrom(from, to, identifier, amount, "");
         } else {
             revert InvalidItemType();
         }
@@ -384,7 +384,7 @@ library StarportLib {
             ERC721(token).transferFrom(from, to, identifier);
         } else if (itemType == ItemType.ERC1155) {
             // erc1155 transfer
-            ERC1155(token).safeTransferFrom(from, to, identifier, amount, new bytes(0));
+            ERC1155(token).safeTransferFrom(from, to, identifier, amount, "");
         } else {
             revert InvalidItemType();
         }

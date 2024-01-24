@@ -125,7 +125,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         }
         // DutchAuction has failed, allow lender to redeem
         if (start + details.window < block.timestamp) {
-            return (new ReceivedItem[](0), loan.issuer);
+            return (consideration, loan.issuer);
         }
 
         uint256 settlementPrice = _locateCurrentAmount({

@@ -173,7 +173,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         });
 
         CaveatEnforcer.SignedCaveats memory le;
-        SP.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
+        AdditionalTransfer[] memory at;
+        SP.originate(at, params.borrowerCaveat, le, loan);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
