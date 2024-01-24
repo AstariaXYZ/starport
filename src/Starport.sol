@@ -667,7 +667,7 @@ contract Starport is PausableNonReentrant {
 
                 uint256 bps = feeOverride.enabled ? feeOverride.bpsOverride : _defaultFeeRakeBps;
 
-                amount = debtItem.amount * bps / BPS_DENOMINATOR;
+                amount = debtItem.amount.mulDivUp(bps, BPS_DENOMINATOR);
 
                 if (amount > 0) {
                     feeItem.amount = amount;
