@@ -84,7 +84,7 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
 
     mapping(bytes32 => bool) public usedHashes;
 
-    // Strategist address and fee
+    // Strategist address
     address public strategist;
     uint256 private _counter;
 
