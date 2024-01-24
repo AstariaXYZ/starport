@@ -269,11 +269,9 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.assume(!willArithmeticOverflow(loan));
 
         address feeReceiver = address(20);
-        uint256[2][] memory feeRake = new uint256[2][](1);
-        feeRake[0][0] = uint256(18);
-        feeRake[0][1] = _boundMax(0, 1e17);
+        uint88 feeRakeBps = uint88(_boundMax(0, SP.MAX_FEE_RAKE_BPS()));
         if (params.feesOn) {
-            SP.setFeeData(feeReceiver, feeRake);
+            SP.setFeeData(feeReceiver, feeRakeBps);
         }
         _issueAndApproveTarget(loan.collateral, loan.borrower, address(SP));
         _issueAndApproveTarget(loan.debt, loan.issuer, address(SP));
@@ -294,7 +292,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         if (params.feesOn) {
             assert(
                 ERC20(loan.debt[0].token).balanceOf(loan.borrower)
-                    == (borrowerDebtBalanceBefore + (loan.debt[0].amount - loan.debt[0].amount.mulWad(feeRake[0][1])))
+                    == (
+                        borrowerDebtBalanceBefore
+                            + (loan.debt[0].amount - loan.debt[0].amount * feeRakeBps / SP.BPS_DENOMINATOR())
+                    )
             );
         } else {
             assert(
