@@ -44,6 +44,7 @@ import {LibString} from "solady/src/utils/LibString.sol";
 
 contract Custodian is ERC721, ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
+    using {LibString.concat} for string;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
@@ -124,7 +125,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         if (!_exists(loanId)) {
             revert InvalidLoan();
         }
-        return string(abi.encodePacked("https://astaria.xyz/loans/", LibString.toString(loanId)));
+        return string("https://astaria.xyz/metadata/loan/").concat(LibString.toString(loanId));
     }
 
     /**

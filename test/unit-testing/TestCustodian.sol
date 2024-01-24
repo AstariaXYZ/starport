@@ -106,7 +106,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     function testTokenURI() public {
         string memory expected = string(
             abi.encodePacked(
-                "https://astaria.xyz/loans/", LibString.toString(uint256(keccak256(abi.encode(activeLoan))))
+                "https://astaria.xyz/metadata/loan/", LibString.toString(uint256(keccak256(abi.encode(activeLoan))))
             )
         );
         assertEq(custodian.tokenURI(uint256(keccak256(abi.encode(activeLoan)))), expected);
