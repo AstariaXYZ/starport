@@ -265,7 +265,7 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     }
 
     function withdraw(SpentItem[] memory transfers, address recipient) external onlyOwner {
-        StarportLib.transferSpentItemsSelf(transfers, address(this), recipient);
+        StarportLib.transferSpentItemsSelf(transfers, recipient);
     }
 
     // PUBLIC FUNCTIONS

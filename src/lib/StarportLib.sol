@@ -308,12 +308,14 @@ library StarportLib {
         }
     }
 
-    function transferSpentItemsSelf(SpentItem[] memory transfers, address from, address to) internal {
+    function transferSpentItemsSelf(SpentItem[] memory transfers, address to) internal {
         if (transfers.length > 0) {
             uint256 i = 0;
             for (; i < transfers.length;) {
                 SpentItem memory transfer = transfers[i];
-                _transferItem(transfer.itemType, transfer.token, transfer.identifier, transfer.amount, from, to);
+                _transferItem(
+                    transfer.itemType, transfer.token, transfer.identifier, transfer.amount, address(this), to
+                );
                 unchecked {
                     ++i;
                 }
