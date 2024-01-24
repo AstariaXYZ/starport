@@ -55,6 +55,7 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error CaveatDeadlineExpired();
+    error InvalidFeeRakeBps();
     error InvalidCaveat();
     error InvalidCaveatLength();
     error InvalidCaveatSigner();
@@ -76,13 +77,16 @@ contract Starport is PausableNonReentrant {
     event CaveatNonceIncremented(address owner, uint256 newNonce);
     event CaveatSaltInvalidated(address owner, bytes32 salt);
     event Close(uint256 loanId);
-    event FeeDataUpdated(address feeTo, uint256[2][] defaultFeeRakeByDecimals);
-    event FeeOverrideUpdated(address token, uint88 overrideValue, bool enabled);
+    event FeeDataUpdated(address feeTo, uint88 defaultFeeRakeBps);
+    event FeeOverrideUpdated(address token, uint88 overrideBps, bool enabled);
     event Open(uint256 loanId, Starport.Loan loan);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    uint88 public constant MAX_FEE_RAKE_BPS = 500; // 5%
+    uint88 public constant BPS_DENOMINATOR = 10_000; // 100%
 
     uint256 public constant LOAN_CLOSED_FLAG = 0x0;
     uint256 public constant LOAN_OPEN_FLAG = 0x1;
@@ -131,9 +135,9 @@ contract Starport is PausableNonReentrant {
         Terms terms; // the actionable terms of the loan
     }
 
-    struct Fee {
+    struct FeeOverride {
         bool enabled;
-        uint88 amount;
+        uint88 bpsOverride;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -151,8 +155,8 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     address public feeTo;
-    mapping(uint256 => uint256) public defaultFeeRakeByDecimals;
-    mapping(address => Fee) public feeOverrides;
+    uint256 public defaultFeeRakeBps;
+    mapping(address => FeeOverride) public feeOverrides;
     mapping(address => mapping(address => ApprovalType)) public approvals;
     mapping(address => mapping(bytes32 => bool)) public invalidSalts;
     mapping(address => uint256) public caveatNonces;
@@ -334,29 +338,32 @@ contract Starport is PausableNonReentrant {
     /**
      * @dev Sets the default fee data, only owner can call
      * @param feeTo_ The feeToAddress
-     * @param defaultFeeRakeByDecimals_ [decimals, defaultFeeRakeByDecimals] pairs
+     * @param defaultFeeRakeBps_ The default fee rake in basis points
      */
-    function setFeeData(address feeTo_, uint256[2][] memory defaultFeeRakeByDecimals_) external onlyOwner {
-        feeTo = feeTo_;
-        for (uint256 i = 0; i < defaultFeeRakeByDecimals_.length;) {
-            defaultFeeRakeByDecimals[defaultFeeRakeByDecimals_[i][0]] = defaultFeeRakeByDecimals_[i][1];
-            unchecked {
-                ++i;
-            }
+    function setFeeData(address feeTo_, uint88 defaultFeeRakeBps_) external onlyOwner {
+        if (defaultFeeRakeBps_ > MAX_FEE_RAKE_BPS) {
+            revert InvalidFeeRakeBps();
         }
-        emit FeeDataUpdated(feeTo_, defaultFeeRakeByDecimals_);
+
+        feeTo = feeTo_;
+        defaultFeeRakeBps = defaultFeeRakeBps_;
+
+        emit FeeDataUpdated(feeTo_, defaultFeeRakeBps_);
     }
 
     /**
      * @dev Sets fee overrides for specific tokens, only owner can call
      * @param token The token to override
-     * @param overrideValue The new value in decimals base denomination
-     * to override eg if token has 18 decimals (1e17 = 10%)
+     * @param bpsOverride The new basis points to override to (1 = 0.01%)
      * @param enabled Whether or not the override is enabled
      */
-    function setFeeOverride(address token, uint88 overrideValue, bool enabled) external onlyOwner {
-        feeOverrides[token] = Fee({enabled: enabled, amount: overrideValue});
-        emit FeeOverrideUpdated(token, overrideValue, enabled);
+    function setFeeOverride(address token, uint88 bpsOverride, bool enabled) external onlyOwner {
+        if (bpsOverride > MAX_FEE_RAKE_BPS) {
+            revert InvalidFeeRakeBps();
+        }
+
+        feeOverrides[token] = FeeOverride({enabled: enabled, bpsOverride: bpsOverride});
+        emit FeeOverrideUpdated(token, bpsOverride, enabled);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -459,7 +466,7 @@ contract Starport is PausableNonReentrant {
      *
      * @return The hash.
      */
-    function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal view returns (bytes32) {
+    function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal pure returns (bytes32) {
         return keccak256(abi.encode(CAVEAT_TYPEHASH, caveat.enforcer, keccak256(caveat.data)));
     }
 
@@ -648,32 +655,29 @@ contract Starport is PausableNonReentrant {
     {
         feeItems = new SpentItem[](debt.length);
         paymentToBorrower = new SpentItem[](debt.length);
+        uint256 _defaultFeeRakeBps = defaultFeeRakeBps;
         uint256 totalFeeItems;
         for (uint256 i = 0; i < debt.length;) {
             uint256 amount;
             SpentItem memory debtItem = debt[i];
             if (debtItem.itemType == ItemType.ERC20) {
-                Fee memory feeOverride = feeOverrides[debtItem.token];
+                FeeOverride memory feeOverride = feeOverrides[debtItem.token];
                 SpentItem memory feeItem = feeItems[totalFeeItems];
                 feeItem.identifier = 0;
 
-                try ERC20(debtItem.token).decimals() returns (uint8 decimals) {
-                    uint256 defaultFeeRake = defaultFeeRakeByDecimals[decimals];
+                uint256 bps = feeOverride.enabled ? feeOverride.bpsOverride : _defaultFeeRakeBps;
 
-                    if (defaultFeeRake != 0 || feeOverride.enabled) {
-                        amount = debtItem.amount.mulDivUp(
-                            !feeOverride.enabled ? defaultFeeRake : feeOverride.amount, 10 ** decimals
-                        );
-                    }
+                amount = debtItem.amount * bps / BPS_DENOMINATOR;
 
-                    if (amount > 0) {
-                        feeItem.amount = amount;
-                        feeItem.token = debtItem.token;
-                        feeItem.itemType = debtItem.itemType;
+                if (amount > 0) {
+                    feeItem.amount = amount;
+                    feeItem.token = debtItem.token;
+                    feeItem.itemType = debtItem.itemType;
 
+                    unchecked {
                         ++totalFeeItems;
                     }
-                } catch {}
+                }
             }
             paymentToBorrower[i] = SpentItem({
                 token: debtItem.token,
