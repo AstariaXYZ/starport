@@ -430,7 +430,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(0));
 
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
-            activeLoan.borrower,
+            address(consideration),
             activeLoan.borrower,
             new SpentItem[](0),
             activeDebt,
@@ -490,7 +490,7 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(1));
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidFulfiller.selector));
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedConsideration) = custodian.previewOrder(
-            alice,
+            address(consideration),
             alice,
             new SpentItem[](0),
             activeDebt,
@@ -505,7 +505,11 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         mockSettlementCall(activeLoan.terms.settlement, new ReceivedItem[](0), address(0));
         vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidRepayer.selector));
         (SpentItem[] memory receivedOffer, ReceivedItem[] memory receivedCosideration) = custodian.previewOrder(
-            alice, bob, new SpentItem[](0), activeDebt, abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))
+            address(consideration),
+            bob,
+            new SpentItem[](0),
+            activeDebt,
+            abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))
         );
     }
 

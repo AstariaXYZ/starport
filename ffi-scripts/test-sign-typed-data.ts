@@ -1,5 +1,5 @@
 'use strict';
-import { decodeAbiParameters, parseAbiParameters, createWalletClient, http, Address, hashTypedData, pad, Hex, hexToString, keccak256 } from "viem";
+import { decodeAbiParameters, parseAbiParameters, createWalletClient, http, Address, pad, Hex } from "viem";
 
 import { mainnet } from 'viem/chains'
 

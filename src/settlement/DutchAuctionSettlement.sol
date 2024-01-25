@@ -85,7 +85,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     }
 
     // @inheritdoc Settlement
-    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+    function postRepayment(Starport.Loan calldata, address) external virtual override returns (bytes4) {
         return Settlement.postRepayment.selector;
     }
 
@@ -103,7 +103,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
 
     /**
      * @dev Get the start of the auction
-     * @param loan The loan in question
+     * @param loan The loan being referenced
      * @return uint256 The start of the auction
      */
     function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);

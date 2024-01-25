@@ -191,20 +191,14 @@ contract Custodian is ERC721, ContractOffererInterface {
 
     /**
      * @dev Generates the order for this contract offerer
-     * @param offer The address of the contract fulfiller
-     * @param consideration The maximum amount of items to be spent by the order
-     * @param context The context of the order
-     * @param orderHashes The context of the order
-     * @param contractNonce The context of the order
      * @return ratifyOrderMagicValue The magic value returned by the ratify
      */
-    function ratifyOrder(
-        SpentItem[] calldata offer,
-        ReceivedItem[] calldata consideration,
-        bytes calldata context, // encoded based on the schemaID
-        bytes32[] calldata orderHashes,
-        uint256 contractNonce
-    ) external onlySeaport returns (bytes4 ratifyOrderMagicValue) {
+    function ratifyOrder(SpentItem[] calldata, ReceivedItem[] calldata, bytes calldata, bytes32[] calldata, uint256)
+        external
+        view
+        onlySeaport
+        returns (bytes4 ratifyOrderMagicValue)
+    {
         ratifyOrderMagicValue = ContractOffererInterface.ratifyOrder.selector;
     }
 
@@ -237,7 +231,12 @@ contract Custodian is ERC721, ContractOffererInterface {
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
 
-            consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarportLib.mergeSpentItemsToReceivedItems({
+                payment: payment,
+                paymentRecipient: loan.issuer,
+                carry: carry,
+                carryRecipient: loan.originator
+            });
 
             _settleLoan(loan);
             _postRepaymentExecute(loan, fulfiller);
@@ -303,22 +302,21 @@ contract Custodian is ERC721, ContractOffererInterface {
     }
 
     /**
-     * @dev Previews the order for this contract offerer.
-     * @param caller The address of the contract fulfiller.
-     * @param fulfiller The address of the contract fulfiller.
-     * @param minimumReceived The minimum the fulfiller must receive.
-     * @param maximumSpent The most a fulfiller will spend
-     * @param context The context of the order.
-     * @return offer The items spent by the order.
-     * @return consideration The items received by the order.
+     * @dev Previews the order for this contract offerer
+     * @param caller The address of the seaport contract
+     * @param fulfiller The address of the contract fulfiller
+     * @param context The context of the order
+     * @return offer The items spent by the order
+     * @return consideration The items received by the order
      */
     function previewOrder(
         address caller,
         address fulfiller,
-        SpentItem[] calldata minimumReceived,
-        SpentItem[] calldata maximumSpent,
+        SpentItem[] calldata,
+        SpentItem[] calldata,
         bytes calldata context // Encoded based on the schemaID
     ) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration) {
+        if (caller != address(seaport)) revert NotSeaport();
         (Command memory close) = abi.decode(context, (Command));
         Starport.Loan memory loan = close.loan;
         if (loan.start == block.timestamp || SP.closed(loan.getId())) {
@@ -326,15 +324,19 @@ contract Custodian is ERC721, ContractOffererInterface {
         }
         bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
         if (close.action == Actions.Repayment && loanActive) {
-            address borrower = getBorrower(loan);
-            if (fulfiller != borrower && fulfiller != _getApproved(loan.getId())) {
+            if (fulfiller != getBorrower(loan) && fulfiller != _getApproved(loan.getId())) {
                 revert InvalidRepayer();
             }
             offer = loan.collateral;
 
             (SpentItem[] memory payment, SpentItem[] memory carry) =
                 Pricing(loan.terms.pricing).getPaymentConsideration(loan);
-            consideration = StarportLib.mergeSpentItemsToReceivedItems(payment, loan.issuer, carry, loan.originator);
+            consideration = StarportLib.mergeSpentItemsToReceivedItems({
+                payment: payment,
+                paymentRecipient: loan.issuer,
+                carry: carry,
+                carryRecipient: loan.originator
+            });
         } else if (close.action == Actions.Settlement && !loanActive) {
             address authorized;
             (consideration, authorized) = Settlement(loan.terms.settlement).getSettlementConsideration(loan);

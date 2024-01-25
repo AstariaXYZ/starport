@@ -418,7 +418,7 @@ contract Starport is PausableNonReentrant {
     /**
      * @dev Helper to hash a caveat with a salt and nonce
      * @param account The account that is originating the loan
-     * @param singleUse Whether or not the caveat is single use
+     * @param singleUse Whether to invalidate the salt after validation
      * @param salt The salt to use
      * @param deadline The deadline of the caveat
      * @param caveats The caveats to hash
@@ -471,18 +471,18 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Helper to check if a loan is active
+     * @dev Helper to check if a loan is open
      * @param loanId The id of the loan
-     * @return bool True if the loan is active
+     * @return bool True if the loan is open
      */
     function open(uint256 loanId) public view returns (bool) {
         return loanState[loanId] == LOAN_OPEN_FLAG;
     }
 
     /**
-     * @dev Helper to check if a loan is inactive
+     * @dev Helper to check if a loan is closed
      * @param loanId The id of the loan
-     * @return bool True if the loan is inactive
+     * @return bool True if the loan is closed
      */
     function closed(uint256 loanId) public view returns (bool) {
         return loanState[loanId] == LOAN_CLOSED_FLAG;
@@ -493,8 +493,8 @@ contract Starport is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev Settle the loan
-     * @param loan The the loan that is settled
+     * @dev Calls postRepayment hook on loan Settlement module
+     * @param loan The the loan that is being refrenced
      * @param fulfiller The address executing the settle
      */
     function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual {
@@ -522,7 +522,7 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Internal method to validate additional transfers
+     * @dev Internal method to validate additional transfers, only transfer from lender and fullfiller are valid
      * @param lender The lender of the loan
      * @param fulfiller The fulfiller of the loan
      * @param additionalTransfers The additional transfers to validate
@@ -534,7 +534,8 @@ contract Starport is PausableNonReentrant {
     ) internal pure {
         uint256 i = 0;
         for (; i < additionalTransfers.length;) {
-            if (additionalTransfers[i].from != lender && additionalTransfers[i].from != fulfiller) {
+            address from = additionalTransfers[i].from;
+            if (from != lender && from != fulfiller) {
                 revert UnauthorizedAdditionalTransferIncluded();
             }
             unchecked {
@@ -544,7 +545,7 @@ contract Starport is PausableNonReentrant {
     }
 
     /**
-     * @dev Internal method to validate additional transfers
+     * @dev Internal method to validate additional transfers, only transfers from borrower, lender, and fullfiller are valid
      * @param borrower The borrower of the loan
      * @param lender The lender of the loan
      * @param fulfiller The fulfiller of the loan
