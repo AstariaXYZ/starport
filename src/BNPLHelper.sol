@@ -78,16 +78,10 @@ contract BNPLHelper is IFlashLoanRecipient, Ownable {
     error SenderNotVault();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                  CONSTANTS AND IMMUTABLES                  */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    address private VAULT;
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STORAGE                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    bytes32 private activeUserDataHash;
+    address private vault;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -105,13 +99,13 @@ contract BNPLHelper is IFlashLoanRecipient, Ownable {
         Fulfillment[] fulfillments;
     }
 
-    constructor(address vault, address owner) {
-        VAULT = vault;
+    constructor(address _vault, address owner) {
+        vault = _vault;
         _initializeOwner(owner);
     }
 
     function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
-        IVault(VAULT).flashLoan(this, tokens, amounts, userData);
+        IVault(vault).flashLoan(this, tokens, amounts, userData);
     }
 
     function receiveFlashLoan(
@@ -140,7 +134,7 @@ contract BNPLHelper is IFlashLoanRecipient, Ownable {
                 identifier: 0,
                 token: tokens[i],
                 from: execution.borrower,
-                to: VAULT,
+                to: vault,
                 amount: amounts[i] + feeAmounts[i]
             });
             unchecked {
@@ -152,7 +146,7 @@ contract BNPLHelper is IFlashLoanRecipient, Ownable {
         );
     }
 
-    function setFlashVault(address vault) external onlyOwner {
-        VAULT = vault;
+    function setFlashVault(address _vault) external onlyOwner {
+        vault = _vault;
     }
 }

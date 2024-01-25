@@ -186,7 +186,7 @@ contract StarportTest is BaseOrderTest, Stargate {
 
         SP = new Starport(address(consideration), Stargate(address(this)));
         custodian = new Custodian(SP, address(consideration));
-        SO = new StrategistOriginator(SP, strategist.addr, 1e16, address(this));
+        SO = new StrategistOriginator(SP, strategist.addr, address(this));
         pricing = new SimpleInterestPricing(SP);
         settlement = new FixedTermDutchAuctionSettlement(SP);
         status = new FixedTermStatus();

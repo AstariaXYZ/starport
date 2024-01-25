@@ -84,9 +84,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
 
     mapping(bytes32 => bool) public usedHashes;
 
-    // Strategist address and fee
+    // Strategist address
     address public strategist;
-    uint256 public strategistFee;
     uint256 private _counter;
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -111,11 +110,10 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_, address strategist_, uint256 fee_, address owner) {
+    constructor(Starport SP_, address strategist_, address owner) {
         _initializeOwner(owner);
         strategist = strategist_;
         emit StrategistTransferred(strategist_);
-        strategistFee = fee_;
         SP = SP_;
         _DOMAIN_SEPARATOR = keccak256(
             abi.encode(
@@ -147,10 +145,11 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         if (msg.sender != strategist && msg.sender != owner()) {
             revert NotAuthorized();
         }
+        uint256 counter;
         unchecked {
-            _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
+            counter = _counter += 1 + uint256(blockhash(block.number - 1) >> 0x80);
         }
-        emit CounterUpdated(_counter);
+        emit CounterUpdated(counter);
     }
 
     /**
@@ -163,8 +162,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         _validateOffer(params, details);
 
         Starport.Loan memory loan = Starport.Loan({
-            start: uint256(0), // Set in the loan manager
-            originator: address(0), // Set in the loan manager
+            start: uint256(0), // Set in Starport
+            originator: address(0), // Set in Starport
             custodian: details.custodian,
             issuer: details.issuer,
             borrower: params.borrower,
@@ -174,7 +173,8 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         });
 
         CaveatEnforcer.SignedCaveats memory le;
-        SP.originate(new AdditionalTransfer[](0), params.borrowerCaveat, le, loan);
+        AdditionalTransfer[] memory at;
+        SP.originate(at, params.borrowerCaveat, le, loan);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -189,14 +189,6 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
         bytes32 hash = keccak256(abi.encode(ORIGINATOR_DETAILS_TYPEHASH, _counter, contextHash));
 
         return abi.encodePacked(bytes1(0x19), bytes1(0x01), _DOMAIN_SEPARATOR, hash);
-    }
-    /**
-     * @dev Returns the strategist and fee
-     * @return strategist address and fee
-     */
-
-    function getStrategistData() public view virtual returns (address, uint256) {
-        return (strategist, strategistFee);
     }
 
     /**
@@ -274,7 +266,7 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     }
 
     function withdraw(SpentItem[] memory transfers, address recipient) external onlyOwner {
-        StarportLib.transferSpentItemsSelf(transfers, address(this), recipient);
+        StarportLib.transferSpentItemsSelf(transfers, recipient);
     }
 
     // PUBLIC FUNCTIONS

@@ -176,9 +176,7 @@ contract MockExoticPricing is Pricing {
 }
 
 contract MockOriginator is StrategistOriginator {
-    constructor(Starport SP_, address strategist_, uint256 fee_)
-        StrategistOriginator(SP_, strategist_, fee_, msg.sender)
-    {}
+    constructor(Starport SP_, address strategist_) StrategistOriginator(SP_, strategist_, msg.sender) {}
 
     function terms(bytes calldata) public view returns (Starport.Terms memory) {
         return Starport.Terms({
@@ -196,8 +194,8 @@ contract MockOriginator is StrategistOriginator {
         _validateOffer(params, details);
 
         Starport.Loan memory loan = Starport.Loan({
-            start: uint256(0), // are set in the loan manager
-            originator: address(0), // are set in the loan manager
+            start: uint256(0), // are set in Starport
+            originator: address(0), // are set in Starport
             custodian: details.custodian,
             issuer: details.issuer,
             borrower: params.borrower,

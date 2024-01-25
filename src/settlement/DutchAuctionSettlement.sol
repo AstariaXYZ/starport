@@ -92,7 +92,9 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
-        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+        return (details.startingPrice > details.endingPrice && details.window != 0)
+            ? Validation.validate.selector
+            : bytes4(0xFFFFFFFF);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -123,7 +125,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
         }
         // DutchAuction has failed, allow lender to redeem
         if (start + details.window < block.timestamp) {
-            return (new ReceivedItem[](0), loan.issuer);
+            return (consideration, loan.issuer);
         }
 
         uint256 settlementPrice = _locateCurrentAmount({
