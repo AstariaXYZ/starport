@@ -166,7 +166,7 @@ contract Starport is PausableNonReentrant {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(address seaport_, Stargate stargate_) {
+    constructor(address seaport_, Stargate stargate_, address owner_) {
         SG = stargate_;
         chainId = block.chainid;
         CACHED_DOMAIN_SEPARATOR = keccak256(abi.encode(EIP_DOMAIN, NAME, VERSION, block.chainid, address(this)));
@@ -177,7 +177,7 @@ contract Starport is PausableNonReentrant {
             defaultCustodianCodeHash := extcodehash(custodian)
         }
         DEFAULT_CUSTODIAN_CODE_HASH = defaultCustodianCodeHash;
-        _initializeOwner(msg.sender);
+        _initializeOwner(owner_);
     }
 
     function domainSeparator() public view returns (bytes32) {
