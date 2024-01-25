@@ -184,7 +184,7 @@ contract StarportTest is BaseOrderTest, Stargate {
         refinancer = makeAndAllocateAccount("refinancer");
         fulfiller = makeAndAllocateAccount("fulfiller");
 
-        SP = new Starport(address(consideration), Stargate(address(this)));
+        SP = new Starport(address(consideration), Stargate(address(this)), address(this));
         custodian = new Custodian(SP, address(consideration));
         SO = new StrategistOriginator(SP, strategist.addr, address(this));
         pricing = new SimpleInterestPricing(SP);
