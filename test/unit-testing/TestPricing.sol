@@ -61,7 +61,8 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
 
         assertEq(repayConsideration.length, 1);
         assertEq(repayConsideration[0].token, address(erc20s[0]));
-        assertEq(repayConsideration[0].amount, 100);
+        // minimum interest accrual is 1 wei
+        assertEq(repayConsideration[0].amount, 101);
         assertEq(repayConsideration[0].identifier, 0);
 
         assertEq(repayCarryConsideration.length, 1);

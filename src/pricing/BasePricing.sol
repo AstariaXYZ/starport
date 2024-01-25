@@ -34,7 +34,7 @@ import {Validation} from "../lib/Validation.sol";
 import {StarportLib} from "../lib/StarportLib.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {SpentItem, ItemType} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 abstract contract BasePricing is Pricing {
@@ -84,6 +84,7 @@ abstract contract BasePricing is Pricing {
         for (; i < loan.debt.length;) {
             uint256 interest = getInterest(loan, details.rate, loan.start, block.timestamp, i, details.decimals);
 
+            if (interest == 0 && loan.debt[i].itemType == ItemType.ERC20) interest = 1;
             if (carryConsideration.length > 0) {
                 carryConsideration[i] = SpentItem({
                     itemType: loan.debt[i].itemType,
