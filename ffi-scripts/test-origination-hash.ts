@@ -1,7 +1,5 @@
-import { Address, hashTypedData, pad, Hex, hexToString, keccak256 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { Address, hashTypedData, pad, Hex } from "viem";
 import { decodeAbiParameters, parseAbiParameters } from "viem";
-
 
 const types = {
   Origination: [
@@ -42,7 +40,6 @@ const types = {
   ]
 };
 
-
 const domain = (verifyingContract: Address, chainId: number) => ({
   name: "Starport",
   version: "0",
@@ -50,25 +47,14 @@ const domain = (verifyingContract: Address, chainId: number) => ({
   verifyingContract
 });
 
-type caveatType = [`0x${string}`, `0x${string}`];
-
 const typeDataMessage = (account: Address, accountNonce: string, singleUse: boolean, salt: Hex, deadline: string, caveats: any) => ({
   account: account, accountNonce: parseInt(accountNonce), singleUse: singleUse, salt: salt, deadline: deadline, caveats: caveats[0]
 });
-
-//verifying contract
-//account
-//singleUse
-//salt
-//deadline
-//caveats
 
 const args = process.argv.slice(2);
 
 const main = async () => {
   const [signerKeyRaw, verifyingContract, account, accountNonce, singleUse, salt, deadline, caveatsRaw, chainId] = args;
-  const signerKey: any = `${signerKeyRaw}`;
-  // const signer = privateKeyToAccount(signerKey);//anvil account 1
   const caveats: any = decodeAbiParameters(parseAbiParameters("(address enforcer,bytes data)[]"), caveatsRaw as `0x${string}`);
   const hashData: any = {
     domain: domain(verifyingContract as Address, parseInt(chainId as Hex)),

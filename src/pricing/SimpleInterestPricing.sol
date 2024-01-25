@@ -64,13 +64,13 @@ contract SimpleInterestPricing is BasePricing {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Validation
-    function validate(Starport.Loan calldata loan) external view override returns (bytes4) {
+    function validate(Starport.Loan calldata loan) external pure override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.pricingData, (Details));
         return (details.decimals > 0) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 
     // @inheritdoc Pricing
-    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address)
         external
         view
         virtual
@@ -81,6 +81,7 @@ contract SimpleInterestPricing is BasePricing {
             AdditionalTransfer[] memory additionalConsideration
         )
     {
+        (additionalConsideration);
         Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
         Details memory newDetails = abi.decode(newPricingData, (Details));
 
