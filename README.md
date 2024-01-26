@@ -1,4 +1,4 @@
-## ✨ Starport
+## ✨ Starport: Lending Kernel
 
 Starport is a kernel for building lending protocols. A lending protocol can be implemented by inheriting and implementing the interfaces `Pricing`, `Status`, and `Settlement`. To learn more about how Starport works read the [Starport whitepaper](https://github.com/AstariaXYZ/starport-whitepaper/blob/master/starport-whitepaper.pdf).
 
@@ -36,10 +36,12 @@ Starport is a kernel for building lending protocols. A lending protocol can be i
 			Ethereum
 		</td>
 		<td>
-			[0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC](https://etherscan.io/address/0x0000000000b1827b4959F2805E4b480D8799FCbB#code)
+			<a href="https://etherscan.io/address/0x0000000000b1827b4959F2805E4b480D8799FCbB#code"> 				0x0000000000b1827b4959F2805E4b480D8799FCbB
+			</a> 
 		</td>
 		<td>
-			[0x00000000000001ad428e4906aE43D8F9852d0dD6](https://etherscan.io/address/0x00000000c0c2Bae0eAA1b666fC2568CcaA9A9b3d#code)
+			<a href="https://etherscan.io/address/0x00000000c0c2Bae0eAA1b666fC2568CcaA9A9b3d#code"> 				0x00000000000001ad428e4906aE43D8F9852d0dD6
+			</a>
 		</td>
 	</tr>
 </table>
