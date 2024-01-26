@@ -1,0 +1,2079 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title></title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="book.css">
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="index.html">Home</a></li><li class="chapter-item affix "><li class="part-title">src</li><li class="chapter-item "><a href="src/enforcers/index.html">❱ enforcers</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/enforcers/BorrowerEnforcer.sol/contract.BorrowerEnforcer.html">BorrowerEnforcer</a></li><li class="chapter-item "><a href="src/enforcers/BorrowerEnforcerBNPL.sol/contract.BorrowerEnforcerBNPL.html">BorrowerEnforcerBNPL</a></li><li class="chapter-item "><a href="src/enforcers/CaveatEnforcer.sol/abstract.CaveatEnforcer.html">CaveatEnforcer</a></li><li class="chapter-item "><a href="src/enforcers/LenderEnforcer.sol/contract.LenderEnforcer.html">LenderEnforcer</a></li></ol></li><li class="chapter-item "><a href="src/interfaces/index.html">❱ interfaces</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/interfaces/TokenReceiverInterface.sol/interface.TokenReceiverInterface.html">TokenReceiverInterface</a></li></ol></li><li class="chapter-item "><a href="src/lib/index.html">❱ lib</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/lib/PausableNonReentrant.sol/abstract.PausableNonReentrant.html">PausableNonReentrant</a></li><li class="chapter-item "><a href="src/lib/RefStarportLib.sol/enum.Actions.html">Actions</a></li><li class="chapter-item "><a href="src/lib/RefStarportLib.sol/library.RefStarportLib.html">RefStarportLib</a></li><li class="chapter-item "><a href="src/lib/StarportLib.sol/enum.Actions.html">Actions</a></li><li class="chapter-item "><a href="src/lib/StarportLib.sol/struct.AdditionalTransfer.html">AdditionalTransfer</a></li><li class="chapter-item "><a href="src/lib/StarportLib.sol/library.StarportLib.html">StarportLib</a></li><li class="chapter-item "><a href="src/lib/Validation.sol/abstract.Validation.html">Validation</a></li></ol></li><li class="chapter-item "><a href="src/originators/index.html">❱ originators</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/originators/Originator.sol/abstract.Originator.html">Originator</a></li><li class="chapter-item "><a href="src/originators/StrategistOriginator.sol/contract.StrategistOriginator.html">StrategistOriginator</a></li></ol></li><li class="chapter-item "><a href="src/pricing/index.html">❱ pricing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/pricing/BasePricing.sol/abstract.BasePricing.html">BasePricing</a></li><li class="chapter-item "><a href="src/pricing/Pricing.sol/abstract.Pricing.html">Pricing</a></li><li class="chapter-item "><a href="src/pricing/SimpleInterestPricing.sol/contract.SimpleInterestPricing.html">SimpleInterestPricing</a></li></ol></li><li class="chapter-item "><a href="src/settlement/index.html">❱ settlement</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/settlement/DutchAuctionSettlement.sol/abstract.DutchAuctionSettlement.html">DutchAuctionSettlement</a></li><li class="chapter-item "><a href="src/settlement/FixedTermDutchAuctionSettlement.sol/contract.FixedTermDutchAuctionSettlement.html">FixedTermDutchAuctionSettlement</a></li><li class="chapter-item "><a href="src/settlement/Settlement.sol/abstract.Settlement.html">Settlement</a></li></ol></li><li class="chapter-item "><a href="src/status/index.html">❱ status</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="src/status/FixedTermStatus.sol/contract.FixedTermStatus.html">FixedTermStatus</a></li><li class="chapter-item "><a href="src/status/Status.sol/abstract.Status.html">Status</a></li></ol></li><li class="chapter-item "><a href="src/BNPLHelper.sol/interface.IVault.html">IVault</a></li><li class="chapter-item "><a href="src/BNPLHelper.sol/interface.IFlashLoanRecipient.html">IFlashLoanRecipient</a></li><li class="chapter-item "><a href="src/BNPLHelper.sol/interface.ERC20.html">ERC20</a></li><li class="chapter-item "><a href="src/BNPLHelper.sol/contract.BNPLHelper.html">BNPLHelper</a></li><li class="chapter-item "><a href="src/Custodian.sol/contract.Custodian.html">Custodian</a></li><li class="chapter-item "><a href="src/Starport.sol/interface.Stargate.html">Stargate</a></li><li class="chapter-item "><a href="src/Starport.sol/contract.Starport.html">Starport</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/AstariaXYZ/starport" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h2 id="-starport-lending-kernel"><a class="header" href="#-starport-lending-kernel">✨ Starport: Lending Kernel</a></h2>
+<p>Starport is a kernel for building lending protocols. A lending protocol can be implemented by inheriting and implementing the interfaces <code>Pricing</code>, <code>Status</code>, and <code>Settlement</code>. To learn more about how Starport works read the <a href="https://github.com/AstariaXYZ/starport-whitepaper/blob/master/starport-whitepaper.pdf">Starport whitepaper</a>.</p>
+<h2 id="deployments"><a class="header" href="#deployments">Deployments</a></h2>
+<h3 id="canonical-cross-chain-deployment-addresses"><a class="header" href="#canonical-cross-chain-deployment-addresses">Canonical Cross-chain Deployment Addresses</a></h3>
+<table>
+<tr>
+<th>Contract</th>
+<th>Canonical Cross-chain Deployment Address</th>
+</tr>
+<tr>
+<td>Starport</td>
+<td><code>0x0000000000b1827b4959F2805E4b480D8799FCbB</code></td>
+</tr>
+<tr>
+<td>Custodian</td>
+<td><code>0x00000000c0c2Bae0eAA1b666fC2568CcaA9A9b3d</code></td>
+</tr>
+</table>
+<blockquote>
+<p>Note: The canonical contracts for Starport, do not include modules. The modules included in this repository should be considered unsafe unless explicitly named in the audit report. </p>
+</blockquote>
+<h3 id="deployments-by-evm-chain"><a class="header" href="#deployments-by-evm-chain">Deployments By EVM Chain</a></h3>
+<table>
+	<tr>
+		<th>Network</th>
+		<th>Starport</th>
+		<th>Custodian</th>
+	</tr>
+	<tr>
+		<td>
+			Ethereum
+		</td>
+		<td>
+			<a href="https://etherscan.io/address/0x0000000000b1827b4959F2805E4b480D8799FCbB#code"> 				0x0000000000b1827b4959F2805E4b480D8799FCbB
+			</a> 
+		</td>
+		<td>
+			<a href="https://etherscan.io/address/0x00000000c0c2Bae0eAA1b666fC2568CcaA9A9b3d#code"> 				0x00000000000001ad428e4906aE43D8F9852d0dD6
+			</a>
+		</td>
+	</tr>
+</table>
+<h2 id="install"><a class="header" href="#install">Install</a></h2>
+<p>To install dependencies and compile contracts:</p>
+<pre><code class="language-bash">git clone --recurse-submodules https://github.com/AstariaXYZ/starport.git &amp;&amp; cd starport
+yarn install
+forge build
+</code></pre>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<p>To run forge tests written in Solidity:</p>
+<pre><code>yarn test
+</code></pre>
+<h2 id="audits"><a class="header" href="#audits">Audits</a></h2>
+<p>Astaria engaged Certora to audit and formally verify the security of Starport. From September 27th 2023 to January 24th 2024, a team of Certora auditors and formal verifiers conducted a security review of Starport. The audit did not uncover significant flaws that could result in the compromise of a smart contract, loss of funds, or unexpected behavior in the target system. The full report will me made available shortly.</p>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p><a href="LICENSE">BUSL-1.1</a> Copyright 2023 Astaria Labs, Inc.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents"><a class="header" href="#contents">Contents</a></h1>
+<ul>
+<li><a href="src/enforcers/BorrowerEnforcer.sol/contract.BorrowerEnforcer.html">BorrowerEnforcer</a></li>
+<li><a href="src/enforcers/BorrowerEnforcerBNPL.sol/contract.BorrowerEnforcerBNPL.html">BorrowerEnforcerBNPL</a></li>
+<li><a href="src/enforcers/CaveatEnforcer.sol/abstract.CaveatEnforcer.html">CaveatEnforcer</a></li>
+<li><a href="src/enforcers/LenderEnforcer.sol/contract.LenderEnforcer.html">LenderEnforcer</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="borrowerenforcer"><a class="header" href="#borrowerenforcer">BorrowerEnforcer</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/enforcers/BorrowerEnforcer.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/enforcers/BorrowerEnforcer.sol//src/enforcers/CaveatEnforcer.sol/abstract.CaveatEnforcer.html">CaveatEnforcer</a></p>
+<h2 id="functions"><a class="header" href="#functions">Functions</a></h2>
+<h3 id="validate"><a class="header" href="#validate">validate</a></h3>
+<p><em>Enforces that the loan terms are identical except for the issuer
+The issuer is allowed to be any address
+No additional transfers are permitted</em></p>
+<pre><code class="language-solidity">function validate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    Starport.Loan calldata loan,
+    bytes calldata caveatData
+) public view virtual override returns (bytes4 selector);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to be made</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan terms</td></tr>
+<tr><td><code>caveatData</code></td><td><code>bytes</code></td><td>The borrowers encoded details</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validate"><a class="header" href="#_validate">_validate</a></h3>
+<pre><code class="language-solidity">function _validate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    Starport.Loan calldata loan,
+    Details memory details
+) internal pure;
+</code></pre>
+<h2 id="errors"><a class="header" href="#errors">Errors</a></h2>
+<h3 id="borroweronlyenforcer"><a class="header" href="#borroweronlyenforcer">BorrowerOnlyEnforcer</a></h3>
+<pre><code class="language-solidity">error BorrowerOnlyEnforcer();
+</code></pre>
+<h3 id="invalidloanterms"><a class="header" href="#invalidloanterms">InvalidLoanTerms</a></h3>
+<pre><code class="language-solidity">error InvalidLoanTerms();
+</code></pre>
+<h3 id="invalidadditionaltransfer"><a class="header" href="#invalidadditionaltransfer">InvalidAdditionalTransfer</a></h3>
+<pre><code class="language-solidity">error InvalidAdditionalTransfer();
+</code></pre>
+<h2 id="structs"><a class="header" href="#structs">Structs</a></h2>
+<h3 id="details"><a class="header" href="#details">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    Starport.Loan loan;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="borrowerenforcerbnpl"><a class="header" href="#borrowerenforcerbnpl">BorrowerEnforcerBNPL</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/enforcers/BorrowerEnforcerBNPL.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/enforcers/BorrowerEnforcerBNPL.sol//src/enforcers/CaveatEnforcer.sol/abstract.CaveatEnforcer.html">CaveatEnforcer</a></p>
+<h2 id="functions-1"><a class="header" href="#functions-1">Functions</a></h2>
+<h3 id="validate-1"><a class="header" href="#validate-1">validate</a></h3>
+<p><em>Enforces that the loan terms are identical except for the issuer
+The issuer is allowed to be any address</em></p>
+<pre><code class="language-solidity">function validate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    Starport.Loan calldata loan,
+    bytes calldata caveatData
+) public view virtual override returns (bytes4 selector);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to be made</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan terms</td></tr>
+<tr><td><code>caveatData</code></td><td><code>bytes</code></td><td>The borrowers encoded details</td></tr>
+</tbody></table>
+</div>
+<h2 id="errors-1"><a class="header" href="#errors-1">Errors</a></h2>
+<h3 id="borroweronlyenforcer-1"><a class="header" href="#borroweronlyenforcer-1">BorrowerOnlyEnforcer</a></h3>
+<pre><code class="language-solidity">error BorrowerOnlyEnforcer();
+</code></pre>
+<h3 id="invalidloanterms-1"><a class="header" href="#invalidloanterms-1">InvalidLoanTerms</a></h3>
+<pre><code class="language-solidity">error InvalidLoanTerms();
+</code></pre>
+<h3 id="invalidadditionaltransfer-1"><a class="header" href="#invalidadditionaltransfer-1">InvalidAdditionalTransfer</a></h3>
+<pre><code class="language-solidity">error InvalidAdditionalTransfer();
+</code></pre>
+<h3 id="orderinvalid"><a class="header" href="#orderinvalid">OrderInvalid</a></h3>
+<pre><code class="language-solidity">error OrderInvalid();
+</code></pre>
+<h2 id="structs-1"><a class="header" href="#structs-1">Structs</a></h2>
+<h3 id="details-1"><a class="header" href="#details-1">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    Starport.Loan loan;
+    address seaport;
+    bytes32 offerHash;
+    AdditionalTransfer additionalTransfer;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="caveatenforcer"><a class="header" href="#caveatenforcer">CaveatEnforcer</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/enforcers/CaveatEnforcer.sol">Git Source</a></p>
+<h2 id="functions-2"><a class="header" href="#functions-2">Functions</a></h2>
+<h3 id="validate-2"><a class="header" href="#validate-2">validate</a></h3>
+<p><em>Enforces that the loan terms are identical except for the issuer</em></p>
+<pre><code class="language-solidity">function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
+    public
+    view
+    virtual
+    returns (bytes4);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>solution</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to be made</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan terms</td></tr>
+<tr><td><code>caveatData</code></td><td><code>bytes</code></td><td>The borrowers encoded details</td></tr>
+</tbody></table>
+</div>
+<h2 id="structs-2"><a class="header" href="#structs-2">Structs</a></h2>
+<h3 id="caveat"><a class="header" href="#caveat">Caveat</a></h3>
+<pre><code class="language-solidity">struct Caveat {
+    address enforcer;
+    bytes data;
+}
+</code></pre>
+<h3 id="signedcaveats"><a class="header" href="#signedcaveats">SignedCaveats</a></h3>
+<pre><code class="language-solidity">struct SignedCaveats {
+    bool singleUse;
+    uint256 deadline;
+    bytes32 salt;
+    Caveat[] caveats;
+    bytes signature;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="lenderenforcer"><a class="header" href="#lenderenforcer">LenderEnforcer</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/enforcers/LenderEnforcer.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/enforcers/LenderEnforcer.sol//src/enforcers/CaveatEnforcer.sol/abstract.CaveatEnforcer.html">CaveatEnforcer</a></p>
+<h2 id="functions-3"><a class="header" href="#functions-3">Functions</a></h2>
+<h3 id="validate-3"><a class="header" href="#validate-3">validate</a></h3>
+<p><em>Enforces that the loan terms are identical except for the issuer
+The borrower is allowed to be any address
+No additional transfers from the issuer are permitted</em></p>
+<pre><code class="language-solidity">function validate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    Starport.Loan calldata loan,
+    bytes calldata caveatData
+) public view virtual override returns (bytes4 selector);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to be made</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan terms</td></tr>
+<tr><td><code>caveatData</code></td><td><code>bytes</code></td><td>The borrowers encoded details</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validate-1"><a class="header" href="#_validate-1">_validate</a></h3>
+<pre><code class="language-solidity">function _validate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    Starport.Loan calldata loan,
+    Details memory details
+) internal pure;
+</code></pre>
+<h2 id="errors-2"><a class="header" href="#errors-2">Errors</a></h2>
+<h3 id="invalidloanterms-2"><a class="header" href="#invalidloanterms-2">InvalidLoanTerms</a></h3>
+<pre><code class="language-solidity">error InvalidLoanTerms();
+</code></pre>
+<h3 id="invalidadditionaltransfer-2"><a class="header" href="#invalidadditionaltransfer-2">InvalidAdditionalTransfer</a></h3>
+<pre><code class="language-solidity">error InvalidAdditionalTransfer();
+</code></pre>
+<h2 id="structs-3"><a class="header" href="#structs-3">Structs</a></h2>
+<h3 id="details-2"><a class="header" href="#details-2">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    Starport.Loan loan;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-1"><a class="header" href="#contents-1">Contents</a></h1>
+<ul>
+<li><a href="src/interfaces/TokenReceiverInterface.sol/interface.TokenReceiverInterface.html">TokenReceiverInterface</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="tokenreceiverinterface"><a class="header" href="#tokenreceiverinterface">TokenReceiverInterface</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/interfaces/TokenReceiverInterface.sol">Git Source</a></p>
+<h2 id="functions-4"><a class="header" href="#functions-4">Functions</a></h2>
+<h3 id="onerc721received"><a class="header" href="#onerc721received">onERC721Received</a></h3>
+<pre><code class="language-solidity">function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+    external
+    returns (bytes4);
+</code></pre>
+<h3 id="onerc1155received"><a class="header" href="#onerc1155received">onERC1155Received</a></h3>
+<pre><code class="language-solidity">function onERC1155Received(address, address, uint256, uint256, bytes calldata) external returns (bytes4);
+</code></pre>
+<h3 id="onerc1155batchreceived"><a class="header" href="#onerc1155batchreceived">onERC1155BatchReceived</a></h3>
+<pre><code class="language-solidity">function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+    external
+    returns (bytes4);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-2"><a class="header" href="#contents-2">Contents</a></h1>
+<ul>
+<li><a href="src/lib/PausableNonReentrant.sol/abstract.PausableNonReentrant.html">PausableNonReentrant</a></li>
+<li><a href="src/lib/RefStarportLib.sol/enum.Actions.html">Actions</a></li>
+<li><a href="src/lib/RefStarportLib.sol/library.RefStarportLib.html">RefStarportLib</a></li>
+<li><a href="src/lib/StarportLib.sol/enum.Actions.html">Actions</a></li>
+<li><a href="src/lib/StarportLib.sol/struct.AdditionalTransfer.html">AdditionalTransfer</a></li>
+<li><a href="src/lib/StarportLib.sol/library.StarportLib.html">StarportLib</a></li>
+<li><a href="src/lib/Validation.sol/abstract.Validation.html">Validation</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="pausablenonreentrant"><a class="header" href="#pausablenonreentrant">PausableNonReentrant</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/PausableNonReentrant.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+Ownable</p>
+<h2 id="state-variables"><a class="header" href="#state-variables">State Variables</a></h2>
+<h3 id="_unlocked"><a class="header" href="#_unlocked">_UNLOCKED</a></h3>
+<pre><code class="language-solidity">uint256 private constant _UNLOCKED = 0x1;
+</code></pre>
+<h3 id="_locked"><a class="header" href="#_locked">_LOCKED</a></h3>
+<pre><code class="language-solidity">uint256 private constant _LOCKED = 0x2;
+</code></pre>
+<h3 id="_paused"><a class="header" href="#_paused">_PAUSED</a></h3>
+<pre><code class="language-solidity">uint256 private constant _PAUSED = 0x3;
+</code></pre>
+<h3 id="_state"><a class="header" href="#_state">_state</a></h3>
+<pre><code class="language-solidity">uint256 private _state = _UNLOCKED;
+</code></pre>
+<h2 id="functions-5"><a class="header" href="#functions-5">Functions</a></h2>
+<h3 id="pausablenonreentrant-1"><a class="header" href="#pausablenonreentrant-1">pausableNonReentrant</a></h3>
+<pre><code class="language-solidity">modifier pausableNonReentrant();
+</code></pre>
+<h3 id="pause"><a class="header" href="#pause">pause</a></h3>
+<pre><code class="language-solidity">function pause() external onlyOwner;
+</code></pre>
+<h3 id="unpause"><a class="header" href="#unpause">unpause</a></h3>
+<pre><code class="language-solidity">function unpause() external onlyOwner;
+</code></pre>
+<h3 id="paused"><a class="header" href="#paused">paused</a></h3>
+<pre><code class="language-solidity">function paused() external view returns (bool);
+</code></pre>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<h3 id="paused-1"><a class="header" href="#paused-1">Paused</a></h3>
+<pre><code class="language-solidity">event Paused();
+</code></pre>
+<h3 id="unpaused"><a class="header" href="#unpaused">Unpaused</a></h3>
+<pre><code class="language-solidity">event Unpaused();
+</code></pre>
+<h2 id="errors-3"><a class="header" href="#errors-3">Errors</a></h2>
+<h3 id="ispaused"><a class="header" href="#ispaused">IsPaused</a></h3>
+<pre><code class="language-solidity">error IsPaused();
+</code></pre>
+<h3 id="islocked"><a class="header" href="#islocked">IsLocked</a></h3>
+<pre><code class="language-solidity">error IsLocked();
+</code></pre>
+<h3 id="notpaused"><a class="header" href="#notpaused">NotPaused</a></h3>
+<pre><code class="language-solidity">error NotPaused();
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="actions"><a class="header" href="#actions">Actions</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/RefStarportLib.sol">Git Source</a></p>
+<pre><code class="language-solidity">enum Actions {
+    Nothing,
+    Origination,
+    Refinance,
+    Repayment,
+    Settlement
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="refstarportlib"><a class="header" href="#refstarportlib">RefStarportLib</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/RefStarportLib.sol">Git Source</a></p>
+<h2 id="functions-6"><a class="header" href="#functions-6">Functions</a></h2>
+<h3 id="validatesalt"><a class="header" href="#validatesalt">validateSalt</a></h3>
+<pre><code class="language-solidity">function validateSalt(mapping(address =&gt; mapping(bytes32 =&gt; bool)) storage usedSalts, address validator, bytes32 salt)
+    internal;
+</code></pre>
+<h2 id="errors-4"><a class="header" href="#errors-4">Errors</a></h2>
+<h3 id="invalidsalt"><a class="header" href="#invalidsalt">InvalidSalt</a></h3>
+<pre><code class="language-solidity">error InvalidSalt();
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="actions-1"><a class="header" href="#actions-1">Actions</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/StarportLib.sol">Git Source</a></p>
+<pre><code class="language-solidity">enum Actions {
+    Nothing,
+    Repayment,
+    Settlement
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="additionaltransfer"><a class="header" href="#additionaltransfer">AdditionalTransfer</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/StarportLib.sol">Git Source</a></p>
+<pre><code class="language-solidity">struct AdditionalTransfer {
+    ItemType itemType;
+    address token;
+    address from;
+    address to;
+    uint256 identifier;
+    uint256 amount;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="starportlib"><a class="header" href="#starportlib">StarportLib</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/StarportLib.sol">Git Source</a></p>
+<h2 id="state-variables-1"><a class="header" href="#state-variables-1">State Variables</a></h2>
+<h3 id="_invalid_salt"><a class="header" href="#_invalid_salt">_INVALID_SALT</a></h3>
+<pre><code class="language-solidity">uint256 internal constant _INVALID_SALT = 0x81e69d9b00000000000000000000000000000000000000000000000000000000;
+</code></pre>
+<h2 id="functions-7"><a class="header" href="#functions-7">Functions</a></h2>
+<h3 id="calculatesimpleinterest"><a class="header" href="#calculatesimpleinterest">calculateSimpleInterest</a></h3>
+<pre><code class="language-solidity">function calculateSimpleInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+    public
+    pure
+    returns (uint256);
+</code></pre>
+<h3 id="getid"><a class="header" href="#getid">getId</a></h3>
+<pre><code class="language-solidity">function getId(Starport.Loan memory loan) internal pure returns (uint256 loanId);
+</code></pre>
+<h3 id="validatesalt-1"><a class="header" href="#validatesalt-1">validateSalt</a></h3>
+<pre><code class="language-solidity">function validateSalt(mapping(address =&gt; mapping(bytes32 =&gt; bool)) storage usedSalts, address validator, bytes32 salt)
+    internal;
+</code></pre>
+<h3 id="mergespentitemstoreceiveditems"><a class="header" href="#mergespentitemstoreceiveditems">mergeSpentItemsToReceivedItems</a></h3>
+<p><em>Merges an array of SpentItems into ReceivedItems</em></p>
+<pre><code class="language-solidity">function mergeSpentItemsToReceivedItems(
+    SpentItem[] memory payment,
+    address paymentRecipient,
+    SpentItem[] memory carry,
+    address carryRecipient
+) internal pure returns (ReceivedItem[] memory consideration);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>payment</code></td><td><code>SpentItem[]</code></td><td>The SpentItem[] for payment</td></tr>
+<tr><td><code>paymentRecipient</code></td><td><code>address</code></td><td>The recipient address of the payment</td></tr>
+<tr><td><code>carry</code></td><td><code>SpentItem[]</code></td><td>The SpentItem[] for carry</td></tr>
+<tr><td><code>carryRecipient</code></td><td><code>address</code></td><td>The recipient address of the carry</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>consideration</code></td><td><code>ReceivedItem[]</code></td><td>An array of ReceivedItems</td></tr>
+</tbody></table>
+</div>
+<h3 id="removezeroamountitems"><a class="header" href="#removezeroamountitems">removeZeroAmountItems</a></h3>
+<p><em>Removes ReceivedItems with zero amounts</em></p>
+<pre><code class="language-solidity">function removeZeroAmountItems(ReceivedItem[] memory consideration)
+    internal
+    pure
+    returns (ReceivedItem[] memory newConsideration);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>consideration</code></td><td><code>ReceivedItem[]</code></td><td>The ReceivedItem[] for payment</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>newConsideration</code></td><td><code>ReceivedItem[]</code></td><td>An array of ReceivedItems with zero amounts removed</td></tr>
+</tbody></table>
+</div>
+<h3 id="transferadditionaltransferscalldata"><a class="header" href="#transferadditionaltransferscalldata">transferAdditionalTransfersCalldata</a></h3>
+<pre><code class="language-solidity">function transferAdditionalTransfersCalldata(AdditionalTransfer[] calldata transfers) internal;
+</code></pre>
+<h3 id="transferadditionaltransfers"><a class="header" href="#transferadditionaltransfers">transferAdditionalTransfers</a></h3>
+<pre><code class="language-solidity">function transferAdditionalTransfers(AdditionalTransfer[] memory transfers) internal;
+</code></pre>
+<h3 id="transferspentitems"><a class="header" href="#transferspentitems">transferSpentItems</a></h3>
+<pre><code class="language-solidity">function transferSpentItems(SpentItem[] memory transfers, address from, address to, bool safe) internal;
+</code></pre>
+<h3 id="transferspentitemsself"><a class="header" href="#transferspentitemsself">transferSpentItemsSelf</a></h3>
+<pre><code class="language-solidity">function transferSpentItemsSelf(SpentItem[] memory transfers, address to) internal;
+</code></pre>
+<h3 id="_transferitem"><a class="header" href="#_transferitem">_transferItem</a></h3>
+<pre><code class="language-solidity">function _transferItem(
+    ItemType itemType,
+    address token,
+    uint256 identifier,
+    uint256 amount,
+    address from,
+    address to,
+    bool safe
+) internal;
+</code></pre>
+<h3 id="_transferitem-1"><a class="header" href="#_transferitem-1">_transferItem</a></h3>
+<pre><code class="language-solidity">function _transferItem(ItemType itemType, address token, uint256 identifier, uint256 amount, address from, address to)
+    internal;
+</code></pre>
+<h2 id="errors-5"><a class="header" href="#errors-5">Errors</a></h2>
+<h3 id="invalidsalt-1"><a class="header" href="#invalidsalt-1">InvalidSalt</a></h3>
+<pre><code class="language-solidity">error InvalidSalt();
+</code></pre>
+<h3 id="invaliditemamount"><a class="header" href="#invaliditemamount">InvalidItemAmount</a></h3>
+<pre><code class="language-solidity">error InvalidItemAmount();
+</code></pre>
+<h3 id="nativeassetsnotsupported"><a class="header" href="#nativeassetsnotsupported">NativeAssetsNotSupported</a></h3>
+<pre><code class="language-solidity">error NativeAssetsNotSupported();
+</code></pre>
+<h3 id="invaliditemtokennocode"><a class="header" href="#invaliditemtokennocode">InvalidItemTokenNoCode</a></h3>
+<pre><code class="language-solidity">error InvalidItemTokenNoCode();
+</code></pre>
+<h3 id="invaliditemidentifier"><a class="header" href="#invaliditemidentifier">InvalidItemIdentifier</a></h3>
+<pre><code class="language-solidity">error InvalidItemIdentifier();
+</code></pre>
+<h3 id="invaliditemtype"><a class="header" href="#invaliditemtype">InvalidItemType</a></h3>
+<pre><code class="language-solidity">error InvalidItemType();
+</code></pre>
+<h3 id="invalidtransferlength"><a class="header" href="#invalidtransferlength">InvalidTransferLength</a></h3>
+<pre><code class="language-solidity">error InvalidTransferLength();
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="validation"><a class="header" href="#validation">Validation</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/lib/Validation.sol">Git Source</a></p>
+<h2 id="functions-8"><a class="header" href="#functions-8">Functions</a></h2>
+<h3 id="validate-4"><a class="header" href="#validate-4">validate</a></h3>
+<pre><code class="language-solidity">function validate(Starport.Loan calldata) external view virtual returns (bytes4);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-3"><a class="header" href="#contents-3">Contents</a></h1>
+<ul>
+<li><a href="src/originators/Originator.sol/abstract.Originator.html">Originator</a></li>
+<li><a href="src/originators/StrategistOriginator.sol/contract.StrategistOriginator.html">StrategistOriginator</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="originator"><a class="header" href="#originator">Originator</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/originators/Originator.sol">Git Source</a></p>
+<h2 id="functions-9"><a class="header" href="#functions-9">Functions</a></h2>
+<h3 id="originate"><a class="header" href="#originate">originate</a></h3>
+<p><em>Accepts a request with signed data that is decoded by the originator
+communicates with Starport to originate a loan</em></p>
+<pre><code class="language-solidity">function originate(Request calldata params) external virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>params</code></td><td><code>Request</code></td><td>The request for the origination</td></tr>
+</tbody></table>
+</div>
+<h2 id="structs-4"><a class="header" href="#structs-4">Structs</a></h2>
+<h3 id="request"><a class="header" href="#request">Request</a></h3>
+<pre><code class="language-solidity">struct Request {
+    address borrower;
+    CaveatEnforcer.SignedCaveats borrowerCaveat;
+    SpentItem[] collateral;
+    SpentItem[] debt;
+    bytes details;
+    bytes approval;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="strategistoriginator"><a class="header" href="#strategistoriginator">StrategistOriginator</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/originators/StrategistOriginator.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+Ownable, <a href="src/originators/StrategistOriginator.sol//src/originators/Originator.sol/abstract.Originator.html">Originator</a>, <a href="src/originators/StrategistOriginator.sol//src/interfaces/TokenReceiverInterface.sol/interface.TokenReceiverInterface.html">TokenReceiverInterface</a></p>
+<h2 id="state-variables-2"><a class="header" href="#state-variables-2">State Variables</a></h2>
+<h3 id="sp"><a class="header" href="#sp">SP</a></h3>
+<pre><code class="language-solidity">Starport public immutable SP;
+</code></pre>
+<h3 id="eip_domain"><a class="header" href="#eip_domain">EIP_DOMAIN</a></h3>
+<pre><code class="language-solidity">bytes32 public constant EIP_DOMAIN = keccak256(&quot;EIP712Domain(string version,uint256 chainId,address verifyingContract)&quot;);
+</code></pre>
+<h3 id="originator_details_typehash"><a class="header" href="#originator_details_typehash">ORIGINATOR_DETAILS_TYPEHASH</a></h3>
+<pre><code class="language-solidity">bytes32 public constant ORIGINATOR_DETAILS_TYPEHASH = keccak256(&quot;Origination(uint256 nonce,bytes32 hash)&quot;);
+</code></pre>
+<h3 id="version"><a class="header" href="#version">VERSION</a></h3>
+<pre><code class="language-solidity">bytes32 public constant VERSION = keccak256(&quot;0&quot;);
+</code></pre>
+<h3 id="_domain_separator"><a class="header" href="#_domain_separator">_DOMAIN_SEPARATOR</a></h3>
+<pre><code class="language-solidity">bytes32 internal immutable _DOMAIN_SEPARATOR;
+</code></pre>
+<h3 id="usedhashes"><a class="header" href="#usedhashes">usedHashes</a></h3>
+<pre><code class="language-solidity">mapping(bytes32 =&gt; bool) public usedHashes;
+</code></pre>
+<h3 id="strategist"><a class="header" href="#strategist">strategist</a></h3>
+<pre><code class="language-solidity">address public strategist;
+</code></pre>
+<h3 id="_counter"><a class="header" href="#_counter">_counter</a></h3>
+<pre><code class="language-solidity">uint256 private _counter;
+</code></pre>
+<h2 id="functions-10"><a class="header" href="#functions-10">Functions</a></h2>
+<h3 id="constructor"><a class="header" href="#constructor">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_, address strategist_, address owner);
+</code></pre>
+<h3 id="setstrategist"><a class="header" href="#setstrategist">setStrategist</a></h3>
+<p><em>Sets the strategist address</em></p>
+<pre><code class="language-solidity">function setStrategist(address newStrategist) external onlyOwner;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>newStrategist</code></td><td><code>address</code></td><td>The new strategist address</td></tr>
+</tbody></table>
+</div>
+<h3 id="incrementcounter"><a class="header" href="#incrementcounter">incrementCounter</a></h3>
+<p><em>increments the Counter to invalidate any open offers</em></p>
+<pre><code class="language-solidity">function incrementCounter() external;
+</code></pre>
+<h3 id="originate-1"><a class="header" href="#originate-1">originate</a></h3>
+<p><em>Accepts a request with signed data that is decoded by the originator
+communicates with Starport to originate a loan</em></p>
+<pre><code class="language-solidity">function originate(Request calldata params) external virtual override;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>params</code></td><td><code>Request</code></td><td>The request for the origination</td></tr>
+</tbody></table>
+</div>
+<h3 id="encodewithaccountcounter"><a class="header" href="#encodewithaccountcounter">encodeWithAccountCounter</a></h3>
+<p><em>Returns data that is encodePacked for signing</em></p>
+<pre><code class="language-solidity">function encodeWithAccountCounter(bytes32 contextHash) public view virtual returns (bytes memory);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>contextHash</code></td><td><code>bytes32</code></td><td>The hash of the data being signed</td></tr>
+</tbody></table>
+</div>
+<h3 id="getcounter"><a class="header" href="#getcounter">getCounter</a></h3>
+<p><em>Returns the nonce of the contract</em></p>
+<pre><code class="language-solidity">function getCounter() public view virtual returns (uint256);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>uint256</code></td><td>_counter</td></tr>
+</tbody></table>
+</div>
+<h3 id="domainseparator"><a class="header" href="#domainseparator">domainSeparator</a></h3>
+<p><em>Returns the domain separator</em></p>
+<pre><code class="language-solidity">function domainSeparator() public view virtual returns (bytes32);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes32</code></td><td>_DOMAIN_SEPARATOR</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validateask"><a class="header" href="#_validateask">_validateAsk</a></h3>
+<pre><code class="language-solidity">function _validateAsk(Request calldata request, Details memory details) internal virtual;
+</code></pre>
+<h3 id="_validateoffer"><a class="header" href="#_validateoffer">_validateOffer</a></h3>
+<pre><code class="language-solidity">function _validateOffer(Request calldata request, Details memory details) internal virtual;
+</code></pre>
+<h3 id="_validatesignature"><a class="header" href="#_validatesignature">_validateSignature</a></h3>
+<pre><code class="language-solidity">function _validateSignature(bytes32 hash, bytes memory signature) internal view virtual;
+</code></pre>
+<h3 id="withdraw"><a class="header" href="#withdraw">withdraw</a></h3>
+<pre><code class="language-solidity">function withdraw(SpentItem[] memory transfers, address recipient) external onlyOwner;
+</code></pre>
+<h3 id="onerc721received-1"><a class="header" href="#onerc721received-1">onERC721Received</a></h3>
+<pre><code class="language-solidity">function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+    public
+    pure
+    virtual
+    override
+    returns (bytes4);
+</code></pre>
+<h3 id="onerc1155received-1"><a class="header" href="#onerc1155received-1">onERC1155Received</a></h3>
+<pre><code class="language-solidity">function onERC1155Received(address, address, uint256, uint256, bytes calldata)
+    external
+    pure
+    virtual
+    override
+    returns (bytes4);
+</code></pre>
+<h3 id="onerc1155batchreceived-1"><a class="header" href="#onerc1155batchreceived-1">onERC1155BatchReceived</a></h3>
+<pre><code class="language-solidity">function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+    external
+    pure
+    virtual
+    override
+    returns (bytes4);
+</code></pre>
+<h2 id="events-1"><a class="header" href="#events-1">Events</a></h2>
+<h3 id="counterupdated"><a class="header" href="#counterupdated">CounterUpdated</a></h3>
+<pre><code class="language-solidity">event CounterUpdated(uint256);
+</code></pre>
+<h3 id="hashinvalidated"><a class="header" href="#hashinvalidated">HashInvalidated</a></h3>
+<pre><code class="language-solidity">event HashInvalidated(bytes32 hash);
+</code></pre>
+<h3 id="strategisttransferred"><a class="header" href="#strategisttransferred">StrategistTransferred</a></h3>
+<pre><code class="language-solidity">event StrategistTransferred(address newStrategist);
+</code></pre>
+<h2 id="errors-6"><a class="header" href="#errors-6">Errors</a></h2>
+<h3 id="additionaltransfererror"><a class="header" href="#additionaltransfererror">AdditionalTransferError</a></h3>
+<pre><code class="language-solidity">error AdditionalTransferError();
+</code></pre>
+<h3 id="invalidcollateral"><a class="header" href="#invalidcollateral">InvalidCollateral</a></h3>
+<pre><code class="language-solidity">error InvalidCollateral();
+</code></pre>
+<h3 id="invaliddeadline"><a class="header" href="#invaliddeadline">InvalidDeadline</a></h3>
+<pre><code class="language-solidity">error InvalidDeadline();
+</code></pre>
+<h3 id="invaliddebt"><a class="header" href="#invaliddebt">InvalidDebt</a></h3>
+<pre><code class="language-solidity">error InvalidDebt();
+</code></pre>
+<h3 id="invaliddebtamount"><a class="header" href="#invaliddebtamount">InvalidDebtAmount</a></h3>
+<pre><code class="language-solidity">error InvalidDebtAmount();
+</code></pre>
+<h3 id="invaliddebtlength"><a class="header" href="#invaliddebtlength">InvalidDebtLength</a></h3>
+<pre><code class="language-solidity">error InvalidDebtLength();
+</code></pre>
+<h3 id="invalidoffer"><a class="header" href="#invalidoffer">InvalidOffer</a></h3>
+<pre><code class="language-solidity">error InvalidOffer();
+</code></pre>
+<h3 id="invalidsigner"><a class="header" href="#invalidsigner">InvalidSigner</a></h3>
+<pre><code class="language-solidity">error InvalidSigner();
+</code></pre>
+<h3 id="notauthorized"><a class="header" href="#notauthorized">NotAuthorized</a></h3>
+<pre><code class="language-solidity">error NotAuthorized();
+</code></pre>
+<h3 id="notstarport"><a class="header" href="#notstarport">NotStarport</a></h3>
+<pre><code class="language-solidity">error NotStarport();
+</code></pre>
+<h2 id="structs-5"><a class="header" href="#structs-5">Structs</a></h2>
+<h3 id="details-3"><a class="header" href="#details-3">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    address custodian;
+    address issuer;
+    uint256 deadline;
+    Offer offer;
+}
+</code></pre>
+<h3 id="offer"><a class="header" href="#offer">Offer</a></h3>
+<pre><code class="language-solidity">struct Offer {
+    bytes32 salt;
+    Starport.Terms terms;
+    SpentItem[] collateral;
+    SpentItem[] debt;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-4"><a class="header" href="#contents-4">Contents</a></h1>
+<ul>
+<li><a href="src/pricing/BasePricing.sol/abstract.BasePricing.html">BasePricing</a></li>
+<li><a href="src/pricing/Pricing.sol/abstract.Pricing.html">Pricing</a></li>
+<li><a href="src/pricing/SimpleInterestPricing.sol/contract.SimpleInterestPricing.html">SimpleInterestPricing</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="basepricing"><a class="header" href="#basepricing">BasePricing</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/pricing/BasePricing.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/pricing/BasePricing.sol//src/pricing/Pricing.sol/abstract.Pricing.html">Pricing</a></p>
+<h2 id="functions-11"><a class="header" href="#functions-11">Functions</a></h2>
+<h3 id="validate-5"><a class="header" href="#validate-5">validate</a></h3>
+<pre><code class="language-solidity">function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4);
+</code></pre>
+<h3 id="getpaymentconsideration"><a class="header" href="#getpaymentconsideration">getPaymentConsideration</a></h3>
+<pre><code class="language-solidity">function getPaymentConsideration(Starport.Loan calldata loan)
+    public
+    view
+    virtual
+    override
+    returns (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration);
+</code></pre>
+<h3 id="getinterest"><a class="header" href="#getinterest">getInterest</a></h3>
+<p><em>Computes the interest for a given loan</em></p>
+<pre><code class="language-solidity">function getInterest(
+    Starport.Loan calldata loan,
+    uint256 rate,
+    uint256 start,
+    uint256 end,
+    uint256 index,
+    uint256 decimals
+) public pure returns (uint256);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to compute the interest for</td></tr>
+<tr><td><code>rate</code></td><td><code>uint256</code></td><td>The interest rate</td></tr>
+<tr><td><code>start</code></td><td><code>uint256</code></td><td>The start time frame</td></tr>
+<tr><td><code>end</code></td><td><code>uint256</code></td><td>The end time frame</td></tr>
+<tr><td><code>index</code></td><td><code>uint256</code></td><td>The index of the debt to compute the interest for</td></tr>
+<tr><td><code>decimals</code></td><td><code>uint256</code></td><td>The decimals of the debt asset</td></tr>
+</tbody></table>
+</div>
+<h3 id="calculateinterest"><a class="header" href="#calculateinterest">calculateInterest</a></h3>
+<p><em>Computes the interest</em></p>
+<pre><code class="language-solidity">function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+    public
+    pure
+    virtual
+    returns (uint256);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>delta_t</code></td><td><code>uint256</code></td><td>The time delta</td></tr>
+<tr><td><code>amount</code></td><td><code>uint256</code></td><td>The amount to compute the interest for</td></tr>
+<tr><td><code>rate</code></td><td><code>uint256</code></td><td>The interest rate</td></tr>
+<tr><td><code>decimals</code></td><td><code>uint256</code></td><td>The decimals of the base asset</td></tr>
+</tbody></table>
+</div>
+<h2 id="structs-6"><a class="header" href="#structs-6">Structs</a></h2>
+<h3 id="details-4"><a class="header" href="#details-4">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    uint256 rate;
+    uint256 carryRate;
+    uint256 decimals;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="pricing"><a class="header" href="#pricing">Pricing</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/pricing/Pricing.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/pricing/Pricing.sol//src/lib/Validation.sol/abstract.Validation.html">Validation</a></p>
+<h2 id="state-variables-3"><a class="header" href="#state-variables-3">State Variables</a></h2>
+<h3 id="sp-1"><a class="header" href="#sp-1">SP</a></h3>
+<pre><code class="language-solidity">Starport public immutable SP;
+</code></pre>
+<h2 id="functions-12"><a class="header" href="#functions-12">Functions</a></h2>
+<h3 id="constructor-1"><a class="header" href="#constructor-1">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_);
+</code></pre>
+<h3 id="getpaymentconsideration-1"><a class="header" href="#getpaymentconsideration-1">getPaymentConsideration</a></h3>
+<p><em>computes the payment details for a loan</em></p>
+<pre><code class="language-solidity">function getPaymentConsideration(Starport.Loan calldata loan)
+    public
+    view
+    virtual
+    returns (SpentItem[] memory, SpentItem[] memory);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to compute the payment details for</td></tr>
+</tbody></table>
+</div>
+<h3 id="getrefinanceconsideration"><a class="header" href="#getrefinanceconsideration">getRefinanceConsideration</a></h3>
+<p><em>computes the refinance details for a loan</em></p>
+<pre><code class="language-solidity">function getRefinanceConsideration(Starport.Loan calldata loan, bytes calldata newPricingData, address fulfiller)
+    external
+    view
+    virtual
+    returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to compute the payment details for</td></tr>
+<tr><td><code>newPricingData</code></td><td><code>bytes</code></td><td>The new pricing data being offered</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address of the fulfiller</td></tr>
+</tbody></table>
+</div>
+<h2 id="errors-7"><a class="header" href="#errors-7">Errors</a></h2>
+<h3 id="invalidrefinance"><a class="header" href="#invalidrefinance">InvalidRefinance</a></h3>
+<pre><code class="language-solidity">error InvalidRefinance();
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="simpleinterestpricing"><a class="header" href="#simpleinterestpricing">SimpleInterestPricing</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/pricing/SimpleInterestPricing.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/pricing/SimpleInterestPricing.sol//src/pricing/BasePricing.sol/abstract.BasePricing.html">BasePricing</a></p>
+<h2 id="functions-13"><a class="header" href="#functions-13">Functions</a></h2>
+<h3 id="constructor-2"><a class="header" href="#constructor-2">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_) Pricing(SP_);
+</code></pre>
+<h3 id="calculateinterest-1"><a class="header" href="#calculateinterest-1">calculateInterest</a></h3>
+<pre><code class="language-solidity">function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+    public
+    pure
+    override
+    returns (uint256);
+</code></pre>
+<h3 id="validate-6"><a class="header" href="#validate-6">validate</a></h3>
+<pre><code class="language-solidity">function validate(Starport.Loan calldata loan) external pure override returns (bytes4);
+</code></pre>
+<h3 id="getrefinanceconsideration-1"><a class="header" href="#getrefinanceconsideration-1">getRefinanceConsideration</a></h3>
+<pre><code class="language-solidity">function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address)
+    external
+    view
+    virtual
+    override
+    returns (
+        SpentItem[] memory repayConsideration,
+        SpentItem[] memory carryConsideration,
+        AdditionalTransfer[] memory additionalConsideration
+    );
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-5"><a class="header" href="#contents-5">Contents</a></h1>
+<ul>
+<li><a href="src/settlement/DutchAuctionSettlement.sol/abstract.DutchAuctionSettlement.html">DutchAuctionSettlement</a></li>
+<li><a href="src/settlement/FixedTermDutchAuctionSettlement.sol/contract.FixedTermDutchAuctionSettlement.html">FixedTermDutchAuctionSettlement</a></li>
+<li><a href="src/settlement/Settlement.sol/abstract.Settlement.html">Settlement</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="dutchauctionsettlement"><a class="header" href="#dutchauctionsettlement">DutchAuctionSettlement</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/settlement/DutchAuctionSettlement.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/settlement/DutchAuctionSettlement.sol//src/settlement/Settlement.sol/abstract.Settlement.html">Settlement</a>, AmountDeriver</p>
+<h2 id="functions-14"><a class="header" href="#functions-14">Functions</a></h2>
+<h3 id="constructor-3"><a class="header" href="#constructor-3">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_) Settlement(SP_);
+</code></pre>
+<h3 id="postsettlement"><a class="header" href="#postsettlement">postSettlement</a></h3>
+<pre><code class="language-solidity">function postSettlement(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4);
+</code></pre>
+<h3 id="postrepayment"><a class="header" href="#postrepayment">postRepayment</a></h3>
+<pre><code class="language-solidity">function postRepayment(Starport.Loan calldata, address) external virtual override returns (bytes4);
+</code></pre>
+<h3 id="validate-7"><a class="header" href="#validate-7">validate</a></h3>
+<pre><code class="language-solidity">function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4);
+</code></pre>
+<h3 id="getauctionstart"><a class="header" href="#getauctionstart">getAuctionStart</a></h3>
+<p><em>Get the start of the auction</em></p>
+<pre><code class="language-solidity">function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being referenced</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>uint256</code></td><td>uint256 The start of the auction</td></tr>
+</tbody></table>
+</div>
+<h3 id="getsettlementconsideration"><a class="header" href="#getsettlementconsideration">getSettlementConsideration</a></h3>
+<pre><code class="language-solidity">function getSettlementConsideration(Starport.Loan calldata loan)
+    public
+    view
+    virtual
+    override
+    returns (ReceivedItem[] memory consideration, address authorized);
+</code></pre>
+<h2 id="errors-8"><a class="header" href="#errors-8">Errors</a></h2>
+<h3 id="auctionnotstarted"><a class="header" href="#auctionnotstarted">AuctionNotStarted</a></h3>
+<pre><code class="language-solidity">error AuctionNotStarted();
+</code></pre>
+<h2 id="structs-7"><a class="header" href="#structs-7">Structs</a></h2>
+<h3 id="details-5"><a class="header" href="#details-5">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    uint256 startingPrice;
+    uint256 endingPrice;
+    uint256 window;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="fixedtermdutchauctionsettlement"><a class="header" href="#fixedtermdutchauctionsettlement">FixedTermDutchAuctionSettlement</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/settlement/FixedTermDutchAuctionSettlement.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/settlement/FixedTermDutchAuctionSettlement.sol//src/settlement/DutchAuctionSettlement.sol/abstract.DutchAuctionSettlement.html">DutchAuctionSettlement</a></p>
+<h2 id="functions-15"><a class="header" href="#functions-15">Functions</a></h2>
+<h3 id="constructor-4"><a class="header" href="#constructor-4">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_) DutchAuctionSettlement(SP_);
+</code></pre>
+<h3 id="getauctionstart-1"><a class="header" href="#getauctionstart-1">getAuctionStart</a></h3>
+<pre><code class="language-solidity">function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="settlement"><a class="header" href="#settlement">Settlement</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/settlement/Settlement.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/settlement/Settlement.sol//src/lib/Validation.sol/abstract.Validation.html">Validation</a></p>
+<h2 id="state-variables-4"><a class="header" href="#state-variables-4">State Variables</a></h2>
+<h3 id="sp-2"><a class="header" href="#sp-2">SP</a></h3>
+<pre><code class="language-solidity">Starport public immutable SP;
+</code></pre>
+<h2 id="functions-16"><a class="header" href="#functions-16">Functions</a></h2>
+<h3 id="constructor-5"><a class="header" href="#constructor-5">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_);
+</code></pre>
+<h3 id="postsettlement-1"><a class="header" href="#postsettlement-1">postSettlement</a></h3>
+<pre><code class="language-solidity">function postSettlement(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+</code></pre>
+<h3 id="postrepayment-1"><a class="header" href="#postrepayment-1">postRepayment</a></h3>
+<pre><code class="language-solidity">function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+</code></pre>
+<h3 id="getsettlementconsideration-1"><a class="header" href="#getsettlementconsideration-1">getSettlementConsideration</a></h3>
+<pre><code class="language-solidity">function getSettlementConsideration(Starport.Loan calldata loan)
+    public
+    view
+    virtual
+    returns (ReceivedItem[] memory consideration, address authorized);
+</code></pre>
+<h3 id="onerc1155received-2"><a class="header" href="#onerc1155received-2">onERC1155Received</a></h3>
+<pre><code class="language-solidity">function onERC1155Received(address, address, uint256, uint256, bytes calldata) external view returns (bytes4);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contents-6"><a class="header" href="#contents-6">Contents</a></h1>
+<ul>
+<li><a href="src/status/FixedTermStatus.sol/contract.FixedTermStatus.html">FixedTermStatus</a></li>
+<li><a href="src/status/Status.sol/abstract.Status.html">Status</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="fixedtermstatus"><a class="header" href="#fixedtermstatus">FixedTermStatus</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/status/FixedTermStatus.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/status/FixedTermStatus.sol//src/status/Status.sol/abstract.Status.html">Status</a></p>
+<h2 id="functions-17"><a class="header" href="#functions-17">Functions</a></h2>
+<h3 id="isactive"><a class="header" href="#isactive">isActive</a></h3>
+<pre><code class="language-solidity">function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view override returns (bool);
+</code></pre>
+<h3 id="validate-8"><a class="header" href="#validate-8">validate</a></h3>
+<pre><code class="language-solidity">function validate(Starport.Loan calldata loan) external view override returns (bytes4);
+</code></pre>
+<h2 id="structs-8"><a class="header" href="#structs-8">Structs</a></h2>
+<h3 id="details-6"><a class="header" href="#details-6">Details</a></h3>
+<pre><code class="language-solidity">struct Details {
+    uint256 loanDuration;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="status"><a class="header" href="#status">Status</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/status/Status.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/status/Status.sol//src/lib/Validation.sol/abstract.Validation.html">Validation</a></p>
+<h2 id="functions-18"><a class="header" href="#functions-18">Functions</a></h2>
+<h3 id="isactive-1"><a class="header" href="#isactive-1">isActive</a></h3>
+<pre><code class="language-solidity">function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view virtual returns (bool);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="ivault"><a class="header" href="#ivault">IVault</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/BNPLHelper.sol">Git Source</a></p>
+<h2 id="functions-19"><a class="header" href="#functions-19">Functions</a></h2>
+<h3 id="flashloan"><a class="header" href="#flashloan">flashLoan</a></h3>
+<pre><code class="language-solidity">function flashLoan(
+    IFlashLoanRecipient recipient,
+    address[] calldata tokens,
+    uint256[] calldata amounts,
+    bytes memory userData
+) external;
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="iflashloanrecipient"><a class="header" href="#iflashloanrecipient">IFlashLoanRecipient</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/BNPLHelper.sol">Git Source</a></p>
+<h2 id="functions-20"><a class="header" href="#functions-20">Functions</a></h2>
+<h3 id="receiveflashloan"><a class="header" href="#receiveflashloan">receiveFlashLoan</a></h3>
+<pre><code class="language-solidity">function receiveFlashLoan(
+    address[] calldata tokens,
+    uint256[] calldata amounts,
+    uint256[] calldata feeAmounts,
+    bytes memory userData
+) external;
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="erc20"><a class="header" href="#erc20">ERC20</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/BNPLHelper.sol">Git Source</a></p>
+<h2 id="functions-21"><a class="header" href="#functions-21">Functions</a></h2>
+<h3 id="transfer"><a class="header" href="#transfer">transfer</a></h3>
+<pre><code class="language-solidity">function transfer(address, uint256) external returns (bool);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="bnplhelper"><a class="header" href="#bnplhelper">BNPLHelper</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/BNPLHelper.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/BNPLHelper.sol//src/BNPLHelper.sol/interface.IFlashLoanRecipient.html">IFlashLoanRecipient</a>, Ownable</p>
+<h2 id="state-variables-5"><a class="header" href="#state-variables-5">State Variables</a></h2>
+<h3 id="vault"><a class="header" href="#vault">vault</a></h3>
+<pre><code class="language-solidity">address private vault;
+</code></pre>
+<h2 id="functions-22"><a class="header" href="#functions-22">Functions</a></h2>
+<h3 id="constructor-6"><a class="header" href="#constructor-6">constructor</a></h3>
+<pre><code class="language-solidity">constructor(address _vault, address owner);
+</code></pre>
+<h3 id="makeflashloan"><a class="header" href="#makeflashloan">makeFlashLoan</a></h3>
+<pre><code class="language-solidity">function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external;
+</code></pre>
+<h3 id="receiveflashloan-1"><a class="header" href="#receiveflashloan-1">receiveFlashLoan</a></h3>
+<pre><code class="language-solidity">function receiveFlashLoan(
+    address[] calldata tokens,
+    uint256[] calldata amounts,
+    uint256[] calldata feeAmounts,
+    bytes calldata userData
+) external override;
+</code></pre>
+<h3 id="setflashvault"><a class="header" href="#setflashvault">setFlashVault</a></h3>
+<pre><code class="language-solidity">function setFlashVault(address _vault) external onlyOwner;
+</code></pre>
+<h2 id="errors-9"><a class="header" href="#errors-9">Errors</a></h2>
+<h3 id="invaliduserdataprovided"><a class="header" href="#invaliduserdataprovided">InvalidUserDataProvided</a></h3>
+<pre><code class="language-solidity">error InvalidUserDataProvided();
+</code></pre>
+<h3 id="sendernotvault"><a class="header" href="#sendernotvault">SenderNotVault</a></h3>
+<pre><code class="language-solidity">error SenderNotVault();
+</code></pre>
+<h2 id="structs-9"><a class="header" href="#structs-9">Structs</a></h2>
+<h3 id="execution"><a class="header" href="#execution">Execution</a></h3>
+<pre><code class="language-solidity">struct Execution {
+    address starport;
+    address seaport;
+    address borrower;
+    CaveatEnforcer.SignedCaveats borrowerCaveat;
+    CaveatEnforcer.SignedCaveats lenderCaveat;
+    Starport.Loan loan;
+    AdvancedOrder[] orders;
+    CriteriaResolver[] resolvers;
+    Fulfillment[] fulfillments;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="custodian"><a class="header" href="#custodian">Custodian</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/Custodian.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+ERC721, ContractOffererInterface</p>
+<h2 id="state-variables-6"><a class="header" href="#state-variables-6">State Variables</a></h2>
+<h3 id="sp-3"><a class="header" href="#sp-3">SP</a></h3>
+<pre><code class="language-solidity">Starport public immutable SP;
+</code></pre>
+<h3 id="seaport"><a class="header" href="#seaport">seaport</a></h3>
+<pre><code class="language-solidity">address public immutable seaport;
+</code></pre>
+<h2 id="functions-23"><a class="header" href="#functions-23">Functions</a></h2>
+<h3 id="constructor-7"><a class="header" href="#constructor-7">constructor</a></h3>
+<pre><code class="language-solidity">constructor(Starport SP_, address seaport_);
+</code></pre>
+<h3 id="name"><a class="header" href="#name">name</a></h3>
+<p><em>The name of the ERC721 contract</em></p>
+<pre><code class="language-solidity">function name() public pure override returns (string memory);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>string</code></td><td>string The name of the contract</td></tr>
+</tbody></table>
+</div>
+<h3 id="symbol"><a class="header" href="#symbol">symbol</a></h3>
+<p><em>The symbol of the ERC721 contract</em></p>
+<pre><code class="language-solidity">function symbol() public pure override returns (string memory);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>string</code></td><td>string The symbol of the contract</td></tr>
+</tbody></table>
+</div>
+<h3 id="tokenuri"><a class="header" href="#tokenuri">tokenURI</a></h3>
+<p><em>ERC-721 tokenURI override</em></p>
+<pre><code class="language-solidity">function tokenURI(uint256 loanId) public view override returns (string memory);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loanId</code></td><td><code>uint256</code></td><td>The id of the custody token/loan</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>string</code></td><td>string URI of the custody token/loan</td></tr>
+</tbody></table>
+</div>
+<h3 id="supportsinterface"><a class="header" href="#supportsinterface">supportsInterface</a></h3>
+<p><em>Helper to determine if an interface is supported by this contract</em></p>
+<pre><code class="language-solidity">function supportsInterface(bytes4 interfaceId) public view override (ERC721, ContractOffererInterface) returns (bool);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>interfaceId</code></td><td><code>bytes4</code></td><td>The interface to check</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bool</code></td><td>bool Returns true if the interface is supported</td></tr>
+</tbody></table>
+</div>
+<h3 id="onerc1155received-3"><a class="header" href="#onerc1155received-3">onERC1155Received</a></h3>
+<p><em>onERC1155Received handler, if we are able to increment the counter
+in seaport that means we have not entered into seaport we dont add for
+ERC-721 as they are able to ignore the on handler call as apart of the spec
+revert with NotEnteredViaSeaport()</em></p>
+<pre><code class="language-solidity">function onERC1155Received(address, address, uint256, uint256, bytes calldata) public virtual returns (bytes4);
+</code></pre>
+<h3 id="mint"><a class="header" href="#mint">mint</a></h3>
+<p><em>Mints a custody token for a loan.</em></p>
+<pre><code class="language-solidity">function mint(Starport.Loan calldata loan) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to mint a custody token for</td></tr>
+</tbody></table>
+</div>
+<h3 id="mintwithapprovalset"><a class="header" href="#mintwithapprovalset">mintWithApprovalSet</a></h3>
+<p><em>Mints a custody token for a loan.</em></p>
+<pre><code class="language-solidity">function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to mint a custody token for</td></tr>
+<tr><td><code>approvedTo</code></td><td><code>address</code></td><td>The address with pre approvals set</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validateandmint"><a class="header" href="#_validateandmint">_validateAndMint</a></h3>
+<p><em>internal helper that validates and mints a custody token for a loan.</em></p>
+<pre><code class="language-solidity">function _validateAndMint(Starport.Loan calldata loan) internal returns (uint256 loanId);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to mint a custody token for</td></tr>
+</tbody></table>
+</div>
+<h3 id="ratifyorder"><a class="header" href="#ratifyorder">ratifyOrder</a></h3>
+<p><em>Generates the order for this contract offerer</em></p>
+<pre><code class="language-solidity">function ratifyOrder(SpentItem[] calldata, ReceivedItem[] calldata, bytes calldata, bytes32[] calldata, uint256)
+    external
+    view
+    onlySeaport
+    returns (bytes4 ratifyOrderMagicValue);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ratifyOrderMagicValue</code></td><td><code>bytes4</code></td><td>The magic value returned by the ratify</td></tr>
+</tbody></table>
+</div>
+<h3 id="generateorder"><a class="header" href="#generateorder">generateOrder</a></h3>
+<p><em>Generates the order for this contract offerer</em></p>
+<pre><code class="language-solidity">function generateOrder(address fulfiller, SpentItem[] calldata, SpentItem[] calldata, bytes calldata context)
+    external
+    onlySeaport
+    returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address of the contract fulfiller</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>SpentItem[]</code></td><td></td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>SpentItem[]</code></td><td></td></tr>
+<tr><td><code>context</code></td><td><code>bytes</code></td><td>The context of the order</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>offer</code></td><td><code>SpentItem[]</code></td><td>The items spent by the order</td></tr>
+<tr><td><code>consideration</code></td><td><code>ReceivedItem[]</code></td><td>The items received by the order</td></tr>
+</tbody></table>
+</div>
+<h3 id="custody"><a class="header" href="#custody">custody</a></h3>
+<p><em>If any additional state updates are needed when taking custody of a loan</em></p>
+<pre><code class="language-solidity">function custody(Starport.Loan memory loan) external virtual onlyStarport returns (bytes4 selector);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan that was just placed into custody</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>selector</code></td><td><code>bytes4</code></td><td>The function selector of the custody method</td></tr>
+</tbody></table>
+</div>
+<h3 id="getseaportmetadata"><a class="header" href="#getseaportmetadata">getSeaportMetadata</a></h3>
+<p><em>Returns metadata on how to interact with the offerer contract</em></p>
+<pre><code class="language-solidity">function getSeaportMetadata() external pure returns (string memory, Schema[] memory schemas);
+</code></pre>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>string</code></td><td>string The name of the contract</td></tr>
+<tr><td><code>schemas</code></td><td><code>Schema[]</code></td><td>An array of supported schemas</td></tr>
+</tbody></table>
+</div>
+<h3 id="getborrower"><a class="header" href="#getborrower">getBorrower</a></h3>
+<p><em>Fetches the borrower of the loan, first checks to see if we've minted the token for the loan</em></p>
+<pre><code class="language-solidity">function getBorrower(Starport.Loan memory loan) public view returns (address);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>Loan to get the borrower of</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>address</code></td><td>address The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower</td></tr>
+</tbody></table>
+</div>
+<h3 id="previeworder"><a class="header" href="#previeworder">previewOrder</a></h3>
+<p><em>Previews the order for this contract offerer</em></p>
+<pre><code class="language-solidity">function previewOrder(
+    address caller,
+    address fulfiller,
+    SpentItem[] calldata,
+    SpentItem[] calldata,
+    bytes calldata context
+) public view returns (SpentItem[] memory offer, ReceivedItem[] memory consideration);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>caller</code></td><td><code>address</code></td><td>The address of the seaport contract</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address of the contract fulfiller</td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>SpentItem[]</code></td><td></td></tr>
+<tr><td><code>&lt;none&gt;</code></td><td><code>SpentItem[]</code></td><td></td></tr>
+<tr><td><code>context</code></td><td><code>bytes</code></td><td>The context of the order</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>offer</code></td><td><code>SpentItem[]</code></td><td>The items spent by the order</td></tr>
+<tr><td><code>consideration</code></td><td><code>ReceivedItem[]</code></td><td>The items received by the order</td></tr>
+</tbody></table>
+</div>
+<h3 id="_enableassetwithseaport"><a class="header" href="#_enableassetwithseaport">_enableAssetWithSeaport</a></h3>
+<p><em>Enables the collateral deposited to be spent via seaport</em></p>
+<pre><code class="language-solidity">function _enableAssetWithSeaport(SpentItem memory offer) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>offer</code></td><td><code>SpentItem</code></td><td>The item to make available to seaport</td></tr>
+</tbody></table>
+</div>
+<h3 id="_setofferapprovalswithseaport"><a class="header" href="#_setofferapprovalswithseaport">_setOfferApprovalsWithSeaport</a></h3>
+<p><em>Sets approvals for the collateral deposited to be spent via seaport</em></p>
+<pre><code class="language-solidity">function _setOfferApprovalsWithSeaport(Starport.Loan memory loan) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_transfercollateralauthorized"><a class="header" href="#_transfercollateralauthorized">_transferCollateralAuthorized</a></h3>
+<p><em>transfers out the collateral to the handler address</em></p>
+<pre><code class="language-solidity">function _transferCollateralAuthorized(SpentItem memory offer, address authorized) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>offer</code></td><td><code>SpentItem</code></td><td>The item to send out of the Custodian</td></tr>
+<tr><td><code>authorized</code></td><td><code>address</code></td><td>The address handling the asset further</td></tr>
+</tbody></table>
+</div>
+<h3 id="_movecollateraltoauthorized"><a class="header" href="#_movecollateraltoauthorized">_moveCollateralToAuthorized</a></h3>
+<p><em>transfers out the collateral of SpentItem to the handler address</em></p>
+<pre><code class="language-solidity">function _moveCollateralToAuthorized(SpentItem[] memory offer, address authorized) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>offer</code></td><td><code>SpentItem[]</code></td><td>The SpentItem array to send out of the Custodian</td></tr>
+<tr><td><code>authorized</code></td><td><code>address</code></td><td>The address handling the asset further</td></tr>
+</tbody></table>
+</div>
+<h3 id="_postsettlementexecute"><a class="header" href="#_postsettlementexecute">_postSettlementExecute</a></h3>
+<p><em>settle the loan with Starport</em></p>
+<pre><code class="language-solidity">function _postSettlementExecute(Starport.Loan memory loan, address fulfiller) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The the loan that is settled</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address executing seaport</td></tr>
+</tbody></table>
+</div>
+<h3 id="_postrepaymentexecute"><a class="header" href="#_postrepaymentexecute">_postRepaymentExecute</a></h3>
+<p><em>settle the loan with Starport</em></p>
+<pre><code class="language-solidity">function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The the loan that is settled</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address executing seaport</td></tr>
+</tbody></table>
+</div>
+<h3 id="_settleloan"><a class="header" href="#_settleloan">_settleLoan</a></h3>
+<p><em>settle the loan with Starport</em></p>
+<pre><code class="language-solidity">function _settleLoan(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The the loan to settle</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforeapprovalssethook"><a class="header" href="#_beforeapprovalssethook">_beforeApprovalsSetHook</a></h3>
+<p><em>hook to call before the approvals are set</em></p>
+<pre><code class="language-solidity">function _beforeApprovalsSetHook(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforegetsettlementconsideration"><a class="header" href="#_beforegetsettlementconsideration">_beforeGetSettlementConsideration</a></h3>
+<p><em>Hook to call before the loan get settlement call</em></p>
+<pre><code class="language-solidity">function _beforeGetSettlementConsideration(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_aftergetsettlementconsideration"><a class="header" href="#_aftergetsettlementconsideration">_afterGetSettlementConsideration</a></h3>
+<p><em>Hook to call after the loan get settlement call</em></p>
+<pre><code class="language-solidity">function _afterGetSettlementConsideration(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforesettlementhandlerhook"><a class="header" href="#_beforesettlementhandlerhook">_beforeSettlementHandlerHook</a></h3>
+<p><em>Hook to call before the the loan settlement handler execute call</em></p>
+<pre><code class="language-solidity">function _beforeSettlementHandlerHook(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_aftersettlementhandlerhook"><a class="header" href="#_aftersettlementhandlerhook">_afterSettlementHandlerHook</a></h3>
+<p><em>Hook to call after the the loan settlement handler execute call</em></p>
+<pre><code class="language-solidity">function _afterSettlementHandlerHook(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_beforesettleloanhook"><a class="header" href="#_beforesettleloanhook">_beforeSettleLoanHook</a></h3>
+<p><em>Hook to call before the loan is settled with the Starport</em></p>
+<pre><code class="language-solidity">function _beforeSettleLoanHook(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="_aftersettleloanhook"><a class="header" href="#_aftersettleloanhook">_afterSettleLoanHook</a></h3>
+<p><em>Hook to call after the loan is settled with the Starport</em></p>
+<pre><code class="language-solidity">function _afterSettleLoanHook(Starport.Loan memory loan) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being settled</td></tr>
+</tbody></table>
+</div>
+<h3 id="onlystarport"><a class="header" href="#onlystarport">onlyStarport</a></h3>
+<p><em>only allows Starport to execute the function</em></p>
+<pre><code class="language-solidity">modifier onlyStarport();
+</code></pre>
+<h3 id="onlyseaport"><a class="header" href="#onlyseaport">onlySeaport</a></h3>
+<p><em>only allows seaport to execute the function</em></p>
+<pre><code class="language-solidity">modifier onlySeaport();
+</code></pre>
+<h2 id="events-2"><a class="header" href="#events-2">Events</a></h2>
+<h3 id="seaportcompatiblecontractdeployed"><a class="header" href="#seaportcompatiblecontractdeployed">SeaportCompatibleContractDeployed</a></h3>
+<pre><code class="language-solidity">event SeaportCompatibleContractDeployed();
+</code></pre>
+<h2 id="errors-10"><a class="header" href="#errors-10">Errors</a></h2>
+<h3 id="custodiancannotbeauthorized"><a class="header" href="#custodiancannotbeauthorized">CustodianCannotBeAuthorized</a></h3>
+<pre><code class="language-solidity">error CustodianCannotBeAuthorized();
+</code></pre>
+<h3 id="implementinchild"><a class="header" href="#implementinchild">ImplementInChild</a></h3>
+<pre><code class="language-solidity">error ImplementInChild();
+</code></pre>
+<h3 id="invalidaction"><a class="header" href="#invalidaction">InvalidAction</a></h3>
+<pre><code class="language-solidity">error InvalidAction();
+</code></pre>
+<h3 id="invalidfulfiller"><a class="header" href="#invalidfulfiller">InvalidFulfiller</a></h3>
+<pre><code class="language-solidity">error InvalidFulfiller();
+</code></pre>
+<h3 id="invalidloan"><a class="header" href="#invalidloan">InvalidLoan</a></h3>
+<pre><code class="language-solidity">error InvalidLoan();
+</code></pre>
+<h3 id="invalidpostrepayment"><a class="header" href="#invalidpostrepayment">InvalidPostRepayment</a></h3>
+<pre><code class="language-solidity">error InvalidPostRepayment();
+</code></pre>
+<h3 id="invalidpostsettlement"><a class="header" href="#invalidpostsettlement">InvalidPostSettlement</a></h3>
+<pre><code class="language-solidity">error InvalidPostSettlement();
+</code></pre>
+<h3 id="invalidrepayer"><a class="header" href="#invalidrepayer">InvalidRepayer</a></h3>
+<pre><code class="language-solidity">error InvalidRepayer();
+</code></pre>
+<h3 id="notauthorized-1"><a class="header" href="#notauthorized-1">NotAuthorized</a></h3>
+<pre><code class="language-solidity">error NotAuthorized();
+</code></pre>
+<h3 id="notenteredviaseaport"><a class="header" href="#notenteredviaseaport">NotEnteredViaSeaport</a></h3>
+<pre><code class="language-solidity">error NotEnteredViaSeaport();
+</code></pre>
+<h3 id="notseaport"><a class="header" href="#notseaport">NotSeaport</a></h3>
+<pre><code class="language-solidity">error NotSeaport();
+</code></pre>
+<h3 id="notstarport-1"><a class="header" href="#notstarport-1">NotStarport</a></h3>
+<pre><code class="language-solidity">error NotStarport();
+</code></pre>
+<h2 id="structs-10"><a class="header" href="#structs-10">Structs</a></h2>
+<h3 id="command"><a class="header" href="#command">Command</a></h3>
+<pre><code class="language-solidity">struct Command {
+    Actions action;
+    Starport.Loan loan;
+    bytes extraData;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="stargate"><a class="header" href="#stargate">Stargate</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/Starport.sol">Git Source</a></p>
+<h2 id="functions-24"><a class="header" href="#functions-24">Functions</a></h2>
+<h3 id="getowner"><a class="header" href="#getowner">getOwner</a></h3>
+<pre><code class="language-solidity">function getOwner(address) external returns (address);
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="starport"><a class="header" href="#starport">Starport</a></h1>
+<p><a href="https://github.com/AstariaXYZ/starport/blob/852edf8b0e962a42eda5b158a9cc4cef604cd095/src/Starport.sol">Git Source</a></p>
+<p><strong>Inherits:</strong>
+<a href="src/Starport.sol//src/lib/PausableNonReentrant.sol/abstract.PausableNonReentrant.html">PausableNonReentrant</a></p>
+<h2 id="state-variables-7"><a class="header" href="#state-variables-7">State Variables</a></h2>
+<h3 id="max_fee_rake_bps"><a class="header" href="#max_fee_rake_bps">MAX_FEE_RAKE_BPS</a></h3>
+<pre><code class="language-solidity">uint88 public constant MAX_FEE_RAKE_BPS = 500;
+</code></pre>
+<h3 id="bps_denominator"><a class="header" href="#bps_denominator">BPS_DENOMINATOR</a></h3>
+<pre><code class="language-solidity">uint88 public constant BPS_DENOMINATOR = 10_000;
+</code></pre>
+<h3 id="loan_closed_flag"><a class="header" href="#loan_closed_flag">LOAN_CLOSED_FLAG</a></h3>
+<pre><code class="language-solidity">uint256 public constant LOAN_CLOSED_FLAG = 0x0;
+</code></pre>
+<h3 id="loan_open_flag"><a class="header" href="#loan_open_flag">LOAN_OPEN_FLAG</a></h3>
+<pre><code class="language-solidity">uint256 public constant LOAN_OPEN_FLAG = 0x1;
+</code></pre>
+<h3 id="_invalid_loan"><a class="header" href="#_invalid_loan">_INVALID_LOAN</a></h3>
+<pre><code class="language-solidity">bytes32 private constant _INVALID_LOAN = 0x045f33d100000000000000000000000000000000000000000000000000000000;
+</code></pre>
+<h3 id="_loan_exists"><a class="header" href="#_loan_exists">_LOAN_EXISTS</a></h3>
+<pre><code class="language-solidity">bytes32 private constant _LOAN_EXISTS = 0x14ec57fc00000000000000000000000000000000000000000000000000000000;
+</code></pre>
+<h3 id="sg"><a class="header" href="#sg">SG</a></h3>
+<pre><code class="language-solidity">Stargate public immutable SG;
+</code></pre>
+<h3 id="chainid"><a class="header" href="#chainid">chainId</a></h3>
+<pre><code class="language-solidity">uint256 public immutable chainId;
+</code></pre>
+<h3 id="default_custodian_code_hash"><a class="header" href="#default_custodian_code_hash">DEFAULT_CUSTODIAN_CODE_HASH</a></h3>
+<pre><code class="language-solidity">bytes32 public immutable DEFAULT_CUSTODIAN_CODE_HASH;
+</code></pre>
+<h3 id="cached_domain_separator"><a class="header" href="#cached_domain_separator">CACHED_DOMAIN_SEPARATOR</a></h3>
+<pre><code class="language-solidity">bytes32 public immutable CACHED_DOMAIN_SEPARATOR;
+</code></pre>
+<h3 id="eip_domain-1"><a class="header" href="#eip_domain-1">EIP_DOMAIN</a></h3>
+<pre><code class="language-solidity">bytes32 public constant EIP_DOMAIN =
+    keccak256(&quot;EIP712Domain(&quot; &quot;string name,&quot; &quot;string version,&quot; &quot;uint256 chainId,&quot; &quot;address verifyingContract&quot; &quot;)&quot;);
+</code></pre>
+<h3 id="version-1"><a class="header" href="#version-1">VERSION</a></h3>
+<pre><code class="language-solidity">bytes32 public constant VERSION = keccak256(bytes(&quot;0&quot;));
+</code></pre>
+<h3 id="name-1"><a class="header" href="#name-1">NAME</a></h3>
+<pre><code class="language-solidity">bytes32 public constant NAME = keccak256(bytes(&quot;Starport&quot;));
+</code></pre>
+<h3 id="intent_origination_typehash"><a class="header" href="#intent_origination_typehash">INTENT_ORIGINATION_TYPEHASH</a></h3>
+<pre><code class="language-solidity">bytes32 public constant INTENT_ORIGINATION_TYPEHASH = keccak256(
+    &quot;Origination(&quot; &quot;address account,&quot; &quot;uint256 accountNonce,&quot; &quot;bool singleUse,&quot; &quot;bytes32 salt,&quot; &quot;uint256 deadline,&quot;
+    &quot;Caveat[] caveats&quot; &quot;)&quot; &quot;Caveat(&quot; &quot;address enforcer,&quot; &quot;bytes data&quot; &quot;)&quot;
+);
+</code></pre>
+<h3 id="caveat_typehash"><a class="header" href="#caveat_typehash">CAVEAT_TYPEHASH</a></h3>
+<pre><code class="language-solidity">bytes32 public constant CAVEAT_TYPEHASH = keccak256(&quot;Caveat(&quot; &quot;address enforcer,&quot; &quot;bytes data&quot; &quot;)&quot;);
+</code></pre>
+<h3 id="feeto"><a class="header" href="#feeto">feeTo</a></h3>
+<pre><code class="language-solidity">address public feeTo;
+</code></pre>
+<h3 id="defaultfeerakebps"><a class="header" href="#defaultfeerakebps">defaultFeeRakeBps</a></h3>
+<pre><code class="language-solidity">uint256 public defaultFeeRakeBps;
+</code></pre>
+<h3 id="feeoverrides"><a class="header" href="#feeoverrides">feeOverrides</a></h3>
+<pre><code class="language-solidity">mapping(address =&gt; FeeOverride) public feeOverrides;
+</code></pre>
+<h3 id="approvals"><a class="header" href="#approvals">approvals</a></h3>
+<pre><code class="language-solidity">mapping(address =&gt; mapping(address =&gt; ApprovalType)) public approvals;
+</code></pre>
+<h3 id="invalidsalts"><a class="header" href="#invalidsalts">invalidSalts</a></h3>
+<pre><code class="language-solidity">mapping(address =&gt; mapping(bytes32 =&gt; bool)) public invalidSalts;
+</code></pre>
+<h3 id="caveatnonces"><a class="header" href="#caveatnonces">caveatNonces</a></h3>
+<pre><code class="language-solidity">mapping(address =&gt; uint256) public caveatNonces;
+</code></pre>
+<h3 id="loanstate"><a class="header" href="#loanstate">loanState</a></h3>
+<pre><code class="language-solidity">mapping(uint256 =&gt; uint256) public loanState;
+</code></pre>
+<h2 id="functions-25"><a class="header" href="#functions-25">Functions</a></h2>
+<h3 id="constructor-8"><a class="header" href="#constructor-8">constructor</a></h3>
+<pre><code class="language-solidity">constructor(address seaport_, Stargate stargate_, address owner_);
+</code></pre>
+<h3 id="domainseparator-1"><a class="header" href="#domainseparator-1">domainSeparator</a></h3>
+<pre><code class="language-solidity">function domainSeparator() public view returns (bytes32);
+</code></pre>
+<h3 id="setoriginateapproval"><a class="header" href="#setoriginateapproval">setOriginateApproval</a></h3>
+<p><em>Sets approval to originate loans without having to check caveats</em></p>
+<pre><code class="language-solidity">function setOriginateApproval(address who, ApprovalType approvalType) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>who</code></td><td><code>address</code></td><td>The address of who is being approved</td></tr>
+<tr><td><code>approvalType</code></td><td><code>ApprovalType</code></td><td>The type of approval (Borrower, Lender) (cant be both)</td></tr>
+</tbody></table>
+</div>
+<h3 id="originate-2"><a class="header" href="#originate-2">originate</a></h3>
+<p><em>The loan origination method, new loan data is passed in and validated before being issued</em></p>
+<pre><code class="language-solidity">function originate(
+    AdditionalTransfer[] calldata additionalTransfers,
+    CaveatEnforcer.SignedCaveats calldata borrowerCaveat,
+    CaveatEnforcer.SignedCaveats calldata lenderCaveat,
+    Starport.Loan memory loan
+) external payable pausableNonReentrant;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>Additional transfers to be made after the loan is issued</td></tr>
+<tr><td><code>borrowerCaveat</code></td><td><code>CaveatEnforcer.SignedCaveats</code></td><td>The borrower caveat to be validated</td></tr>
+<tr><td><code>lenderCaveat</code></td><td><code>CaveatEnforcer.SignedCaveats</code></td><td>The lender caveat to be validated</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to be issued</td></tr>
+</tbody></table>
+</div>
+<h3 id="refinance"><a class="header" href="#refinance">refinance</a></h3>
+<p><em>Refinances an existing loan with new pricing data, its the only thing that can be changed</em></p>
+<pre><code class="language-solidity">function refinance(
+    address lender,
+    CaveatEnforcer.SignedCaveats calldata lenderCaveat,
+    Starport.Loan memory loan,
+    bytes calldata pricingData,
+    bytes calldata extraData
+) external pausableNonReentrant;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>lender</code></td><td><code>address</code></td><td>The new lender</td></tr>
+<tr><td><code>lenderCaveat</code></td><td><code>CaveatEnforcer.SignedCaveats</code></td><td>The lender caveat to be validated</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to be issued</td></tr>
+<tr><td><code>pricingData</code></td><td><code>bytes</code></td><td>The new pricing data</td></tr>
+<tr><td><code>extraData</code></td><td><code>bytes</code></td><td></td></tr>
+</tbody></table>
+</div>
+<h3 id="settle"><a class="header" href="#settle">settle</a></h3>
+<p><em>Helper to settle a loan
+guarded to ensure only the loan.custodian can call it</em></p>
+<pre><code class="language-solidity">function settle(Loan memory loan) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Loan</code></td><td>The entire loan struct</td></tr>
+</tbody></table>
+</div>
+<h3 id="incrementcaveatnonce"><a class="header" href="#incrementcaveatnonce">incrementCaveatNonce</a></h3>
+<p><em>Increments caveat nonce for sender and emits event</em></p>
+<pre><code class="language-solidity">function incrementCaveatNonce() external;
+</code></pre>
+<h3 id="invalidatecaveatsalt"><a class="header" href="#invalidatecaveatsalt">invalidateCaveatSalt</a></h3>
+<p><em>Invalidates a caveat salt</em></p>
+<pre><code class="language-solidity">function invalidateCaveatSalt(bytes32 salt) external;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>salt</code></td><td><code>bytes32</code></td><td>The salt to invalidate</td></tr>
+</tbody></table>
+</div>
+<h3 id="setfeedata"><a class="header" href="#setfeedata">setFeeData</a></h3>
+<p><em>Sets the default fee data, only owner can call</em></p>
+<pre><code class="language-solidity">function setFeeData(address feeTo_, uint88 defaultFeeRakeBps_) external onlyOwner;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>feeTo_</code></td><td><code>address</code></td><td>The feeToAddress</td></tr>
+<tr><td><code>defaultFeeRakeBps_</code></td><td><code>uint88</code></td><td>The default fee rake in basis points</td></tr>
+</tbody></table>
+</div>
+<h3 id="setfeeoverride"><a class="header" href="#setfeeoverride">setFeeOverride</a></h3>
+<p><em>Sets fee overrides for specific tokens, only owner can call</em></p>
+<pre><code class="language-solidity">function setFeeOverride(address token, uint88 bpsOverride, bool enabled) external onlyOwner;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>token</code></td><td><code>address</code></td><td>The token to override</td></tr>
+<tr><td><code>bpsOverride</code></td><td><code>uint88</code></td><td>The new basis points to override to (1 = 0.01%)</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool</code></td><td>Whether or not the override is enabled</td></tr>
+</tbody></table>
+</div>
+<h3 id="applyrefinanceconsiderationtoloan"><a class="header" href="#applyrefinanceconsiderationtoloan">applyRefinanceConsiderationToLoan</a></h3>
+<p><em>Refinances an existing loan with new pricing data, its the only thing that can be changed</em></p>
+<pre><code class="language-solidity">function applyRefinanceConsiderationToLoan(SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment)
+    public
+    pure
+    returns (SpentItem[] memory newDebt);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>considerationPayment</code></td><td><code>SpentItem[]</code></td><td>the payment consideration</td></tr>
+<tr><td><code>carryPayment</code></td><td><code>SpentItem[]</code></td><td>The loan to be issued</td></tr>
+</tbody></table>
+</div>
+<h3 id="hashcaveatwithsaltandnonce"><a class="header" href="#hashcaveatwithsaltandnonce">hashCaveatWithSaltAndNonce</a></h3>
+<p><em>Helper to hash a caveat with a salt and nonce</em></p>
+<pre><code class="language-solidity">function hashCaveatWithSaltAndNonce(
+    address account,
+    bool singleUse,
+    bytes32 salt,
+    uint256 deadline,
+    CaveatEnforcer.Caveat[] calldata caveats
+) public view virtual returns (bytes32);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>account</code></td><td><code>address</code></td><td>The account that is originating the loan</td></tr>
+<tr><td><code>singleUse</code></td><td><code>bool</code></td><td>Whether to invalidate the salt after validation</td></tr>
+<tr><td><code>salt</code></td><td><code>bytes32</code></td><td>The salt to use</td></tr>
+<tr><td><code>deadline</code></td><td><code>uint256</code></td><td>The deadline of the caveat</td></tr>
+<tr><td><code>caveats</code></td><td><code>CaveatEnforcer.Caveat[]</code></td><td>The caveats to hash</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes32</code></td><td>bytes32 The hash of the caveat</td></tr>
+</tbody></table>
+</div>
+<h3 id="_hashcaveat"><a class="header" href="#_hashcaveat">_hashCaveat</a></h3>
+<p><em>Internal view function to derive the EIP-712 hash for a caveat</em></p>
+<pre><code class="language-solidity">function _hashCaveat(CaveatEnforcer.Caveat memory caveat) internal pure returns (bytes32);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>caveat</code></td><td><code>CaveatEnforcer.Caveat</code></td><td>The caveat to hash.</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bytes32</code></td><td>The hash.</td></tr>
+</tbody></table>
+</div>
+<h3 id="open"><a class="header" href="#open">open</a></h3>
+<p><em>Helper to check if a loan is open</em></p>
+<pre><code class="language-solidity">function open(uint256 loanId) public view returns (bool);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loanId</code></td><td><code>uint256</code></td><td>The id of the loan</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bool</code></td><td>bool True if the loan is open</td></tr>
+</tbody></table>
+</div>
+<h3 id="closed"><a class="header" href="#closed">closed</a></h3>
+<p><em>Helper to check if a loan is closed</em></p>
+<pre><code class="language-solidity">function closed(uint256 loanId) public view returns (bool);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loanId</code></td><td><code>uint256</code></td><td>The id of the loan</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>&lt;none&gt;</code></td><td><code>bool</code></td><td>bool True if the loan is closed</td></tr>
+</tbody></table>
+</div>
+<h3 id="_postrepaymentexecute-1"><a class="header" href="#_postrepaymentexecute-1">_postRepaymentExecute</a></h3>
+<p><em>Calls postRepayment hook on loan Settlement module</em></p>
+<pre><code class="language-solidity">function _postRepaymentExecute(Starport.Loan memory loan, address fulfiller) internal virtual;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The the loan that is being refrenced</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The address executing the settle</td></tr>
+</tbody></table>
+</div>
+<h3 id="_callcustody"><a class="header" href="#_callcustody">_callCustody</a></h3>
+<p><em>Internal method to call the custody selector of the custodian if it does not share
+the same codehash as the default custodian</em></p>
+<pre><code class="language-solidity">function _callCustody(Starport.Loan memory loan) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan being placed into custody</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validateadditionaltransfersrefinance"><a class="header" href="#_validateadditionaltransfersrefinance">_validateAdditionalTransfersRefinance</a></h3>
+<p><em>Internal method to validate additional transfers, only transfer from lender and fullfiller are valid</em></p>
+<pre><code class="language-solidity">function _validateAdditionalTransfersRefinance(
+    address lender,
+    address fulfiller,
+    AdditionalTransfer[] memory additionalTransfers
+) internal pure;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>lender</code></td><td><code>address</code></td><td>The lender of the loan</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The fulfiller of the loan</td></tr>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to validate</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validateadditionaltransfersoriginate"><a class="header" href="#_validateadditionaltransfersoriginate">_validateAdditionalTransfersOriginate</a></h3>
+<p><em>Internal method to validate additional transfers, only transfers from borrower, lender, and fullfiller are valid</em></p>
+<pre><code class="language-solidity">function _validateAdditionalTransfersOriginate(
+    address borrower,
+    address lender,
+    address fulfiller,
+    AdditionalTransfer[] calldata additionalTransfers
+) internal pure;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>borrower</code></td><td><code>address</code></td><td>The borrower of the loan</td></tr>
+<tr><td><code>lender</code></td><td><code>address</code></td><td>The lender of the loan</td></tr>
+<tr><td><code>fulfiller</code></td><td><code>address</code></td><td>The fulfiller of the loan</td></tr>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to validate</td></tr>
+</tbody></table>
+</div>
+<h3 id="_validateandenforcecaveats"><a class="header" href="#_validateandenforcecaveats">_validateAndEnforceCaveats</a></h3>
+<p><em>Internal method to validate and enforce caveats</em></p>
+<pre><code class="language-solidity">function _validateAndEnforceCaveats(
+    CaveatEnforcer.SignedCaveats calldata signedCaveats,
+    address validator,
+    AdditionalTransfer[] memory additionalTransfers,
+    Starport.Loan memory loan
+) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>signedCaveats</code></td><td><code>CaveatEnforcer.SignedCaveats</code></td><td>The signed caveats to validate</td></tr>
+<tr><td><code>validator</code></td><td><code>address</code></td><td>The validator of the caveats</td></tr>
+<tr><td><code>additionalTransfers</code></td><td><code>AdditionalTransfer[]</code></td><td>The additional transfers to validate</td></tr>
+<tr><td><code>loan</code></td><td><code>Starport.Loan</code></td><td>The loan to validate</td></tr>
+</tbody></table>
+</div>
+<h3 id="_settle"><a class="header" href="#_settle">_settle</a></h3>
+<p><em>Internal helper to settle a loan</em></p>
+<pre><code class="language-solidity">function _settle(Loan memory loan) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Loan</code></td><td>The entire loan struct</td></tr>
+</tbody></table>
+</div>
+<h3 id="_feerake"><a class="header" href="#_feerake">_feeRake</a></h3>
+<p><em>Sets fee overrides for specific tokens, only owner can call</em></p>
+<pre><code class="language-solidity">function _feeRake(SpentItem[] memory debt)
+    internal
+    view
+    returns (SpentItem[] memory feeItems, SpentItem[] memory paymentToBorrower);
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>debt</code></td><td><code>SpentItem[]</code></td><td>The debt to rake</td></tr>
+</tbody></table>
+</div>
+<p><strong>Returns</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>feeItems</code></td><td><code>SpentItem[]</code></td><td>SpentItem[] of fees</td></tr>
+<tr><td><code>paymentToBorrower</code></td><td><code>SpentItem[]</code></td><td></td></tr>
+</tbody></table>
+</div>
+<h3 id="acquiretokens"><a class="header" href="#acquiretokens">acquireTokens</a></h3>
+<pre><code class="language-solidity">function acquireTokens(SpentItem[] memory items) external;
+</code></pre>
+<h3 id="_issueloan"><a class="header" href="#_issueloan">_issueLoan</a></h3>
+<p><em>Changes loanId status to open for the specified loan</em></p>
+<pre><code class="language-solidity">function _issueLoan(Loan memory loan) internal;
+</code></pre>
+<p><strong>Parameters</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>loan</code></td><td><code>Loan</code></td><td>The loan to issue</td></tr>
+</tbody></table>
+</div>
+<h2 id="events-3"><a class="header" href="#events-3">Events</a></h2>
+<h3 id="approvalset"><a class="header" href="#approvalset">ApprovalSet</a></h3>
+<pre><code class="language-solidity">event ApprovalSet(address indexed owner, address indexed spender, uint8 approvalType);
+</code></pre>
+<h3 id="caveatfilled"><a class="header" href="#caveatfilled">CaveatFilled</a></h3>
+<pre><code class="language-solidity">event CaveatFilled(address owner, bytes32 hash, bytes32 salt);
+</code></pre>
+<h3 id="caveatnonceincremented"><a class="header" href="#caveatnonceincremented">CaveatNonceIncremented</a></h3>
+<pre><code class="language-solidity">event CaveatNonceIncremented(address owner, uint256 newNonce);
+</code></pre>
+<h3 id="caveatsaltinvalidated"><a class="header" href="#caveatsaltinvalidated">CaveatSaltInvalidated</a></h3>
+<pre><code class="language-solidity">event CaveatSaltInvalidated(address owner, bytes32 salt);
+</code></pre>
+<h3 id="close"><a class="header" href="#close">Close</a></h3>
+<pre><code class="language-solidity">event Close(uint256 loanId);
+</code></pre>
+<h3 id="feedataupdated"><a class="header" href="#feedataupdated">FeeDataUpdated</a></h3>
+<pre><code class="language-solidity">event FeeDataUpdated(address feeTo, uint88 defaultFeeRakeBps);
+</code></pre>
+<h3 id="feeoverrideupdated"><a class="header" href="#feeoverrideupdated">FeeOverrideUpdated</a></h3>
+<pre><code class="language-solidity">event FeeOverrideUpdated(address token, uint88 overrideBps, bool enabled);
+</code></pre>
+<h3 id="open-1"><a class="header" href="#open-1">Open</a></h3>
+<pre><code class="language-solidity">event Open(uint256 loanId, Starport.Loan loan);
+</code></pre>
+<h2 id="errors-11"><a class="header" href="#errors-11">Errors</a></h2>
+<h3 id="caveatdeadlineexpired"><a class="header" href="#caveatdeadlineexpired">CaveatDeadlineExpired</a></h3>
+<pre><code class="language-solidity">error CaveatDeadlineExpired();
+</code></pre>
+<h3 id="invalidfeerakebps"><a class="header" href="#invalidfeerakebps">InvalidFeeRakeBps</a></h3>
+<pre><code class="language-solidity">error InvalidFeeRakeBps();
+</code></pre>
+<h3 id="invalidcaveat"><a class="header" href="#invalidcaveat">InvalidCaveat</a></h3>
+<pre><code class="language-solidity">error InvalidCaveat();
+</code></pre>
+<h3 id="invalidcaveatlength"><a class="header" href="#invalidcaveatlength">InvalidCaveatLength</a></h3>
+<pre><code class="language-solidity">error InvalidCaveatLength();
+</code></pre>
+<h3 id="invalidcaveatsigner"><a class="header" href="#invalidcaveatsigner">InvalidCaveatSigner</a></h3>
+<pre><code class="language-solidity">error InvalidCaveatSigner();
+</code></pre>
+<h3 id="invalidcustodian"><a class="header" href="#invalidcustodian">InvalidCustodian</a></h3>
+<pre><code class="language-solidity">error InvalidCustodian();
+</code></pre>
+<h3 id="invalidloan-1"><a class="header" href="#invalidloan-1">InvalidLoan</a></h3>
+<pre><code class="language-solidity">error InvalidLoan();
+</code></pre>
+<h3 id="invalidloanstate"><a class="header" href="#invalidloanstate">InvalidLoanState</a></h3>
+<pre><code class="language-solidity">error InvalidLoanState();
+</code></pre>
+<h3 id="invalidpostrepayment-1"><a class="header" href="#invalidpostrepayment-1">InvalidPostRepayment</a></h3>
+<pre><code class="language-solidity">error InvalidPostRepayment();
+</code></pre>
+<h3 id="loanexists"><a class="header" href="#loanexists">LoanExists</a></h3>
+<pre><code class="language-solidity">error LoanExists();
+</code></pre>
+<h3 id="malformedrefinance"><a class="header" href="#malformedrefinance">MalformedRefinance</a></h3>
+<pre><code class="language-solidity">error MalformedRefinance();
+</code></pre>
+<h3 id="notloancustodian"><a class="header" href="#notloancustodian">NotLoanCustodian</a></h3>
+<pre><code class="language-solidity">error NotLoanCustodian();
+</code></pre>
+<h3 id="unauthorizedadditionaltransferincluded"><a class="header" href="#unauthorizedadditionaltransferincluded">UnauthorizedAdditionalTransferIncluded</a></h3>
+<pre><code class="language-solidity">error UnauthorizedAdditionalTransferIncluded();
+</code></pre>
+<h2 id="structs-11"><a class="header" href="#structs-11">Structs</a></h2>
+<h3 id="terms"><a class="header" href="#terms">Terms</a></h3>
+<pre><code class="language-solidity">struct Terms {
+    address status;
+    bytes statusData;
+    address pricing;
+    bytes pricingData;
+    address settlement;
+    bytes settlementData;
+}
+</code></pre>
+<h3 id="loan"><a class="header" href="#loan">Loan</a></h3>
+<pre><code class="language-solidity">struct Loan {
+    uint256 start;
+    address custodian;
+    address borrower;
+    address issuer;
+    address originator;
+    SpentItem[] collateral;
+    SpentItem[] debt;
+    Terms terms;
+}
+</code></pre>
+<h3 id="feeoverride"><a class="header" href="#feeoverride">FeeOverride</a></h3>
+<pre><code class="language-solidity">struct FeeOverride {
+    bool enabled;
+    uint88 bpsOverride;
+}
+</code></pre>
+<h2 id="enums"><a class="header" href="#enums">Enums</a></h2>
+<h3 id="approvaltype"><a class="header" href="#approvaltype">ApprovalType</a></h3>
+<pre><code class="language-solidity">enum ApprovalType {
+    NOTHING,
+    BORROWER,
+    LENDER
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="solidity.min.js"></script>
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </div>
+    </body>
+</html>
