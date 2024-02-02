@@ -2,8 +2,8 @@ pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
+import {BNPLHelper, IFlashLoanRecipient} from "starport-test/mocks/BNPLHelper.sol";
+import {Originator} from "starport-test/mocks/originators/Originator.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 contract FlashLoan {

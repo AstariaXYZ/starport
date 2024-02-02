@@ -4,12 +4,12 @@ import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
+import {Originator} from "starport-test/mocks/originators/Originator.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
 
 contract TestSimpleInterestPricing is StarportTest, DeepEq {
     using Cast for *;

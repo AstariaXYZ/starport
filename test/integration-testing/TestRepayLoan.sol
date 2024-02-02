@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
-import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {ZoneInteractionErrors} from "seaport-types/src/interfaces/ZoneInteractionErrors.sol";

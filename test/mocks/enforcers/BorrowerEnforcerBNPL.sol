@@ -27,126 +27,86 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "./Starport.sol";
-import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
-import {AdditionalTransfer} from "./lib/StarportLib.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
-import {Seaport} from "seaport/contracts/Seaport.sol";
-import {
-    AdvancedOrder,
-    ConsiderationItem,
-    CriteriaResolver,
-    Fulfillment,
-    ItemType,
-    OfferItem,
-    OrderParameters,
-    SpentItem
-} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
-/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-/*                        INTERFACES                          */
-/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
-interface IVault {
-    function flashLoan(
-        IFlashLoanRecipient recipient,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        bytes memory userData
-    ) external;
-}
-
-interface IFlashLoanRecipient {
-    function receiveFlashLoan(
-        address[] calldata tokens,
-        uint256[] calldata amounts,
-        uint256[] calldata feeAmounts,
-        bytes memory userData
-    ) external;
-}
-
-interface ERC20 {
-    function transfer(address, uint256) external returns (bool);
-}
-
-contract BNPLHelper is IFlashLoanRecipient, Ownable {
+contract BorrowerEnforcerBNPL is CaveatEnforcer {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error InvalidUserDataProvided();
-    error SenderNotVault();
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                          STORAGE                           */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    address private vault;
+    error BorrowerOnlyEnforcer();
+    error InvalidLoanTerms();
+    error InvalidAdditionalTransfer();
+    error OrderInvalid();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct Execution {
-        address starport;
-        address seaport;
-        address borrower;
-        CaveatEnforcer.SignedCaveats borrowerCaveat;
-        CaveatEnforcer.SignedCaveats lenderCaveat;
+    struct Details {
         Starport.Loan loan;
-        AdvancedOrder[] orders;
-        CriteriaResolver[] resolvers;
-        Fulfillment[] fulfillments;
+        address seaport;
+        bytes32 offerHash;
+        AdditionalTransfer additionalTransfer;
     }
 
-    constructor(address _vault, address owner) {
-        vault = _vault;
-        _initializeOwner(owner);
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     FUNCTION OVERRIDES                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function makeFlashLoan(address[] calldata tokens, uint256[] calldata amounts, bytes calldata userData) external {
-        IVault(vault).flashLoan(this, tokens, amounts, userData);
-    }
+    /**
+     * @dev Enforces that the loan terms are identical except for the issuer
+     * The issuer is allowed to be any address
+     * @param additionalTransfers The additional transfers to be made
+     * @param loan The loan terms
+     * @param caveatData The borrowers encoded details
+     */
+    function validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        bytes calldata caveatData
+    ) public view virtual override returns (bytes4 selector) {
+        bytes32 loanHash = keccak256(abi.encode(loan));
 
-    function receiveFlashLoan(
-        address[] calldata tokens, // Are all ERC-20s
-        uint256[] calldata amounts,
-        uint256[] calldata feeAmounts,
-        bytes calldata userData
-    ) external override {
-        Execution memory execution = abi.decode(userData, (Execution));
+        Details memory details = abi.decode(caveatData, (Details));
+        if (details.loan.borrower != loan.borrower) {
+            revert BorrowerOnlyEnforcer();
+        }
+        details.loan.issuer = loan.issuer;
+        details.loan.originator = loan.originator;
+        if (loanHash != keccak256(abi.encode(details.loan))) {
+            revert InvalidLoanTerms();
+        }
 
-        // Approve seaport
-        for (uint256 i = 0; i < tokens.length;) {
-            ERC20(tokens[i]).transfer(execution.borrower, amounts[i]);
-            unchecked {
-                ++i;
+        if (additionalTransfers.length > 0) {
+            if (details.offerHash != bytes32(0)) {
+                (bool isValidated, bool isCancelled, uint256 numerator, uint256 denominator) =
+                    ConsiderationInterface(details.seaport).getOrderStatus(details.offerHash);
+
+                if (isCancelled || !isValidated) {
+                    revert OrderInvalid();
+                }
+
+                if (additionalTransfers.length > 1) {
+                    revert InvalidAdditionalTransfer();
+                }
+                if (
+                    additionalTransfers[0].itemType != details.additionalTransfer.itemType
+                        || additionalTransfers[0].identifier != details.additionalTransfer.identifier
+                        || additionalTransfers[0].amount > details.additionalTransfer.amount
+                        || additionalTransfers[0].token != details.additionalTransfer.token
+                ) {
+                    revert InvalidAdditionalTransfer();
+                }
+            } else {
+                revert InvalidAdditionalTransfer();
             }
         }
-        Seaport(payable(execution.seaport)).matchAdvancedOrders(
-            execution.orders, execution.resolvers, execution.fulfillments, execution.borrower
-        );
 
-        AdditionalTransfer[] memory transfers = new AdditionalTransfer[](tokens.length);
-        for (uint256 i = 0; i < tokens.length;) {
-            transfers[i] = AdditionalTransfer({
-                itemType: ItemType.ERC20,
-                identifier: 0,
-                token: tokens[i],
-                from: execution.borrower,
-                to: vault,
-                amount: amounts[i] + feeAmounts[i]
-            });
-            unchecked {
-                ++i;
-            }
-        }
-        Starport(execution.starport).originate(
-            transfers, execution.borrowerCaveat, execution.lenderCaveat, execution.loan
-        );
-    }
-
-    function setFlashVault(address _vault) external onlyOwner {
-        vault = _vault;
+        selector = CaveatEnforcer.validate.selector;
     }
 }

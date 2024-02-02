@@ -6,8 +6,8 @@ import {LibString} from "solady/src/utils/LibString.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
 import "../utils/DeepEq.sol";
-import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
+import {DutchAuctionSettlement} from "starport-test/mocks/settlement/DutchAuctionSettlement.sol";
+import {FixedTermStatus} from "starport-test/mocks/status/FixedTermStatus.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 contract MockBasePricing is BasePricing {

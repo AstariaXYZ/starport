@@ -27,10 +27,10 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
-import {Originator} from "../originators/Originator.sol";
-import {AdditionalTransfer, StarportLib} from "../lib/StarportLib.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {Originator} from "starport-test/mocks/originators/Originator.sol";
+import {AdditionalTransfer, StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {ConduitControllerInterface} from "seaport-types/src/interfaces/ConduitControllerInterface.sol";
 import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
@@ -38,7 +38,7 @@ import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/Considera
 import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {TokenReceiverInterface} from "../interfaces/TokenReceiverInterface.sol";
+import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
 
 // Validator abstract contract that lays out the necessary structure and functions for the validator
 contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
