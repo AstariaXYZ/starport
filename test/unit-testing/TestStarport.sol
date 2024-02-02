@@ -1,3 +1,30 @@
+// SPDX-License-Identifier: BUSL-1.1
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
@@ -983,10 +1010,14 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testAdditionalTransfersRefinance() public {
-        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory currentPricing =
+            abi.decode(activeLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
-        BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
+            rate: currentPricing.rate - 1,
+            carryRate: currentPricing.carryRate,
+            decimals: 18
+        });
         bytes memory newPricingData = abi.encode(newPricingDetails);
         (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
             Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);
@@ -1012,10 +1043,14 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testRefinancePostRepaymentFails() public {
-        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory currentPricing =
+            abi.decode(activeLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
-        BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
+            rate: currentPricing.rate - 1,
+            carryRate: currentPricing.carryRate,
+            decimals: 18
+        });
         bytes memory newPricingData = abi.encode(newPricingDetails);
 
         vm.mockCall(
@@ -1030,10 +1065,14 @@ contract TestStarport is StarportTest, DeepEq {
     }
 
     function testInvalidAdditionalTransfersRefinance() public {
-        BasePricing.Details memory currentPricing = abi.decode(activeLoan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory currentPricing =
+            abi.decode(activeLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
-        BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: currentPricing.rate - 1, carryRate: currentPricing.carryRate, decimals: 18});
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
+            rate: currentPricing.rate - 1,
+            carryRate: currentPricing.carryRate,
+            decimals: 18
+        });
         bytes memory newPricingData = abi.encode(newPricingDetails);
         (SpentItem[] memory refinanceConsideration, SpentItem[] memory carryConsideration,) =
             Pricing(activeLoan.terms.pricing).getRefinanceConsideration(activeLoan, newPricingData, lender.addr);

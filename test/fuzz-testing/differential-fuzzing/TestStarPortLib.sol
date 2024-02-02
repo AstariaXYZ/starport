@@ -13,7 +13,7 @@ import {
 import {Conduit} from "seaport-core/src/conduit/Conduit.sol";
 import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import {RefStarportLib} from "starport-core/lib/RefStarportLib.sol";
+import {RefStarportLib} from "starport-test/fuzz-testing/differential-fuzzing/RefStarportLib.sol";
 import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 import {Bound} from "starport-test/utils/Bound.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";

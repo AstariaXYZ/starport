@@ -109,7 +109,7 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
 
     function boundPricingData(bytes memory boundPricingData) internal view virtual returns (bytes memory pricingData) {
         uint256 min = abi.decode(boundPricingData, (uint256));
-        BasePricing.Details memory details = BasePricing.Details({
+        SimpleInterestPricing.Details memory details = SimpleInterestPricing.Details({
             rate: _boundMax(min, (uint256(1e16) * 150)),
             carryRate: _boundMax(0, uint256((1e16 * 100))),
             decimals: _boundMax(0, 18)
@@ -204,7 +204,8 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         }
         loan.collateral = ret;
         SpentItem[] memory debt = new SpentItem[](1);
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory pricingDetails =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         if (pricingDetails.decimals == 18) {
             debt[0] = SpentItem({
                 itemType: ItemType.ERC20,
@@ -230,8 +231,9 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
     }
 
     function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual returns (bool) {
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        try BasePricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
+        SimpleInterestPricing.Details memory pricingDetails =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
+        try SimpleInterestPricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
             SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
         ) {
             unchecked {
@@ -593,10 +595,11 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
     function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual {
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination, abi.encode(LoanBounds(1)));
 
-        BasePricing.Details memory oldDetails = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory oldDetails =
+            abi.decode(goodLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
         uint256 newRate = _boundMax(oldDetails.rate - 1, (uint256(1e16) * 1000) / (365 * 1 days));
-        BasePricing.Details memory newPricingDetails = BasePricing.Details({
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
             rate: newRate,
             carryRate: _boundMax(0, uint256((1e16 * 100))),
             decimals: oldDetails.decimals

@@ -27,31 +27,32 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {Status} from "../status/Status.sol";
-import {Validation} from "../lib/Validation.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {DutchAuctionSettlement} from "starport-test/mocks/settlement/DutchAuctionSettlement.sol";
+import {FixedTermStatus} from "starport-test/mocks/status/FixedTermStatus.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
-contract FixedTermStatus is Status {
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+
+contract FixedTermDutchAuctionSettlement is DutchAuctionSettlement {
+    using {StarportLib.getId} for Starport.Loan;
+    using FixedPointMathLib for uint256;
+
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                          STRUCTS                           */
+    /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct Details {
-        uint256 loanDuration;
-    }
+    constructor(Starport SP_) DutchAuctionSettlement(SP_) {}
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                      EXTERNAL FUNCTIONS                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    // @inheritdoc Status
-    function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view override returns (bool) {
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        return loan.start + details.loanDuration >= block.timestamp;
-    }
-
-    function validate(Starport.Loan calldata loan) external view override returns (bytes4) {
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        return (details.loanDuration > 0) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+    // @inheritdoc DutchAuctionSettlement
+    function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
+        FixedTermStatus.Details memory details = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
+        return loan.start + details.loanDuration;
     }
 }
