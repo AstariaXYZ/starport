@@ -27,40 +27,32 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {AdditionalTransfer} from "../lib/StarportLib.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {CaveatEnforcer} from "starport-core/CaveatEnforcer.sol";
 
-abstract contract CaveatEnforcer {
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+
+abstract contract Originator {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    struct Caveat {
-        address enforcer;
-        bytes data;
-    }
-
-    struct SignedCaveats {
-        bool singleUse;
-        uint256 deadline;
-        bytes32 salt;
-        Caveat[] caveats;
-        bytes signature;
+    struct Request {
+        address borrower;
+        CaveatEnforcer.SignedCaveats borrowerCaveat;
+        SpentItem[] collateral;
+        SpentItem[] debt;
+        bytes details;
+        bytes approval;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                     FUNCTION OVERRIDES                     */
+    /*                      EXTERNAL FUNCTIONS                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev Enforces that the loan terms are identical except for the issuer
-     * @param solution The additional transfers to be made
-     * @param loan The loan terms
-     * @param caveatData The borrowers encoded details
+     * @dev Accepts a request with signed data that is decoded by the originator
+     * communicates with Starport to originate a loan
+     * @param params          The request for the origination
      */
-    function validate(AdditionalTransfer[] calldata solution, Starport.Loan calldata loan, bytes calldata caveatData)
-        public
-        view
-        virtual
-        returns (bytes4);
+    function originate(Request calldata params) external virtual;
 }

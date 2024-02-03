@@ -1,5 +1,5 @@
 import "starport-test/StarportTest.sol";
-import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {LenderEnforcer} from "starport-test/mocks/enforcers/LenderEnforcer.sol";
 import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";

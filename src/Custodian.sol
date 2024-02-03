@@ -28,9 +28,9 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "./Starport.sol";
-import {Pricing} from "./pricing/Pricing.sol";
-import {Settlement} from "./settlement/Settlement.sol";
-import {Status} from "./status/Status.sol";
+import {Pricing} from "./Pricing.sol";
+import {Settlement} from "./Settlement.sol";
+import {Status} from "./Status.sol";
 import {StarportLib, Actions} from "./lib/StarportLib.sol";
 
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";

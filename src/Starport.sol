@@ -27,12 +27,12 @@
 
 pragma solidity ^0.8.17;
 
-import {CaveatEnforcer} from "./enforcers/CaveatEnforcer.sol";
+import {CaveatEnforcer} from "./CaveatEnforcer.sol";
 import {Custodian} from "./Custodian.sol";
 import {PausableNonReentrant} from "./lib/PausableNonReentrant.sol";
-import {Pricing} from "./pricing/Pricing.sol";
-import {Status} from "./status/Status.sol";
-import {Settlement} from "./settlement/Settlement.sol";
+import {Pricing} from "./Pricing.sol";
+import {Status} from "./Status.sol";
+import {Settlement} from "./Settlement.sol";
 import {StarportLib, AdditionalTransfer} from "./lib/StarportLib.sol";
 
 import {SpentItem, ItemType} from "seaport-types/src/lib/ConsiderationStructs.sol";

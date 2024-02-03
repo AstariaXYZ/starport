@@ -6,8 +6,8 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import "forge-std/console2.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
-import {Originator} from "starport-test/mocks/originators/Originator.sol";
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {Originator} from "starport-core/Originator.sol";
+import {CaveatEnforcer} from "starport-core/CaveatEnforcer.sol";
 
 contract TestStrategistOriginator is StarportTest, DeepEq {
     using Cast for *;

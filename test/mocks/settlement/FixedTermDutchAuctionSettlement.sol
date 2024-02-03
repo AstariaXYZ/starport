@@ -30,7 +30,7 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 import {DutchAuctionSettlement} from "starport-test/mocks/settlement/DutchAuctionSettlement.sol";
 import {FixedTermStatus} from "starport-test/mocks/status/FixedTermStatus.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {Settlement} from "starport-core/Settlement.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";

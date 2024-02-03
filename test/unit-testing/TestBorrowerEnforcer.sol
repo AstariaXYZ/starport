@@ -28,7 +28,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
-import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
+import {BorrowerEnforcer} from "starport-test/mocks/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer, ItemType} from "starport-core/lib/StarportLib.sol";
 
 import "forge-std/console.sol";

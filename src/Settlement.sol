@@ -27,59 +27,68 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {CaveatEnforcer} from "../enforcers/CaveatEnforcer.sol";
-import {AdditionalTransfer} from "../lib/StarportLib.sol";
+import {Starport} from "./Starport.sol";
+import {Validation} from "./lib/Validation.sol";
 
-contract LenderEnforcer is CaveatEnforcer {
-    error InvalidLoanTerms();
-    error InvalidAdditionalTransfer();
+import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
+abstract contract Settlement is Validation {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                          STRUCTS                           */
+    /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct Details {
-        Starport.Loan loan;
-    }
-    /**
-     * @dev Enforces that the loan terms are identical except for the issuer
-     * The borrower is allowed to be any address
-     * No additional transfers from the issuer are permitted
-     * @param additionalTransfers The additional transfers to be made
-     * @param loan The loan terms
-     * @param caveatData The borrowers encoded details
-     */
+    Starport public immutable SP;
 
-    function validate(
-        AdditionalTransfer[] calldata additionalTransfers,
-        Starport.Loan calldata loan,
-        bytes calldata caveatData
-    ) public view virtual override returns (bytes4 selector) {
-        _validate(additionalTransfers, loan, abi.decode(caveatData, (Details)));
-        selector = CaveatEnforcer.validate.selector;
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(Starport SP_) {
+        SP = SP_;
     }
 
-    function _validate(
-        AdditionalTransfer[] calldata additionalTransfers,
-        Starport.Loan calldata loan,
-        Details memory details
-    ) internal pure {
-        details.loan.borrower = loan.borrower;
-        details.loan.originator = loan.originator;
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                      EXTERNAL FUNCTIONS                    */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-        if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) {
-            revert InvalidLoanTerms();
-        }
+    /*
+    * @dev Called by the Custodian after a loan has been settled
+    * @param loan The loan that has been settled
+    * @param fulfiller The address of the fulfiller
+    */
+    function postSettlement(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
 
-        if (additionalTransfers.length > 0) {
-            uint256 i = 0;
-            for (; i < additionalTransfers.length;) {
-                if (additionalTransfers[i].from == loan.issuer) revert InvalidAdditionalTransfer();
-                unchecked {
-                    ++i;
-                }
-            }
-        }
+    /*
+    * @dev Called by the Starport/Custodian after a loan has been repaid
+    * @param loan The loan that has been settled
+    * @param fulfiller The address of the fulfiller
+    */
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual returns (bytes4);
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*
+    * @dev helper to get the consideration for a loan
+    * @param loan The loan in question
+    * @return consideration The settlement consideration for the loan
+    * @return address The address of the authorized party (if any)
+    */
+    function getSettlementConsideration(Starport.Loan calldata loan)
+        public
+        view
+        virtual
+        returns (ReceivedItem[] memory consideration, address authorized);
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     FUNCTION OVERRIDES                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /*
+    * @dev standard erc1155 received hook
+    */
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external view returns (bytes4) {
+        return this.onERC1155Received.selector;
     }
 }

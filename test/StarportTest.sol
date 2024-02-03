@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 import "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Starport, Stargate} from "starport-core/Starport.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Pricing} from "starport-core/Pricing.sol";
 import {StrategistOriginator} from "starport-test/mocks/originators/StrategistOriginator.sol";
 import {
     ItemType,
@@ -30,7 +30,6 @@ import {Consideration} from "seaport-core/src/lib/Consideration.sol";
 //  ReferenceConsideration as Consideration
 //} from "seaport/reference/ReferenceConsideration.sol";
 
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import {Starport} from "starport-core/Starport.sol";
 
@@ -38,13 +37,13 @@ import {Actions} from "starport-core/lib/StarportLib.sol";
 import {BaseOrderTest} from "seaport/test/foundry/utils/BaseOrderTest.sol";
 import {ConsiderationItemLib} from "seaport/lib/seaport-sol/src/lib/ConsiderationItemLib.sol";
 import "seaport/lib/seaport-sol/src/lib/AdvancedOrderLib.sol";
-import {Status} from "starport-core/status/Status.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {Status} from "starport-core/Status.sol";
+import {Settlement} from "starport-core/Settlement.sol";
 import {TestERC721} from "seaport/contracts/test/TestERC721.sol";
 import {TestERC1155} from "seaport/contracts/test/TestERC1155.sol";
 import {TestERC20} from "seaport/contracts/test/TestERC20.sol";
 import {TokenReceiverInterface} from "starport-core/interfaces/TokenReceiverInterface.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
+import {Pricing} from "starport-core/Pricing.sol";
 
 import {BorrowerEnforcerBNPL} from "starport-test/mocks/enforcers/BorrowerEnforcerBNPL.sol";
 import {Cast} from "starport-test/utils/Cast.sol";
@@ -59,10 +58,9 @@ import {ERC1155} from "solady/src/tokens/ERC1155.sol";
 import {ContractOffererInterface} from "seaport-types/src/interfaces/ContractOffererInterface.sol";
 import {Actions} from "starport-core/lib/StarportLib.sol";
 
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
-
-import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {CaveatEnforcer} from "starport-core/CaveatEnforcer.sol";
+import {BorrowerEnforcer} from "starport-test/mocks/enforcers/BorrowerEnforcer.sol";
+import {LenderEnforcer} from "starport-test/mocks/enforcers/LenderEnforcer.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 interface IWETH9 {
@@ -116,8 +114,9 @@ contract StarportTest is BaseOrderTest, Stargate {
     uint256 defaultLoanDuration = 14 days;
 
     // 1% interest rate per second
-    bytes defaultPricingData =
-        abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 150, decimals: 18}));
+    bytes defaultPricingData = abi.encode(
+        SimpleInterestPricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 150, decimals: 18})
+    );
 
     bytes defaultSettlementData = abi.encode(
         DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
@@ -618,7 +617,8 @@ contract StarportTest is BaseOrderTest, Stargate {
         uint256 lenderBefore = erc20s[0].balanceOf(lender.addr);
         uint256 originatorBefore = erc20s[0].balanceOf(loan.originator);
 
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory details =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );

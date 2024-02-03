@@ -27,19 +27,41 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {Validation} from "../lib/Validation.sol";
+import {Starport} from "starport-core/Starport.sol";
 
-abstract contract Status is Validation {
+import {ItemType, ReceivedItem, SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+
+/*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+/*                          LIB ENUMS                         */
+/*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+enum Actions {
+    Nothing,
+    Origination,
+    Refinance,
+    Repayment,
+    Settlement
+}
+
+library RefStarportLib {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                      EXTERNAL FUNCTIONS                    */
+    /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    /*
-    * @dev Returns true if the loan is still active, false otherwise.
-    * @param loan The loan to check.
-    * @param extraData Additional data to be used in the status check.
-    * @return bool True if the loan is still active, false otherwise.
-    */
-    function isActive(Starport.Loan calldata loan, bytes calldata extraData) external view virtual returns (bool);
+    error InvalidSalt();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function validateSalt(
+        mapping(address => mapping(bytes32 => bool)) storage usedSalts,
+        address validator,
+        bytes32 salt
+    ) internal {
+        if (usedSalts[validator][salt]) {
+            revert InvalidSalt();
+        }
+        usedSalts[validator][salt] = true;
+    }
 }
