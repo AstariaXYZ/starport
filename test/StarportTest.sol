@@ -135,10 +135,10 @@ contract StarportTest is BaseOrderTest, Stargate {
     Custodian custodian;
     StrategistOriginator SO;
 
-    BorrowerEnforcer borrowerEnforcer;
+    CaveatEnforcer borrowerEnforcer;
     BorrowerEnforcerBNPL borrowerEnforcerBNPL;
 
-    LenderEnforcer lenderEnforcer;
+    CaveatEnforcer lenderEnforcer;
 
     //mock the test harness as stargate
     function getOwner(address) external view returns (address) {
