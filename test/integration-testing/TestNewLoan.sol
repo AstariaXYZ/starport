@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {BNPLHelper, IFlashLoanRecipient} from "starport-core/BNPLHelper.sol";
+import {BNPLHelper, IFlashLoanRecipient} from "starport-test/mocks/BNPLHelper.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
@@ -105,8 +105,9 @@ contract TestNewLoan is StarportTest {
     function testNewLoanRefinance() public {
         Starport.Loan memory loan = testNewLoanERC721CollateralDefaultTerms2();
         Starport.Loan memory refiLoan = loanCopy(loan);
-        bytes memory newPricingData =
-            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 100, decimals: 18}));
+        bytes memory newPricingData = abi.encode(
+            SimpleInterestPricing.Details({carryRate: (uint256(1e16) * 10), rate: uint256(1e16) * 100, decimals: 18})
+        );
         refiLoan.terms.pricingData = newPricingData;
         refiLoan.debt = SP.applyRefinanceConsiderationToLoan(loan.debt, new SpentItem[](0));
         LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});

@@ -6,12 +6,12 @@ import {LibString} from "solady/src/utils/LibString.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
 import "../utils/DeepEq.sol";
-import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {FixedTermStatus} from "starport-core/status/FixedTermStatus.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {DutchAuctionSettlement} from "starport-test/mocks/settlement/DutchAuctionSettlement.sol";
+import {FixedTermStatus} from "starport-test/mocks/status/FixedTermStatus.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
 
-contract MockBasePricing is BasePricing {
-    constructor(Starport SP_) Pricing(SP_) {}
+contract MockBasePricing is SimpleInterestPricing {
+    constructor(Starport SP_) SimpleInterestPricing(SP_) {}
 
     function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
         public
@@ -58,7 +58,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         badLoan.terms.statusData = abi.encode(FixedTermStatus.Details({loanDuration: 0}));
         badLoan.terms.settlementData =
             abi.encode(DutchAuctionSettlement.Details({startingPrice: 0, endingPrice: 0, window: 0}));
-        badLoan.terms.pricingData = abi.encode(BasePricing.Details({rate: 0, carryRate: 0, decimals: 0}));
+        badLoan.terms.pricingData = abi.encode(SimpleInterestPricing.Details({rate: 0, carryRate: 0, decimals: 0}));
         assertEq(
             Validation(loan.terms.status).validate(loan), Validation.validate.selector, "Loan has invalid status data"
         );

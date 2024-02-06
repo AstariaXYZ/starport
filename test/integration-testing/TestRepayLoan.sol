@@ -1,8 +1,7 @@
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
-import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {ZoneInteractionErrors} from "seaport-types/src/interfaces/ZoneInteractionErrors.sol";
 import "forge-std/console2.sol";
@@ -26,7 +25,8 @@ contract TestRepayLoan is StarportTest {
 
         vm.startPrank(borrower.addr);
         skip(10 days);
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory details =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
@@ -51,7 +51,8 @@ contract TestRepayLoan is StarportTest {
 
         {
             skip(10 days);
-            BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            SimpleInterestPricing.Details memory details =
+                abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
             uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
                 10 days, loan.debt[0].amount, details.rate, details.decimals
             );
@@ -123,7 +124,8 @@ contract TestRepayLoan is StarportTest {
 
         vm.startPrank(borrower.addr);
         skip(10 days);
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory details =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
@@ -177,7 +179,8 @@ contract TestRepayLoan is StarportTest {
 
         vm.startPrank(borrower.addr);
         skip(14 days + 1);
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory details =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );
@@ -246,7 +249,8 @@ contract TestRepayLoan is StarportTest {
 
         vm.startPrank(borrower.addr);
         skip(10 days);
-        BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        SimpleInterestPricing.Details memory details =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
             10 days, loan.debt[0].amount, details.rate, details.decimals
         );

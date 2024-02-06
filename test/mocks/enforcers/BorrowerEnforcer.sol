@@ -27,32 +27,67 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "../Starport.sol";
-import {DutchAuctionSettlement} from "../settlement/DutchAuctionSettlement.sol";
-import {FixedTermStatus} from "../status/FixedTermStatus.sol";
-import {Settlement} from "../settlement/Settlement.sol";
-import {StarportLib} from "../lib/StarportLib.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 
-contract FixedTermDutchAuctionSettlement is DutchAuctionSettlement {
-    using {StarportLib.getId} for Starport.Loan;
-    using FixedPointMathLib for uint256;
-
+contract BorrowerEnforcer is CaveatEnforcer {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                        CONSTRUCTOR                         */
+    /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_) DutchAuctionSettlement(SP_) {}
+    error BorrowerOnlyEnforcer();
+    error InvalidLoanTerms();
+    error InvalidAdditionalTransfer();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                      EXTERNAL FUNCTIONS                    */
+    /*                          STRUCTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    // @inheritdoc DutchAuctionSettlement
-    function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
-        FixedTermStatus.Details memory details = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
-        return loan.start + details.loanDuration;
+    struct Details {
+        Starport.Loan loan;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     FUNCTION OVERRIDES                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev Enforces that the loan terms are identical except for the issuer
+     * The issuer is allowed to be any address
+     * No additional transfers are permitted from the borrower
+     * @param additionalTransfers The additional transfers to be made
+     * @param loan The loan terms
+     * @param caveatData The borrowers encoded details
+     */
+    function validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        bytes calldata caveatData
+    ) public view virtual override returns (bytes4 selector) {
+        _validate(additionalTransfers, loan, abi.decode(caveatData, (Details)));
+        selector = CaveatEnforcer.validate.selector;
+    }
+
+    function _validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        Details memory details
+    ) internal pure {
+        details.loan.issuer = loan.issuer;
+        details.loan.originator = loan.originator;
+        if (keccak256(abi.encode(loan)) != keccak256(abi.encode(details.loan))) revert InvalidLoanTerms();
+
+        if (additionalTransfers.length > 0) {
+            uint256 i = 0;
+            for (; i < additionalTransfers.length;) {
+                if (additionalTransfers[i].from == loan.borrower) revert InvalidAdditionalTransfer();
+                unchecked {
+                    ++i;
+                }
+            }
+        }
     }
 }

@@ -35,13 +35,13 @@ import {
     OrderParameters
 } from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {Pricing} from "../pricing/Pricing.sol";
+import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Starport, Settlement} from "../settlement/Settlement.sol";
+import {Starport, Settlement} from "starport-core/settlement/Settlement.sol";
 
-import {BasePricing} from "../pricing/BasePricing.sol";
-import {Validation} from "../lib/Validation.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 // DutchAuctionSettlement is not full compatible with all debt assets supported by Starport
 // DutchAuctionSettlement makes the assumption that the loan.debt consists on an array size 1 containing only ERC-20s
@@ -136,8 +136,9 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
             roundUp: true
         });
 
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest = BasePricing(loan.terms.pricing).getInterest(
+        SimpleInterestPricing.Details memory pricingDetails =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
+        uint256 interest = SimpleInterestPricing(loan.terms.pricing).getInterest(
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
 

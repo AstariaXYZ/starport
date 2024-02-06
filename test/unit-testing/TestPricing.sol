@@ -8,8 +8,7 @@ import {Originator} from "starport-core/originators/Originator.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {SimpleInterestPricing} from "starport-core/pricing/SimpleInterestPricing.sol";
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
 
 contract TestSimpleInterestPricing is StarportTest, DeepEq {
     using Cast for *;
@@ -39,7 +38,7 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
                 settlement: address(settlement),
                 pricing: address(pricing),
                 pricingData: abi.encode(
-                    BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150), decimals: 18})
+                    SimpleInterestPricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150), decimals: 18})
                     ),
                 settlementData: abi.encode(
                     DutchAuctionSettlement.Details({startingPrice: uint256(500 ether), endingPrice: 100 wei, window: 7 days})
@@ -118,7 +117,9 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
 
         simplePricing.getRefinanceConsideration(
             targetLoan,
-            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2, decimals: 18})),
+            abi.encode(
+                SimpleInterestPricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate / 2, decimals: 18})
+            ),
             address(0)
         );
 
@@ -126,7 +127,9 @@ contract TestSimpleInterestPricing is StarportTest, DeepEq {
 
         simplePricing.getRefinanceConsideration(
             targetLoan,
-            abi.encode(BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2, decimals: 18})),
+            abi.encode(
+                SimpleInterestPricing.Details({carryRate: (uint256(1e16) * 10), rate: baseRate * 2, decimals: 18})
+            ),
             address(0)
         );
     }
