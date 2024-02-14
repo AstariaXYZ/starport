@@ -108,34 +108,6 @@ contract TestRepayLoan is StarportTest {
         });
     }
 
-    function testRepayLoanApprovedRepayer() public {
-        uint256 borrowAmount = 1e18;
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(status),
-            settlement: address(settlement),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            settlementData: defaultSettlementData,
-            statusData: defaultStatusData
-        });
-
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: borrowAmount, terms: terms});
-
-        vm.startPrank(borrower.addr);
-        skip(10 days);
-        SimpleInterestPricing.Details memory details =
-            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
-        uint256 interest = SimpleInterestPricing(loan.terms.pricing).calculateInterest(
-            10 days, loan.debt[0].amount, details.rate, details.decimals
-        );
-        erc20s[0].approve(address(consideration), loan.debt[0].amount + interest);
-        custodian.mintWithApprovalSet(loan, address(this));
-        vm.stopPrank();
-
-        _repayLoan(loan, address(this));
-    }
-
     // calling generateOrder on the Custodian to test the onlySeaport modifier
     function testRepayLoanGenerateOrderNotSeaport() public {
         Starport.Terms memory terms = Starport.Terms({

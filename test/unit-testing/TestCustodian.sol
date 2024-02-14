@@ -57,7 +57,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         super.setUp();
 
         Starport.Loan memory loan = newLoanWithDefaultTerms(false);
-        Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
         skip(1);
@@ -66,22 +65,8 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     function testNonPayableFunctions() public {
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(Custodian.tokenURI.selector, uint256(0))
-        );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
-            abi.encodeWithSelector(Custodian.getBorrower.selector, uint256(0))
-        );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(
             abi.encodeWithSelector(Custodian.supportsInterface.selector, bytes4(0))
         );
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.name.selector));
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.symbol.selector));
-        vm.expectRevert();
-        payable(address(custodian)).call{value: 1 ether}(abi.encodeWithSelector(Custodian.mint.selector, activeLoan));
         vm.expectRevert();
         payable(address(custodian)).call{value: 1 ether}(
             abi.encodeWithSelector(
@@ -122,84 +107,10 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         );
     }
 
-    function testName() public {
-        assertEq(custodian.name(), "Starport Custodian");
-    }
-
-    function testSymbol() public {
-        assertEq(custodian.symbol(), "SC");
-    }
-
-    function testTokenURI() public {
-        string memory expected = string(
-            abi.encodePacked(
-                "https://astaria.xyz/metadata/loan/", LibString.toString(uint256(keccak256(abi.encode(activeLoan))))
-            )
-        );
-        assertEq(custodian.tokenURI(uint256(keccak256(abi.encode(activeLoan)))), expected);
-    }
-
-    function testTokenURIInvalidLoan() public {
-        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
-        custodian.tokenURI(uint256(0));
-    }
-
     event Approval(address owner, address account, uint256 id);
-
-    function testMintWithApprovalSetAsBorrower() public {
-        Starport.Loan memory loan = generateDefaultLoanTerms();
-        loan.collateral[0].identifier = uint256(3);
-
-        newLoan(loan, bytes32(msg.sig), bytes32(msg.sig), borrower.addr);
-        loan.start = block.timestamp;
-        loan.originator = borrower.addr;
-        //        vm.expectEmit();
-        //        emit Transfer(address(0), borrower.addr, loan.getId());
-        //        vm.expectEmit(address(custodian));
-        //        emit Approval(loan.borrower, address(this), loan.getId());
-        vm.prank(borrower.addr);
-        Custodian(custodian).mintWithApprovalSet(loan, address(this));
-        assert(Custodian(custodian).getApproved(loan.getId()) == address(this));
-    }
-
-    function testMintWithApprovalSetAsBorrowerInvalidLoan() public {
-        Starport.Loan memory loan = generateDefaultLoanTerms();
-        loan.collateral[0].identifier = uint256(3);
-        loan.start = block.timestamp;
-        loan.originator = borrower.addr;
-        loan.custodian = address(this);
-        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
-        vm.prank(borrower.addr);
-        Custodian(custodian).mintWithApprovalSet(loan, address(this));
-    }
-
-    function testMintWithApprovalSetNotAuthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Custodian.NotAuthorized.selector));
-        Custodian(custodian).mintWithApprovalSet(activeLoan, address(this));
-    }
-
-    function testCannotMintInvalidLoanValidCustodian() public {
-        activeLoan.borrower = address(0);
-        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
-        Custodian(custodian).mint(activeLoan);
-    }
-
-    function testCannotMintInvalidLoanInvalidCustodian() public {
-        activeLoan.custodian = address(0);
-        vm.expectRevert(abi.encodeWithSelector(Custodian.InvalidLoan.selector));
-        Custodian(custodian).mint(activeLoan);
-    }
-
-    function testCannotLazyMintTwice() public {
-        vm.expectRevert(abi.encodeWithSelector(ERC721.TokenAlreadyExists.selector));
-        Custodian(custodian).mint(activeLoan);
-    }
 
     function testSupportsInterface() public {
         assertTrue(custodian.supportsInterface(type(ContractOffererInterface).interfaceId));
-        assertTrue(custodian.supportsInterface(type(ERC721).interfaceId));
-        assertTrue(custodian.supportsInterface(bytes4(0x5b5e139f)));
-        assertTrue(custodian.supportsInterface(bytes4(0x01ffc9a7)));
     }
 
     function testOnlySeaport() public {
@@ -213,10 +124,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
     //TODO: make this test meaningful
     function testSeaportMetadata() public view {
         custodian.getSeaportMetadata();
-    }
-
-    function testGetBorrower() public {
-        assertEq(custodian.getBorrower(activeLoan.toMemory()), activeLoan.borrower);
     }
 
     function testCustodySelector() public {
@@ -236,19 +143,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         vm.prank(seaportAddr);
         custodian.generateOrder(
             activeLoan.borrower,
-            new SpentItem[](0),
-            activeDebt,
-            abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))
-        );
-    }
-    //TODO: add assertions
-
-    function testGenerateOrderRepayAsRepayApprovedBorrower() public {
-        vm.prank(activeLoan.borrower);
-        custodian.approve(address(this), activeLoan.getId());
-        vm.prank(seaportAddr);
-        custodian.generateOrder(
-            address(this),
             new SpentItem[](0),
             activeDebt,
             abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))

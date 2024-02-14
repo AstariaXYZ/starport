@@ -274,7 +274,6 @@ contract TestStarport is StarportTest, DeepEq {
         super.setUp();
         mockCustodian = new MockCustodian(SP, address(seaport));
         Starport.Loan memory loan = newLoanWithDefaultTerms();
-        Custodian(custodian).mint(loan);
 
         loan.toStorage(activeLoan);
     }

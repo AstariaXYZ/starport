@@ -42,7 +42,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {LibString} from "solady/src/utils/LibString.sol";
 
-contract Custodian is ERC721, ContractOffererInterface {
+contract Custodian is ContractOffererInterface {
     using {StarportLib.getId} for Starport.Loan;
     using {LibString.concat} for string;
 
@@ -101,49 +101,6 @@ contract Custodian is ERC721, ContractOffererInterface {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev The name of the ERC721 contract
-     * @return string The name of the contract
-     */
-    function name() public pure override returns (string memory) {
-        return "Starport Custodian";
-    }
-
-    /**
-     * @dev The symbol of the ERC721 contract
-     * @return string The symbol of the contract
-     */
-    function symbol() public pure override returns (string memory) {
-        return "SC";
-    }
-
-    /**
-     * @dev ERC-721 tokenURI override
-     * @param loanId The id of the custody token/loan
-     * @return string URI of the custody token/loan
-     */
-    function tokenURI(uint256 loanId) public view override returns (string memory) {
-        if (!_exists(loanId)) {
-            revert InvalidLoan();
-        }
-        return string("https://astaria.xyz/metadata/loan/").concat(LibString.toString(loanId));
-    }
-
-    /**
-     * @dev Helper to determine if an interface is supported by this contract
-     * @param interfaceId The interface to check
-     * @return bool Returns true if the interface is supported
-     */
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override (ERC721, ContractOffererInterface)
-        returns (bool)
-    {
-        return interfaceId == type(ERC721).interfaceId || interfaceId == type(ContractOffererInterface).interfaceId
-            || super.supportsInterface(interfaceId);
-    }
-
-    /**
      * @dev onERC1155Received handler, if we are able to increment the counter
      * in seaport that means we have not entered into seaport we dont add for
      * ERC-721 as they are able to ignore the on handler call as apart of the spec
@@ -156,38 +113,6 @@ contract Custodian is ERC721, ContractOffererInterface {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                      EXTERNAL FUNCTIONS                    */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /**
-     * @dev Mints a custody token for a loan.
-     * @param loan The loan to mint a custody token for
-     */
-    function mint(Starport.Loan calldata loan) external {
-        _validateAndMint(loan);
-    }
-
-    /**
-     * @dev Mints a custody token for a loan.
-     * @param loan The loan to mint a custody token for
-     * @param approvedTo The address with pre approvals set
-     */
-    function mintWithApprovalSet(Starport.Loan calldata loan, address approvedTo) external {
-        if (msg.sender != loan.borrower) {
-            revert NotAuthorized();
-        }
-        _approve(loan.borrower, approvedTo, _validateAndMint(loan));
-    }
-
-    /**
-     * @dev internal helper that validates and mints a custody token for a loan.
-     * @param loan The loan to mint a custody token for
-     */
-    function _validateAndMint(Starport.Loan calldata loan) internal returns (uint256 loanId) {
-        loanId = loan.getId();
-        if (loan.custodian != address(this) || SP.closed(loanId)) {
-            revert InvalidLoan();
-        }
-        _safeMint(loan.borrower, loanId);
-    }
 
     /**
      * @dev Generates the order for this contract offerer
@@ -222,7 +147,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         }
         bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
         if (close.action == Actions.Repayment && loanActive) {
-            if (fulfiller != getBorrower(loan) && fulfiller != _getApproved(loan.getId())) {
+            if (fulfiller != loan.borrower) {
                 revert InvalidRepayer();
             }
 
@@ -292,13 +217,12 @@ contract Custodian is ERC721, ContractOffererInterface {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
-     * @dev Fetches the borrower of the loan, first checks to see if we've minted the token for the loan
-     * @param loan Loan to get the borrower of
-     * @return address The address of the loan borrower(returns the ownerOf the token if any) defaults to loan.borrower
+     * @dev Helper to determine if an interface is supported by this contract
+     * @param interfaceId The interface to check
+     * @return bool Returns true if the interface is supported
      */
-    function getBorrower(Starport.Loan memory loan) public view returns (address) {
-        uint256 loanId = loan.getId();
-        return _exists(loanId) ? ownerOf(loanId) : loan.borrower;
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return interfaceId == type(ContractOffererInterface).interfaceId;
     }
 
     /**
@@ -324,7 +248,7 @@ contract Custodian is ERC721, ContractOffererInterface {
         }
         bool loanActive = Status(loan.terms.status).isActive(loan, close.extraData);
         if (close.action == Actions.Repayment && loanActive) {
-            if (fulfiller != getBorrower(loan) && fulfiller != _getApproved(loan.getId())) {
+            if (fulfiller != loan.borrower) {
                 revert InvalidRepayer();
             }
             offer = loan.collateral;
@@ -453,10 +377,6 @@ contract Custodian is ERC721, ContractOffererInterface {
      */
     function _settleLoan(Starport.Loan memory loan) internal virtual {
         _beforeSettleLoanHook(loan);
-        uint256 loanId = loan.getId();
-        if (_exists(loanId)) {
-            _burn(loanId);
-        }
         SP.settle(loan);
         _afterSettleLoanHook(loan);
     }
