@@ -107,24 +107,23 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.stopPrank();
     }
 
-    function boundPricingData(bytes memory boundPricingData, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        internal
-        view
-        virtual
-        returns (bytes memory pricingData)
-    {
-        uint256 min = abi.decode(boundPricingData, (uint256));
+    function boundPricingData(bytes memory boundPricingData) internal view virtual returns (bytes memory pricingData) {
+        (uint256 rate, uint256 carryRate, uint256 decimals) = abi.decode(boundPricingData, (uint256, uint256, uint256));
+
+        decimals = _boundMax(decimals, 18);
+
         SimpleInterestPricing.Details memory details = SimpleInterestPricing.Details({
-            rate: _boundMax(min, (uint256(1e16) * 150)),
-            carryRate: _boundMax(fuzzCarryRate, uint256((1e16 * 100))),
-            decimals: _boundMax(fuzzDecimals, 18)
+            rate: _bound(rate, 1, 10 ** (decimals + 1)), // 1000% interest rate
+            carryRate: _boundMax(carryRate, 10 ** decimals),
+            decimals: decimals
         });
         pricingData = abi.encode(details);
     }
 
     function boundStatusData(bytes memory boundStatusData) internal view virtual returns (bytes memory statusData) {
+        uint256 duration = abi.decode(boundStatusData, (uint256));
         FixedTermStatus.Details memory boundDetails =
-            FixedTermStatus.Details({loanDuration: _boundMax(1 hours, 1095 days)});
+            FixedTermStatus.Details({loanDuration: _bound(duration, 1 hours, 1095 days)});
         statusData = abi.encode(boundDetails);
     }
 
@@ -134,35 +133,39 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         virtual
         returns (bytes memory settlementData)
     {
+        (uint256 startingPrice, uint256 endingPrice, uint256 window) =
+            abi.decode(boundSettlementData, (uint256, uint256, uint256));
+
+        startingPrice = _bound(startingPrice, 0.1 ether, 1000 ether);
+
         DutchAuctionSettlement.Details memory boundDetails = DutchAuctionSettlement.Details({
-            startingPrice: _boundMax(501 ether, 1000 ether),
-            endingPrice: _boundMax(1 ether, 500 ether),
-            window: _boundMax(1 days, 100 days)
+            startingPrice: startingPrice,
+            endingPrice: _boundMax(endingPrice, startingPrice - 1),
+            window: _bound(window, 1, 100 days)
         });
+
         settlementData = abi.encode(boundDetails);
     }
 
-    function boundFuzzLenderTerms(bytes memory loanBoundsData, uint256 fuzzCarryRate, uint256 fuzzDecimals)
+    function boundFuzzLenderTerms(FuzzLoanTerms memory params)
         internal
         view
         virtual
         returns (Starport.Terms memory terms)
     {
-        LoanBounds memory loanBounds = abi.decode(loanBoundsData, (LoanBounds));
         terms.status = address(status);
         terms.settlement = address(settlement);
         terms.pricing = address(pricing);
-        terms.pricingData = boundPricingData(abi.encode(loanBounds.minPricing), fuzzCarryRate, fuzzDecimals);
-        terms.statusData = boundStatusData("");
-        terms.settlementData = boundSettlementData("");
+        terms.pricingData = boundPricingData(abi.encode(params.rate, params.carryRate, params.decimals));
+        terms.statusData = boundStatusData(abi.encode(params.loanDuration));
+        terms.settlementData = boundSettlementData(abi.encode(params.startingPrice, params.endingPrice, params.window));
     }
 
     struct FuzzLoan {
         bool feesOn;
         address fulfiller;
         uint256 debtAmount;
-        uint256 rate;
-        uint256 carryRate;
+        FuzzLoanTerms fuzzTerms;
         uint256 collateralLength;
         Fuzz.SpentItem[] collateral; //array of collateral
         uint8 fulfillerType;
@@ -190,22 +193,17 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         uint256 skipTime;
     }
 
-    function boundFuzzLoan(
-        FuzzLoan memory params,
-        bytes memory loanBoundsData,
-        uint256 fuzzCarryRate,
-        uint256 fuzzDecimals
-    ) internal virtual returns (Starport.Loan memory loan) {
-        LoanBounds memory loanBounds = abi.decode(loanBoundsData, (LoanBounds));
-        uint256 length = _boundMax(1, 4);
-        loan.terms = boundFuzzLenderTerms(loanBoundsData, fuzzCarryRate, fuzzDecimals);
-        uint256 i = 0;
-        if (length > params.collateral.length) {
-            length = params.collateral.length;
-        }
-        SpentItem[] memory ret = new SpentItem[](length);
+    function boundFuzzLoan(FuzzLoan memory params) internal virtual returns (Starport.Loan memory loan) {
+        loan.terms = boundFuzzLenderTerms(params.fuzzTerms);
 
-        for (; i < length; i++) {
+        vm.assume(params.collateral.length != 0);
+
+        params.collateralLength =
+            _bound(params.collateralLength, 1, params.collateral.length < 4 ? params.collateral.length : 4);
+
+        SpentItem[] memory ret = new SpentItem[](params.collateralLength);
+
+        for (uint256 i; i < params.collateralLength; i++) {
             ret[i] = _boundSpentItem(params.collateral[i]);
         }
         loan.collateral = ret;
@@ -254,15 +252,18 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         }
     }
 
-    function testFuzzNewOrigination(FuzzLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-        virtual
-    {
-        _generateGoodLoan(params, fuzzCarryRate, fuzzDecimals);
+    function testFuzzNewOrigination(FuzzLoan memory params) public virtual {
+        _generateGoodLoan(params);
     }
 
-    struct LoanBounds {
-        uint256 minPricing;
+    struct FuzzLoanTerms {
+        uint256 rate;
+        uint256 carryRate;
+        uint256 decimals;
+        uint256 loanDuration;
+        uint256 startingPrice;
+        uint256 endingPrice;
+        uint256 window;
     }
 
     struct Balances {
@@ -271,14 +272,9 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         uint256[] borrowerReceivedDebt;
     }
 
-    function fuzzNewLoanOrigination(
-        FuzzLoan memory params,
-        bytes memory loanBoundsData,
-        uint256 fuzzCarryRate,
-        uint256 fuzzDecimals
-    ) internal returns (Starport.Loan memory goodLoan) {
+    function fuzzNewLoanOrigination(FuzzLoan memory params) internal returns (Starport.Loan memory goodLoan) {
         vm.assume(params.collateral.length > 1);
-        Starport.Loan memory loan = boundFuzzLoan(params, loanBoundsData, fuzzCarryRate, fuzzDecimals);
+        Starport.Loan memory loan = boundFuzzLoan(params);
         vm.assume(!willArithmeticOverflow(loan));
 
         address feeReceiver = address(20);
@@ -321,11 +317,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         Fuzz.SpentItem[10] memory collateral,
         Fuzz.SpentItem[10] memory debt,
         address[3] memory badAddresses,
-        uint256 fuzzCarryRate,
-        uint256 fuzzDecimals
+        FuzzLoanTerms memory fuzzLoanTerms
     ) public virtual returns (Starport.Loan memory loan) {
         uint256 length = _boundMin(0, collateral.length);
-        loan.terms = boundFuzzLenderTerms(abi.encode(LoanBounds(0)), fuzzCarryRate, fuzzDecimals);
+        loan.terms = boundFuzzLenderTerms(fuzzLoanTerms);
         uint256 i = 0;
         SpentItem[] memory ret = new SpentItem[](length);
 
@@ -356,12 +351,8 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         bool wrongCommand;
     }
 
-    function testFuzzCustodianGeneratePreviewOrder(
-        FuzzCustodian memory params,
-        uint256 fuzzCarryRate,
-        uint256 fuzzDecimals
-    ) public {
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+    function testFuzzCustodianGeneratePreviewOrder(FuzzCustodian memory params) public {
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
 
         Custodian.Command memory cmd;
 
@@ -400,10 +391,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         }
     }
 
-    function testFuzzLoanState(FuzzRepaymentLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals) public {
+    function testFuzzLoanState(FuzzRepaymentLoan memory params) public {
         Starport.Loan memory badLoan =
-            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, fuzzCarryRate, fuzzDecimals);
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, params.origination.fuzzTerms);
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
 
         badLoan.start = goodLoan.start;
         badLoan.originator = goodLoan.originator;
@@ -415,12 +406,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         assert(!SP.open(badLoan.getId()));
     }
 
-    function testFuzzRepaymentFails(FuzzRepaymentLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-    {
+    function testFuzzRepaymentFails(FuzzRepaymentLoan memory params) public {
         Starport.Loan memory badLoan =
-            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, fuzzCarryRate, fuzzDecimals);
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, params.origination.fuzzTerms);
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
 
         badLoan.collateral = goodLoan.collateral;
         badLoan.debt = goodLoan.debt;
@@ -464,10 +453,8 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.stopPrank();
     }
 
-    function testFuzzRepaymentSuccess(FuzzRepaymentLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-    {
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+    function testFuzzRepaymentSuccess(FuzzRepaymentLoan memory params) public {
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
         _skipToRepayment(goodLoan);
 
         (SpentItem[] memory offer, ReceivedItem[] memory paymentConsideration) = Custodian(payable(goodLoan.custodian))
@@ -505,12 +492,10 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.stopPrank();
     }
 
-    function testFuzzSettlementFails(FuzzRepaymentLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-    {
+    function testFuzzSettlementFails(FuzzRepaymentLoan memory params) public {
         Starport.Loan memory badLoan =
-            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, fuzzCarryRate, fuzzDecimals);
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+            boundBadLoan(params.repayCollateral, params.repayDebt, params.badAddresses, params.origination.fuzzTerms);
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
 
         badLoan.collateral = goodLoan.collateral;
         badLoan.debt = goodLoan.debt;
@@ -556,33 +541,28 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.stopPrank();
     }
 
-    function _generateGoodLoan(FuzzLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        internal
-        virtual
-        returns (Starport.Loan memory)
-    {
-        return fuzzNewLoanOrigination(params, abi.encode(LoanBounds(0)), fuzzCarryRate, fuzzDecimals);
+    function _generateGoodLoan(FuzzLoan memory params) internal virtual returns (Starport.Loan memory) {
+        return fuzzNewLoanOrigination(params);
     }
 
     function _skipToSettlement(Starport.Loan memory goodLoan) internal virtual {
         FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
 
-        skip(
-            _bound(
-                0, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1, uint256(1000 days)
-            )
-        );
+        skip(abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1);
+
+        // skip(
+        //     _bound(
+        //         0, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1, uint256(1000 days)
+        //     )
+        // );
     }
 
     function _skipToRepayment(Starport.Loan memory goodLoan) internal virtual {
         skip(_boundMax(1, abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration));
     }
 
-    function testFuzzSettlementSuccess(FuzzSettleLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-        virtual
-    {
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination, fuzzCarryRate, fuzzDecimals);
+    function testFuzzSettlementSuccess(FuzzSettleLoan memory params) public virtual {
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
 
         address filler = _toAddress(_boundMin(_toUint(params.origination.fulfiller), 100));
         vm.assume(filler.code.length == 0);
@@ -625,20 +605,15 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
         vm.stopPrank();
     }
 
-    function testFuzzRefinance(FuzzRefinanceLoan memory params, uint256 fuzzCarryRate, uint256 fuzzDecimals)
-        public
-        virtual
-    {
-        Starport.Loan memory goodLoan =
-            fuzzNewLoanOrigination(params.origination, abi.encode(LoanBounds(1)), fuzzCarryRate, fuzzDecimals);
+    function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual {
+        Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination);
 
         SimpleInterestPricing.Details memory oldDetails =
             abi.decode(goodLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
-        uint256 newRate = _boundMax(oldDetails.rate - 1, (uint256(1e16) * 1000) / (365 * 1 days));
         SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
-            rate: newRate,
-            carryRate: _boundMax(fuzzCarryRate, uint256((1e16 * 100))),
+            rate: _boundMax(params.newRate, oldDetails.rate - 1),
+            carryRate: _boundMax(params.newCarryRate, 10 ** oldDetails.decimals),
             decimals: oldDetails.decimals
         });
         Account memory account = makeAndAllocateAccount(params.refiKey);
@@ -681,9 +656,6 @@ contract TestFuzzStarport is StarportTest, Bound, DeepEq {
             enforcer: address(lenderEnforcer)
         });
         {
-            if (newRate > oldDetails.rate) {
-                vm.expectRevert();
-            }
             vm.prank(refiFulfiller);
             SP.refinance(
                 account.addr,
