@@ -58,7 +58,7 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
 
     function _boundSettlementData() internal virtual returns (bytes memory settlementData);
 
-    function _boundRefinanceData(bytes memory oldPricing) internal virtual returns (bytes memory newPricing);
+    function _boundRefinanceData(Starport.Loan memory loan) internal virtual returns (bytes memory newPricing);
 
     function _boundFuzzLenderTerms() internal virtual returns (Starport.Terms memory terms) {
         terms.status = address(status);
@@ -496,7 +496,7 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
         SimpleInterestPricing.Details memory oldDetails =
             abi.decode(goodLoan.terms.pricingData, (SimpleInterestPricing.Details));
 
-        bytes memory newPricingDetails = _boundRefinanceData(goodLoan.terms.pricingData);
+        bytes memory newPricingDetails = _boundRefinanceData(goodLoan);
 
         Account memory account = makeAndAllocateAccount(params.refiKey);
 
