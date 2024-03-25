@@ -1,15 +1,17 @@
-import "starport-test/StarportTest.sol";
-import "starport-test/utils/Bound.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {DeepEq} from "../utils/DeepEq.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import {ERC20 as RariERC20} from "@rari-capital/solmate/src/tokens/ERC20.sol";
-import {BaseFuzzStarport} from "starport-test/fuzz-testing/BaseFuzzStarport.sol";
+// SPDX-License-Identifier: MIT
+import {
+    BaseFuzzStarport,
+    Starport,
+    CaveatEnforcer,
+    AdditionalTransfer,
+    SpentItem
+} from "starport-test/fuzz-testing/BaseFuzzStarport.sol";
+
+import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestPricing.sol";
+import {FixedTermStatus} from "starport-test/mocks/status/FixedTermStatus.sol";
+import {DutchAuctionSettlement} from "starport-test/mocks/settlement/DutchAuctionSettlement.sol";
 
 contract TestFuzzStarport is BaseFuzzStarport {
-    using FixedPointMathLib for uint256;
-    using {StarportLib.getId} for Starport.Loan;
-
     function _boundPricingData() internal virtual override returns (bytes memory pricingData) {
         uint256 decimals = _boundMax(_random(), 18);
 
@@ -37,8 +39,14 @@ contract TestFuzzStarport is BaseFuzzStarport {
         settlementData = abi.encode(boundDetails);
     }
 
-    function _boundRefinanceData(bytes memory oldPricing) internal virtual override returns (bytes memory newPricing) {
-        SimpleInterestPricing.Details memory oldDetails = abi.decode(oldPricing, (SimpleInterestPricing.Details));
+    function _boundRefinanceData(Starport.Loan memory loan)
+        internal
+        virtual
+        override
+        returns (bytes memory newPricing)
+    {
+        SimpleInterestPricing.Details memory oldDetails =
+            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
 
         newPricing = abi.encode(
             SimpleInterestPricing.Details({
