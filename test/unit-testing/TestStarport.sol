@@ -254,6 +254,10 @@ contract MockCustodian is Custodian {
     }
 }
 
+contract MockStarport is Starport {
+    constructor(address seaport_, Stargate stargate_, address owner_) Starport(seaport_, stargate_, owner_) {}
+}
+
 contract TestStarport is StarportTest, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
@@ -308,6 +312,35 @@ contract TestStarport is StarportTest, DeepEq {
 
     function testStargateGetOwner() public {
         assertEq(address(borrower.addr), SP.SG().getOwner(address(this)));
+    }
+
+    function testConstructor() public {
+        MockStarport mockStarport = new MockStarport(address(consideration), Stargate(address(this)), address(this));
+
+        assertEq(address(mockStarport.SG()), address(this));
+        assertEq(mockStarport.chainId(), block.chainid);
+        assertEq(mockStarport.owner(), address(this));
+
+        address mockCustodianAddressDeplyedInConstructor = address(
+            uint160(
+                uint256(keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), address(mockStarport), bytes1(0x01))))
+            )
+        );
+        bytes32 defaultCustodianCodeHash;
+        assembly ("memory-safe") {
+            defaultCustodianCodeHash := extcodehash(mockCustodianAddressDeplyedInConstructor)
+        }
+
+        assertEq(mockStarport.DEFAULT_CUSTODIAN_CODE_HASH(), defaultCustodianCodeHash);
+    }
+
+    function testDomainSeparator() public {
+        assertEq(SP.domainSeparator(), SP.CACHED_DOMAIN_SEPARATOR());
+
+        vm.chainId(420);
+        assertEq(
+            SP.domainSeparator(), keccak256(abi.encode(SP.EIP_DOMAIN(), SP.NAME(), SP.VERSION(), 420, address(SP)))
+        );
     }
 
     function testAcquireTokensSuccess() public {
@@ -463,7 +496,6 @@ contract TestStarport is StarportTest, DeepEq {
         CaveatEnforcer.SignedCaveats memory borrowerCaveat;
 
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        //        Starport.Loan memory copy = loanCopy(loan);
         loan.collateral[0].identifier = uint256(2);
         loan.custodian = address(mockCustodian);
         CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
@@ -474,14 +506,7 @@ contract TestStarport is StarportTest, DeepEq {
         });
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
-        //        copy.start = block.timestamp;
-        //        copy.originator = loan.borrower;
-        //        vm.mockCall(
-        //            address(mockCustodian),
-        //            abi.encodeWithSelector(MockCustodian.custody.selector, copy),
-        //            abi.encode(MockCustodian.custody.selector)
-        //        );
-        //todo: no idea why the mock doesnt work
+
         mockCustodian.setReturnValidSelector(true);
         vm.startPrank(loan.borrower);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
@@ -1092,6 +1117,22 @@ contract TestStarport is StarportTest, DeepEq {
         skip(1);
         vm.startPrank(lender.addr);
         vm.expectRevert(abi.encodeWithSelector(Starport.UnauthorizedAdditionalTransferIncluded.selector));
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
+    }
+
+    function testInvalidLoanStateRefinance() public {
+        SimpleInterestPricing.Details memory currentPricing =
+            abi.decode(activeLoan.terms.pricingData, (SimpleInterestPricing.Details));
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
+            rate: currentPricing.rate - 1,
+            carryRate: currentPricing.carryRate,
+            decimals: 18
+        });
+        bytes memory newPricingData = abi.encode(newPricingDetails);
+        skip(1);
+        vm.mockCall(activeLoan.terms.status, abi.encodeWithSelector(Status.isActive.selector), abi.encode(false));
+        vm.startPrank(lender.addr);
+        vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoanState.selector));
         SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
     }
 }

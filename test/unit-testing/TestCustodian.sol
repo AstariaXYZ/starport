@@ -119,6 +119,20 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
 
         vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
         custodian.generateOrder(address(this), new SpentItem[](0), new SpentItem[](0), new bytes(0));
+
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotSeaport.selector));
+        custodian.previewOrder(
+            address(420),
+            activeLoan.borrower,
+            new SpentItem[](0),
+            activeDebt,
+            abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))
+        );
+    }
+
+    function testOnlyStarport() public {
+        vm.expectRevert(abi.encodeWithSelector(Custodian.NotStarport.selector));
+        custodian.custody(activeLoan);
     }
 
     //TODO: make this test meaningful
@@ -138,8 +152,10 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         custodian.custody(activeLoan);
     }
 
-    //TODO: add assertions
     function testGenerateOrderRepay() public {
+        assertEq(SP.open(activeLoan.getId()), true);
+        assertEq(SP.closed(activeLoan.getId()), false);
+
         vm.prank(seaportAddr);
         custodian.generateOrder(
             activeLoan.borrower,
@@ -147,6 +163,9 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
             activeDebt,
             abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""))
         );
+
+        assertEq(SP.open(activeLoan.getId()), false);
+        assertEq(SP.closed(activeLoan.getId()), true);
     }
 
     function testGenerateOrdersWithLoanStartAtBlockTimestampInvalidLoan() public {
@@ -311,7 +330,6 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         );
     }
 
-    //TODO: add assertions
     function testRatifyOrder() public {
         vm.startPrank(seaportAddr);
         bytes memory context = abi.encode(Custodian.Command(Actions.Repayment, activeLoan, ""));
@@ -319,7 +337,9 @@ contract TestCustodian is StarportTest, DeepEq, MockCall {
         (SpentItem[] memory offer, ReceivedItem[] memory consideration) =
             custodian.generateOrder(activeLoan.borrower, new SpentItem[](0), activeDebt, context);
 
-        custodian.ratifyOrder(offer, consideration, context, new bytes32[](0), 0);
+        bytes4 magicValue = custodian.ratifyOrder(offer, consideration, context, new bytes32[](0), 0);
+
+        assertEq(magicValue, ContractOffererInterface.ratifyOrder.selector);
 
         vm.stopPrank();
     }
