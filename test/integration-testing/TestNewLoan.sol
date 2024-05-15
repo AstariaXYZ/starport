@@ -45,6 +45,7 @@ contract FlashLoan {
 
         // Used to ensure `tokens` is sorted in ascending order, which ensures token uniqueness.
         ERC20 previousToken = ERC20(address(0));
+        previousToken;
 
         for (uint256 i = 0; i < tokens.length; ++i) {
             ERC20 token = ERC20(tokens[i]);
@@ -126,7 +127,7 @@ contract TestNewLoan is StarportTest {
             statusData: defaultStatusData
         });
 
-        return _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+        return _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
     }
 
     function testNewLoanRefinance() public {
@@ -397,7 +398,7 @@ contract TestNewLoan is StarportTest {
             SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), amount: 600 ether, identifier: 0})
         );
 
-        (ReceivedItem[] memory settlementConsideration, address authorized) =
+        (ReceivedItem[] memory settlementConsideration,) =
             Settlement(activeLoan.terms.settlement).getSettlementConsideration(activeLoan);
         settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
         ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
@@ -451,6 +452,7 @@ contract TestNewLoan is StarportTest {
         uint256 initial721Balance = erc721s[0].balanceOf(borrower.addr);
         assertTrue(initial721Balance > 0, "Test must have at least one erc721 token");
         uint256 initial20Balance = erc20s[0].balanceOf(borrower.addr);
+        assertTrue(initial20Balance > 0, "Test must have at least one erc20 token");
 
         Starport.Loan memory originationDetails = _generateOriginationDetails(
             _getERC721SpentItem(erc721s[0]), _getERC20SpentItem(erc20s[0], 100), lender.addr
@@ -458,9 +460,6 @@ contract TestNewLoan is StarportTest {
         originationDetails.borrower = address(proxy);
         _setApprovalsForSpentItems(originationDetails.issuer, originationDetails.debt);
 
-        CaveatEnforcer.SignedCaveats memory borrowerCaveat = _generateSignedCaveatsBorrowerProxy(
-            originationDetails, address(proxy), borrower, address(borrowerEnforcer), bytes32(msg.sig), true
-        );
         CaveatEnforcer.SignedCaveats memory lenderCaveat =
             _generateSignedCaveatLender(originationDetails, lender, bytes32(msg.sig), true);
 

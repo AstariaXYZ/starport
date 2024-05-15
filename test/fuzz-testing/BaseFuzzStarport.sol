@@ -1,4 +1,32 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+
+pragma solidity ^0.8.17;
+
 import "starport-test/StarportTest.sol";
 import "starport-test/utils/Bound.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
@@ -149,10 +177,9 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
     }
 
     function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual returns (bool) {
-        SimpleInterestPricing.Details memory pricingDetails =
-            abi.decode(loan.terms.pricingData, (SimpleInterestPricing.Details));
         try SimpleInterestPricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
-            SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
+            SpentItem[] memory repayConsideration,
+            SpentItem[] memory // carryConsideration
         ) {
             unchecked {
                 uint256 newSupply = erc20s[0].totalSupply() + repayConsideration[0].amount;
@@ -437,8 +464,6 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
     }
 
     function _skipToSettlement(Starport.Loan memory goodLoan) internal virtual {
-        FixedTermStatus.Details memory statusDetails = abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details));
-
         skip(abi.decode(goodLoan.terms.statusData, (FixedTermStatus.Details)).loanDuration + 1);
     }
 
@@ -493,9 +518,6 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
     function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual {
         Starport.Loan memory goodLoan = fuzzNewLoanOrigination(params.origination);
 
-        SimpleInterestPricing.Details memory oldDetails =
-            abi.decode(goodLoan.terms.pricingData, (SimpleInterestPricing.Details));
-
         bytes memory newPricingDetails = _boundRefinanceData(goodLoan);
 
         Account memory account = makeAndAllocateAccount(params.refiKey);
@@ -509,7 +531,7 @@ abstract contract BaseFuzzStarport is StarportTest, TestPlus, Bound, DeepEq {
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
-            AdditionalTransfer[] memory additionalTransfers
+            // AdditionalTransfer[] memory additionalTransfers
         ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(goodLoan, newPricingDetails, refiFulfiller);
         if (params.origination.fulfillerType % 2 == 0) {
             refiFulfiller = goodLoan.borrower;

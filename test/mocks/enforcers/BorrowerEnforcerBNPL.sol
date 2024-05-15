@@ -84,7 +84,7 @@ contract BorrowerEnforcerBNPL is CaveatEnforcer {
 
         if (additionalTransfers.length > 0) {
             if (details.offerHash != bytes32(0)) {
-                (bool isValidated, bool isCancelled, uint256 numerator, uint256 denominator) =
+                (bool isValidated, bool isCancelled,,) =
                     ConsiderationInterface(details.seaport).getOrderStatus(details.offerHash);
 
                 if (isCancelled || !isValidated) {

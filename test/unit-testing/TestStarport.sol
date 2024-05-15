@@ -187,16 +187,12 @@ contract MockExoticPricing is Pricing {
         return StarportLib.calculateSimpleInterest(delta_t, amount, rate, decimals);
     }
 
-    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata, bytes memory, address)
         external
         view
         virtual
         override
-        returns (
-            SpentItem[] memory repayConsideration,
-            SpentItem[] memory carryConsideration,
-            AdditionalTransfer[] memory additionalConsideration
-        )
+        returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory)
     {
         revert NoRefinance();
     }
@@ -247,7 +243,7 @@ contract MockCustodian is Custodian {
         returnValidSelector = returnValidSelector_;
     }
 
-    function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {
+    function custody(Starport.Loan memory) external virtual override onlyStarport returns (bytes4 selector) {
         if (returnValidSelector) {
             selector = Custodian.custody.selector;
         }
@@ -722,8 +718,7 @@ contract TestStarport is StarportTest, DeepEq {
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC1155SpentItem(erc1155s[1]), lender.addr
         );
 
-        Starport.Loan memory loan =
-            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
+        newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
     }
 

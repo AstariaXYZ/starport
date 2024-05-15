@@ -270,7 +270,7 @@ contract StrategistOriginator is Ownable, Originator, TokenReceiverInterface {
     }
 
     // PUBLIC FUNCTIONS
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+    function onERC721Received(address, address, uint256, bytes calldata)
         public
         pure
         virtual
