@@ -187,16 +187,12 @@ contract MockExoticPricing is Pricing {
         return StarportLib.calculateSimpleInterest(delta_t, amount, rate, decimals);
     }
 
-    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata, bytes memory, address)
         external
         view
         virtual
         override
-        returns (
-            SpentItem[] memory repayConsideration,
-            SpentItem[] memory carryConsideration,
-            AdditionalTransfer[] memory additionalConsideration
-        )
+        returns (SpentItem[] memory, SpentItem[] memory, AdditionalTransfer[] memory)
     {
         revert NoRefinance();
     }
@@ -247,11 +243,15 @@ contract MockCustodian is Custodian {
         returnValidSelector = returnValidSelector_;
     }
 
-    function custody(Starport.Loan memory loan) external virtual override onlyStarport returns (bytes4 selector) {
+    function custody(Starport.Loan memory) external virtual override onlyStarport returns (bytes4 selector) {
         if (returnValidSelector) {
             selector = Custodian.custody.selector;
         }
     }
+}
+
+contract MockStarport is Starport {
+    constructor(address seaport_, Stargate stargate_, address owner_) Starport(seaport_, stargate_, owner_) {}
 }
 
 contract TestStarport is StarportTest, DeepEq {
@@ -308,6 +308,35 @@ contract TestStarport is StarportTest, DeepEq {
 
     function testStargateGetOwner() public {
         assertEq(address(borrower.addr), SP.SG().getOwner(address(this)));
+    }
+
+    function testConstructor() public {
+        MockStarport mockStarport = new MockStarport(address(consideration), Stargate(address(this)), address(this));
+
+        assertEq(address(mockStarport.SG()), address(this));
+        assertEq(mockStarport.chainId(), block.chainid);
+        assertEq(mockStarport.owner(), address(this));
+
+        address mockCustodianAddressDeplyedInConstructor = address(
+            uint160(
+                uint256(keccak256(abi.encodePacked(bytes1(0xd6), bytes1(0x94), address(mockStarport), bytes1(0x01))))
+            )
+        );
+        bytes32 defaultCustodianCodeHash;
+        assembly ("memory-safe") {
+            defaultCustodianCodeHash := extcodehash(mockCustodianAddressDeplyedInConstructor)
+        }
+
+        assertEq(mockStarport.DEFAULT_CUSTODIAN_CODE_HASH(), defaultCustodianCodeHash);
+    }
+
+    function testDomainSeparator() public {
+        assertEq(SP.domainSeparator(), SP.CACHED_DOMAIN_SEPARATOR());
+
+        vm.chainId(420);
+        assertEq(
+            SP.domainSeparator(), keccak256(abi.encode(SP.EIP_DOMAIN(), SP.NAME(), SP.VERSION(), 420, address(SP)))
+        );
     }
 
     function testAcquireTokensSuccess() public {
@@ -463,7 +492,6 @@ contract TestStarport is StarportTest, DeepEq {
         CaveatEnforcer.SignedCaveats memory borrowerCaveat;
 
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        //        Starport.Loan memory copy = loanCopy(loan);
         loan.collateral[0].identifier = uint256(2);
         loan.custodian = address(mockCustodian);
         CaveatEnforcer.SignedCaveats memory lenderCaveat = getLenderSignedCaveat({
@@ -474,14 +502,7 @@ contract TestStarport is StarportTest, DeepEq {
         });
         _setApprovalsForSpentItems(loan.borrower, loan.collateral);
         _setApprovalsForSpentItems(loan.issuer, loan.debt);
-        //        copy.start = block.timestamp;
-        //        copy.originator = loan.borrower;
-        //        vm.mockCall(
-        //            address(mockCustodian),
-        //            abi.encodeWithSelector(MockCustodian.custody.selector, copy),
-        //            abi.encode(MockCustodian.custody.selector)
-        //        );
-        //todo: no idea why the mock doesnt work
+
         mockCustodian.setReturnValidSelector(true);
         vm.startPrank(loan.borrower);
         SP.originate(new AdditionalTransfer[](0), borrowerCaveat, lenderCaveat, loan);
@@ -697,8 +718,7 @@ contract TestStarport is StarportTest, DeepEq {
             _getERC721SpentItem(erc721s[0], uint256(2)), _getERC1155SpentItem(erc1155s[1]), lender.addr
         );
 
-        Starport.Loan memory loan =
-            newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
+        newLoan(originationDetails, bytes32(bytes32(msg.sig)), bytes32(bytes32(msg.sig)), lender.addr);
         assertEq(erc20s[0].balanceOf(feeReceiver), 0, "fee receiver not paid properly");
     }
 
@@ -1092,6 +1112,22 @@ contract TestStarport is StarportTest, DeepEq {
         skip(1);
         vm.startPrank(lender.addr);
         vm.expectRevert(abi.encodeWithSelector(Starport.UnauthorizedAdditionalTransferIncluded.selector));
+        SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
+    }
+
+    function testInvalidLoanStateRefinance() public {
+        SimpleInterestPricing.Details memory currentPricing =
+            abi.decode(activeLoan.terms.pricingData, (SimpleInterestPricing.Details));
+        SimpleInterestPricing.Details memory newPricingDetails = SimpleInterestPricing.Details({
+            rate: currentPricing.rate - 1,
+            carryRate: currentPricing.carryRate,
+            decimals: 18
+        });
+        bytes memory newPricingData = abi.encode(newPricingDetails);
+        skip(1);
+        vm.mockCall(activeLoan.terms.status, abi.encodeWithSelector(Status.isActive.selector), abi.encode(false));
+        vm.startPrank(lender.addr);
+        vm.expectRevert(abi.encodeWithSelector(Starport.InvalidLoanState.selector));
         SP.refinance(lender.addr, _emptyCaveat(), activeLoan, newPricingData, "");
     }
 }

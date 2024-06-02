@@ -1,3 +1,30 @@
+// SPDX-License-Identifier: BUSL-1.1
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
@@ -13,16 +40,11 @@ import {SimpleInterestPricing} from "starport-test/mocks/pricing/SimpleInterestP
 contract MockBasePricing is SimpleInterestPricing {
     constructor(Starport SP_) SimpleInterestPricing(SP_) {}
 
-    function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
-        public
-        pure
-        override
-        returns (uint256)
-    {
+    function calculateInterest(uint256, uint256 amount, uint256, uint256) public pure override returns (uint256) {
         return amount;
     }
 
-    function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata, bytes memory, address)
         external
         view
         virtual
@@ -52,7 +74,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         });
 
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
 
         Starport.Loan memory badLoan = loanCopy(loan);
         badLoan.terms.statusData = abi.encode(FixedTermStatus.Details({loanDuration: 0}));
@@ -92,7 +114,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         });
 
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
         FixedTermStatus.Details memory details = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
 
         uint256 expectedAuctionStart = block.timestamp + details.loanDuration;
@@ -114,7 +136,7 @@ contract ModuleTesting is StarportTest, DeepEq {
             statusData: defaultStatusData
         });
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
         vm.expectRevert(DutchAuctionSettlement.AuctionNotStarted.selector);
         FixedTermDutchAuctionSettlement(loan.terms.settlement).getSettlementConsideration(loan);
     }
@@ -132,7 +154,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         });
 
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
 
         assertEq(
             FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan), bytes4(0xFFFFFFFF), "Loan is valid"
@@ -150,7 +172,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         });
 
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
 
         assertEq(
             FixedTermDutchAuctionSettlement(loan.terms.settlement).validate(loan),
@@ -170,7 +192,7 @@ contract ModuleTesting is StarportTest, DeepEq {
         });
 
         Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 100, terms: terms});
+            _createLoan721Collateral20Debt({lenderAddress: lender.addr, borrowAmount: 100, terms: terms});
         FixedTermStatus.Details memory details = abi.decode(loan.terms.statusData, (FixedTermStatus.Details));
 
         DutchAuctionSettlement.Details memory dutchAuctionDetails =

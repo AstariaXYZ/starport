@@ -1,3 +1,30 @@
+// SPDX-License-Identifier: BUSL-1.1
+//
+//                       ↑↑↑↑                 ↑↑
+//                       ↑↑↑↑                ↑↑↑↑↑
+//                       ↑↑↑↑              ↑   ↑
+//                       ↑↑↑↑            ↑↑↑↑↑
+//            ↑          ↑↑↑↑          ↑   ↑
+//          ↑↑↑↑↑        ↑↑↑↑        ↑↑↑↑↑
+//            ↑↑↑↑↑      ↑↑↑↑      ↑↑↑↑↑                                   ↑↑↑                                                                      ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑↑                          ↑↑↑        ↑↑↑         ↑↑↑            ↑↑         ↑↑            ↑↑↑            ↑↑    ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                         ↑↑↑↑ ↑↑↑↑   ↑↑↑↑↑↑↑    ↑↑↑↑↑↑↑↑↑     ↑↑ ↑↑↑   ↑↑↑↑↑↑↑↑↑↑↑     ↑↑↑↑↑↑↑↑↑↑    ↑↑↑ ↑↑↑  ↑↑↑↑↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                           ↑↑     ↑↑↑    ↑↑↑     ↑↑↑     ↑↑↑    ↑↑↑      ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑↑       ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑         ↑↑↑            ↑↑↑↑    ↑↑       ↑↑↑       ↑↑   ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑             ↑↑↑↑↑↑↑    ↑↑↑     ↑↑↑↑↑↑  ↑↑↑    ↑↑       ↑↑↑       ↑↑↑  ↑↑↑       ↑↑↑  ↑↑↑        ↑↑↑
+//  ↑↑↑↑  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑   ↑↑↑   ↑↑↑                  ↑↑    ↑↑↑     ↑↑      ↑↑↑    ↑↑       ↑↑↑      ↑↑↑   ↑↑↑      ↑↑↑   ↑↑↑        ↑↑↑
+//                    ↑↑↑↑↑↑↑↑↑↑                             ↑↑↑    ↑↑↑    ↑↑↑     ↑↑↑    ↑↑↑↑    ↑↑       ↑↑↑↑↑  ↑↑↑↑     ↑↑↑↑   ↑↑↑    ↑↑↑        ↑↑↑
+//                  ↑↑↑↑↑↑↑↑↑↑↑↑↑↑                             ↑↑↑↑↑↑       ↑↑↑↑     ↑↑↑↑↑ ↑↑↑    ↑↑       ↑↑↑ ↑↑↑↑↑↑        ↑↑↑↑↑↑      ↑↑↑          ↑↑↑
+//                ↑↑↑↑↑  ↑↑↑↑  ↑↑↑↑↑                                                                       ↑↑↑
+//              ↑↑↑↑↑    ↑↑↑↑    ↑↑↑↑                                                                      ↑↑↑     Starport: Lending Kernel
+//                ↑      ↑↑↑↑     ↑↑↑↑↑
+//                       ↑↑↑↑       ↑↑↑↑↑                                                                          Designed with love by Astaria Labs, Inc
+//                       ↑↑↑↑         ↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+//                       ↑↑↑↑
+
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
@@ -76,9 +103,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(abi.encode(newLoanDetails)))));
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
-
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
@@ -120,8 +144,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
         loan.collateral[0].identifier = uint256(7);
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
@@ -163,8 +185,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
         loan.debt[0].identifier = uint256(7);
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
@@ -206,8 +226,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
         loan.debt[0].amount = 0;
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
 
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
@@ -249,9 +267,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
-
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
@@ -291,8 +306,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         loan.debt[0].amount = 2e18;
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
@@ -333,8 +346,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
         SpentItem[] memory newDebt = new SpentItem[](2);
         newDebt[0] = loan.debt[0];
         loan.debt = newDebt;
@@ -379,9 +390,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
 
         loan.debt[0].amount = 2e18;
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
-        SpentItem[] memory newDebt = new SpentItem[](2);
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);
@@ -421,9 +429,6 @@ contract TestStrategistOriginator is StarportTest, DeepEq {
         (uint8 v, bytes32 r, bytes32 s) =
             vm.sign(strategist.key, keccak256(SO.encodeWithAccountCounter(keccak256(encodedLoanDetails))));
 
-        uint256 borrowerBalanceBefore = erc20s[0].balanceOf(borrower.addr);
-        uint256 lenderBalanceBefore = erc20s[0].balanceOf(lender.addr);
-        SpentItem[] memory newDebt = new SpentItem[](2);
         CaveatEnforcer.SignedCaveats memory be = _generateSignedCaveatBorrower(loan, borrower, bytes32(uint256(5)));
         vm.prank(lender.addr);
         SP.setOriginateApproval(address(SO), Starport.ApprovalType.LENDER);

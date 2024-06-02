@@ -191,10 +191,10 @@ contract Custodian is ContractOffererInterface {
 
     /**
      * @dev If any additional state updates are needed when taking custody of a loan
-     * @param loan The loan that was just placed into custody
-     * @return selector The function selector of the custody method
+     * @param {Starport.Loan} The loan that was just placed into custody
+     * @return bytes4 The function selector of the custody method
      */
-    function custody(Starport.Loan memory loan) external virtual onlyStarport returns (bytes4 selector) {
+    function custody(Starport.Loan memory) external virtual onlyStarport returns (bytes4) {
         revert ImplementInChild();
     }
 

@@ -75,12 +75,7 @@ abstract contract DutchAuctionSettlement is Settlement, AmountDeriver {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Settlement
-    function postSettlement(Starport.Loan calldata loan, address fulfiller)
-        external
-        virtual
-        override
-        returns (bytes4)
-    {
+    function postSettlement(Starport.Loan calldata, address) external virtual override returns (bytes4) {
         return Settlement.postSettlement.selector;
     }
 
